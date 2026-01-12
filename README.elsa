@@ -1,0 +1,317 @@
+---
+title: "Morph - Self-Hosting Compiler for Interactive Development"
+graphics: true
+interactive: true
+author: "VzoelFox"
+version: "1.3-elsa"
+---
+
+# Morph - Self-Hosting Compiler
+
+[![Bootstrap Status](https://img.shields.io/badge/bootstrap-v1.2-green)](https://github.com/VzoelFox/morphfox/releases/tag/v1.2-bootstrap)
+[![Language](https://img.shields.io/badge/language-Morph-ff6b35)](https://github.com/VzoelFox/morphfox)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20WASM-lightgrey)]()
+[![GitHub Linguist](https://img.shields.io/badge/GitHub%20Linguist-Morph-ff6b35)]()
+[![Syntax Highlighting](https://img.shields.io/badge/syntax-supported-brightgreen)]()
+[![Elsa Docs](https://img.shields.io/badge/docs-Elsa%20Interactive-ff6b35)]()
+
+**Morph** adalah compiler self-hosting untuk bahasa pemrograman **Morph** dengan kemampuan interactive documentation melalui **Elsa** format.
+
+## 🎯 Interactive Development Vision
+
+```morph:live
+fungsi show_development_phases() -> i64
+    var phases = ["Bootstrap", "Self-Hosting", "Independence", "Elsa Integration"]
+    var current_phase = 2  # Self-hosting phase
+    
+    var i = 0
+    selama (i < 4) {
+        jika (i <= current_phase) {
+            print_status("✅", phases[i])
+        } selain {
+            print_status("🎯", phases[i])
+        }
+        i = i + 1
+    }
+    
+    kembali current_phase
+tutup_fungsi
+
+var current = show_development_phases()
+```
+
+**Current Phase**: {current} - Self-Hosting Development
+
+## 🚀 Live Compiler Demo
+
+Try the Morph compiler right here in your browser:
+
+```morph:interactive
+var source_code = `
+fungsi fibonacci(n: i64) -> i64
+    jika (n <= 1) {
+        kembali n
+    }
+    kembali fibonacci(n-1) + fibonacci(n-2)
+tutup_fungsi
+
+var result = fibonacci(10)
+`
+
+fungsi compile_and_run() -> void
+    var output = morph_compile(source_code)
+    update_display("compiler_output", output)
+    
+    var result = morph_execute(output)
+    update_display("execution_result", result)
+tutup_fungsi
+
+create_editor("morph_editor", source_code, {
+    language: "morph",
+    theme: "morph-ai-theme"
+})
+
+create_button("compile_btn", "🔨 Compile & Run", compile_and_run)
+display_area("compiler_output", "Compiler output will appear here...")
+display_area("execution_result", "Execution result: ")
+```
+
+## 📊 Memory Safety Visualization
+
+Real-time memory usage during compilation:
+
+```morph:graphics
+fungsi draw_memory_usage() -> void
+    var stats = get_memory_stats()
+    
+    # Create memory usage chart
+    create_canvas("memory_canvas", 800, 400)
+    
+    # Draw memory regions
+    draw_bar("memory_canvas", 0, "Heap", stats.heap_used, stats.heap_total, "#FF6B35")
+    draw_bar("memory_canvas", 1, "Stack", stats.stack_used, stats.stack_total, "#4FC1FF")
+    draw_bar("memory_canvas", 2, "Code", stats.code_size, stats.total_memory, "#32CD32")
+    draw_bar("memory_canvas", 3, "Free", stats.free_memory, stats.total_memory, "#FFD700")
+    
+    # Add safety indicators
+    jika (stats.leak_count > 0) {
+        draw_warning("memory_canvas", "Memory leaks detected!")
+    } selain {
+        draw_success("memory_canvas", "No memory leaks")
+    }
+tutup_fungsi
+
+# Update every 500ms
+set_interval(draw_memory_usage, 500)
+```
+
+## 🏗️ Self-Hosting Progress
+
+Track the compiler's journey to self-hosting:
+
+```morph:chart
+var milestones = [
+    { name: "Memory Safety", progress: 100, color: "#32CD32" },
+    { name: "Enhanced Stdlib", progress: 25, color: "#FFD700" },
+    { name: "Lexer Implementation", progress: 0, color: "#FF6B6B" },
+    { name: "Parser Implementation", progress: 0, color: "#FF6B6B" },
+    { name: "Code Generator", progress: 0, color: "#FF6B6B" },
+    { name: "Integration & Testing", progress: 0, color: "#FF6B6B" },
+    { name: "Bootstrap Retirement", progress: 0, color: "#FF6B6B" }
+]
+
+create_progress_chart("selfhost_progress", milestones, {
+    title: "Self-Hosting Development Progress",
+    height: 300,
+    animate: true
+})
+```
+
+## 🎮 Interactive Code Examples
+
+### Basic Syntax
+
+```morph:live
+fungsi hello_morph() -> void
+    var message = "Hello from Morph!"
+    var length = string_length(message)
+    
+    print_colored(message, COLOR_FUNCTION_DEF)
+    print_newline()
+    
+    var i = 0
+    selama (i < length) {
+        jika (i % 2 == 0) {
+            print_char('*')
+        } selain {
+            print_char('-')
+        }
+        i = i + 1
+    }
+    print_newline()
+tutup_fungsi
+
+hello_morph()
+```
+
+### Memory Safety Demo
+
+```morph:interactive
+var allocation_count = 0
+var total_allocated = 0
+
+fungsi safe_allocate(size: i64) -> ptr
+    var ptr = mem_alloc(size)
+    jika (ptr != 0) {
+        allocation_count = allocation_count + 1
+        total_allocated = total_allocated + size
+        update_counter("alloc_count", allocation_count)
+        update_counter("total_memory", total_allocated)
+    }
+    kembali ptr
+tutup_fungsi
+
+fungsi safe_deallocate(ptr: ptr, size: i64) -> void
+    mem_free(ptr)
+    allocation_count = allocation_count - 1
+    total_allocated = total_allocated - size
+    update_counter("alloc_count", allocation_count)
+    update_counter("total_memory", total_allocated)
+tutup_fungsi
+
+create_button("alloc_1k", "Allocate 1KB", lambda() { safe_allocate(1024) })
+create_button("alloc_4k", "Allocate 4KB", lambda() { safe_allocate(4096) })
+create_button("check_leaks", "Check Leaks", lambda() { 
+    var leaks = mem_check_leaks()
+    update_display("leak_status", leaks == 0 ? "✅ No leaks" : "⚠️ Leaks detected")
+})
+
+display_counter("alloc_count", allocation_count, "Active Allocations")
+display_counter("total_memory", total_allocated, "Total Memory (bytes)")
+display_area("leak_status", "Click 'Check Leaks' to verify memory safety")
+```
+
+## 🌈 Syntax Highlighting Demo
+
+See Morph's AI-readable syntax highlighting in action:
+
+```morph:graphics
+fungsi demo_syntax_colors() -> void
+    create_canvas("syntax_demo", 600, 400)
+    
+    # Function definition (blue)
+    draw_code_line("syntax_demo", 0, "fungsi calculate(n: i64) -> i64", COLOR_FUNCTION_DEF)
+    
+    # Scope level 1 (green)
+    draw_code_line("syntax_demo", 1, "  var result = 0", COLOR_SCOPE_FUNCTION)
+    
+    # Control flow (yellow)
+    draw_code_line("syntax_demo", 2, "  jika (n > 0) {", COLOR_SCOPE_BLOCK)
+    
+    # Nested scope (red)
+    draw_code_line("syntax_demo", 3, "    result = n * 2", COLOR_SCOPE_NESTED)
+    
+    # Close scopes
+    draw_code_line("syntax_demo", 4, "  }", COLOR_SCOPE_BLOCK)
+    draw_code_line("syntax_demo", 5, "tutup_fungsi", COLOR_FUNCTION_DEF)
+    
+    # Add color legend
+    draw_legend("syntax_demo", [
+        { color: COLOR_FUNCTION_DEF, label: "Functions" },
+        { color: COLOR_SCOPE_FUNCTION, label: "Scope 1" },
+        { color: COLOR_SCOPE_BLOCK, label: "Scope 2" },
+        { color: COLOR_SCOPE_NESTED, label: "Scope 3+" }
+    ])
+tutup_fungsi
+
+demo_syntax_colors()
+```
+
+## 📁 Project Structure
+
+```
+morph/
+├── bin/                    # Bootstrap binaries
+│   ├── morph               # Linux x86-64 binary (v1.2-bootstrap)
+│   └── morph_merged.wat    # WebAssembly version
+├── corelib/                # Core library
+│   ├── core/               # Memory safety, types, builtins
+│   ├── lib/                # Standard library
+│   └── platform/           # Platform-specific implementations
+├── src/                    # Self-hosting compiler source
+├── tools/                  # Development tools (Elsa processor)
+├── docs/                   # Documentation (.elsa format)
+├── tests/                  # Test suite
+└── README.elsa             # This interactive document
+```
+
+## 🚀 Quick Start
+
+### Using Bootstrap Compiler
+
+```bash
+# Compile and run Morph program
+./bin/morph program.fox
+
+# Interactive Elsa documentation
+./tools/elsa_processor README.elsa
+```
+
+### Example Program
+
+```morph:live
+fungsi utama() -> i64
+    var message = "Hello from Interactive Morph!"
+    print_line(message)
+    
+    # Demonstrate memory safety
+    var buffer = mem_alloc(1024)
+    jika (buffer != 0) {
+        mem_store(buffer, 0, 42)
+        var value = mem_load(buffer, 0)
+        print_int(value)
+        mem_free(buffer)
+    }
+    
+    kembali 0
+tutup_fungsi
+
+utama()
+```
+
+## 🔗 Links & Resources
+
+- **Bootstrap Compiler**: [morphfox repo](https://github.com/VzoelFox/morphfox)
+- **Language Specification**: [docs/LANGUAGE_SPEC.elsa](docs/LANGUAGE_SPEC.elsa)
+- **Memory Safety Guide**: [docs/MEMORY_SAFETY.elsa](docs/MEMORY_SAFETY.elsa)
+- **AI-Readable Syntax**: [docs/AI_READABLE_SYNTAX.elsa](docs/AI_READABLE_SYNTAX.elsa)
+- **Elsa Documentation**: [docs/ELSA_SPECIFICATION.elsa](docs/ELSA_SPECIFICATION.elsa)
+
+## 🤝 Contributing
+
+Interested in contributing to Morph's self-hosting journey?
+
+```morph:interactive
+var contribution_areas = [
+    "Enhanced Standard Library",
+    "Lexer Implementation", 
+    "Parser Development",
+    "Code Generator",
+    "Elsa Processor",
+    "Documentation",
+    "Testing"
+]
+
+fungsi show_contribution_guide(area: ptr) -> void
+    update_display("contrib_info", get_contribution_info(area))
+tutup_fungsi
+
+create_dropdown("contrib_selector", contribution_areas, show_contribution_guide)
+display_area("contrib_info", "Select an area to see contribution guidelines...")
+```
+
+---
+
+**Note**: This README.elsa demonstrates interactive documentation capabilities. The static markdown version is available as README.md for GitHub compatibility.
+
+**Powered by**: Morph Self-Hosting Compiler + Elsa Interactive Documentation Engine

@@ -2,6 +2,10 @@
 *.fox linguist-language=Morph
 *.morph linguist-language=Morph-Bytecode linguist-generated=true
 
+# Elsa Interactive Documentation
+*.elsa linguist-language=Elsa
+*.elsa.md linguist-language=Markdown linguist-generated=true
+
 # Assembly bootstrap files
 bootstrap/asm/*.s linguist-vendored=true
 
