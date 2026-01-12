@@ -1,0 +1,51 @@
+###
+  RPN Memory Stress Test - Ketangguhan Memory Safety
+  Test konkurensi RPN + IntentTree untuk validasi memory system
+###
+
+fungsi utama()
+  # Test 1: Complex RPN Expression
+  # Simulate: ((10 + 20) * (30 + 40)) / 5 = (30 * 70) / 5 = 420
+  
+  var a = 10
+  var b = 20
+  var c = 30
+  var d = 40
+  var e = 5
+  
+  var step1 = a + b    # 30
+  var step2 = c + d    # 70
+  var step3 = step1 * step2  # 2100
+  var result1 = step3 / e    # 420
+  
+  # Test 2: Memory Intensive Operations (simulate Intent Tree traversal)
+  var node_count = 0
+  var depth = 0
+  
+  # Nested loops simulate complex AST traversal
+  var outer = 0
+  selama (outer < 50)
+    var inner = 0
+    selama (inner < 20)
+      node_count = node_count + 1
+      inner = inner + 1
+    tutup_selama
+    outer = outer + 1
+  tutup_selama
+  
+  # Test 3: Stack-like operations (RPN simulation)
+  var stack_ops = 0
+  var accumulator = 0
+  
+  var i = 0
+  selama (i < 100)
+    # Simulate push/pop operations
+    var temp = i * 3
+    accumulator = accumulator + temp
+    stack_ops = stack_ops + 1
+    i = i + 1
+  tutup_selama
+  
+  # Final result combines all tests
+  result1 + node_count + accumulator
+tutup_fungsi

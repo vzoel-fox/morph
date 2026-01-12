@@ -1,0 +1,279 @@
+; ==============================================================================
+; BASIC RPN + INTENT TREE MEMORY TEST
+; ==============================================================================
+; Simplified test untuk validasi memory safety dengan RPN dan IntentTree
+
+ambil "corelib/core/memory_safety.fox"
+
+; Konstanta RPN sederhana
+const RPN_LIT = 1
+const RPN_ADD = 2
+const RPN_MUL = 3
+
+; Konstanta Intent Tree sederhana
+const INTENT_FRAG_LITERAL = 0x2001
+const INTENT_FRAG_FUNCTION = 0x1001
+const INTENT_OFFSET_TYPE = 0
+const INTENT_OFFSET_CHILD = 8
+const INTENT_OFFSET_NEXT = 16
+const INTENT_OFFSET_DATA_A = 24
+
+fungsi test_rpn_memory_safety() -> i64
+    set_debug_location("test_basic_rpn_intent.fox", 20)
+    
+    __mf_print_asciz("Test 1: RPN Expression Memory Safety\n")
+    
+    ; Create RPN expression: 10 + 20 * 3 (in RPN: 10 20 3 * +)
+    var rpn_expr = mem_alloc(5 * 16)  ; 5 instructions, 16 bytes each
+    
+    ; Instruction 1: LIT 10
+    mem_store(rpn_expr, 0, RPN_LIT)
+    mem_store(rpn_expr, 8, 10)
+    
+    ; Instruction 2: LIT 20
+    mem_store(rpn_expr, 16, RPN_LIT)
+    mem_store(rpn_expr, 24, 20)
+    
+    ; Instruction 3: LIT 3
+    mem_store(rpn_expr, 32, RPN_LIT)
+    mem_store(rpn_expr, 40, 3)
+    
+    ; Instruction 4: MUL
+    mem_store(rpn_expr, 48, RPN_MUL)
+    mem_store(rpn_expr, 56, 0)
+    
+    ; Instruction 5: ADD
+    mem_store(rpn_expr, 64, RPN_ADD)
+    mem_store(rpn_expr, 72, 0)
+    
+    ; Evaluate RPN expression
+    var stack = mem_alloc(64)  ; Stack for 8 values
+    var stack_ptr = 0
+    
+    var i = 0
+    selama (i < 5) {
+        var opcode = mem_load(rpn_expr, i * 16)
+        var operand = mem_load(rpn_expr, (i * 16) + 8)
+        
+        jika (opcode == RPN_LIT) {
+            mem_store(stack, stack_ptr * 8, operand)
+            stack_ptr = stack_ptr + 1
+        } selain jika (opcode == RPN_ADD) {
+            jika (stack_ptr >= 2) {
+                var b = mem_load(stack, (stack_ptr - 1) * 8)
+                var a = mem_load(stack, (stack_ptr - 2) * 8)
+                var result = add_safe(a, b, "test_basic_rpn_intent.fox", 60)
+                stack_ptr = stack_ptr - 2
+                mem_store(stack, stack_ptr * 8, result)
+                stack_ptr = stack_ptr + 1
+            }
+        } selain jika (opcode == RPN_MUL) {
+            jika (stack_ptr >= 2) {
+                var b = mem_load(stack, (stack_ptr - 1) * 8)
+                var a = mem_load(stack, (stack_ptr - 2) * 8)
+                var result = a * b
+                stack_ptr = stack_ptr - 2
+                mem_store(stack, stack_ptr * 8, result)
+                stack_ptr = stack_ptr + 1
+            }
+        }
+        
+        i = i + 1
+    }
+    
+    var result = mem_load(stack, 0)
+    __mf_print_asciz("RPN result (10 + 20 * 3): ")
+    __mf_print_int(result)
+    __mf_print_asciz(" (expected: 70)\n")
+    
+    mem_free(stack)
+    mem_free(rpn_expr)
+    
+    jika (result == 70) {
+        __mf_print_asciz("✓ RPN memory safety test passed\n")
+        kembali 0
+    } selain {
+        __mf_print_asciz("✗ RPN memory safety test failed\n")
+        kembali 1
+    }
+tutup_fungsi
+
+fungsi test_intent_tree_memory() -> i64
+    set_debug_location("test_basic_rpn_intent.fox", 95)
+    
+    __mf_print_asciz("Test 2: Intent Tree Memory Safety\n")
+    
+    ; Create simple Intent Tree: function with two literal children
+    var root = mem_alloc(32)  ; Intent node: type, child, next, data
+    var child1 = mem_alloc(32)
+    var child2 = mem_alloc(32)
+    
+    ; Root node (function)
+    mem_store(root, INTENT_OFFSET_TYPE, INTENT_FRAG_FUNCTION)
+    mem_store(root, INTENT_OFFSET_CHILD, child1)
+    mem_store(root, INTENT_OFFSET_NEXT, 0)
+    mem_store(root, INTENT_OFFSET_DATA_A, 0)
+    
+    ; Child 1 (literal 42)
+    mem_store(child1, INTENT_OFFSET_TYPE, INTENT_FRAG_LITERAL)
+    mem_store(child1, INTENT_OFFSET_CHILD, 0)
+    mem_store(child1, INTENT_OFFSET_NEXT, child2)
+    mem_store(child1, INTENT_OFFSET_DATA_A, 42)
+    
+    ; Child 2 (literal 84)
+    mem_store(child2, INTENT_OFFSET_TYPE, INTENT_FRAG_LITERAL)
+    mem_store(child2, INTENT_OFFSET_CHILD, 0)
+    mem_store(child2, INTENT_OFFSET_NEXT, 0)
+    mem_store(child2, INTENT_OFFSET_DATA_A, 84)
+    
+    ; Traverse and validate tree
+    var node_count = 0
+    var current = root
+    
+    selama (current != 0) {
+        var node_type = mem_load(current, INTENT_OFFSET_TYPE)
+        var data = mem_load(current, INTENT_OFFSET_DATA_A)
+        
+        __mf_print_asciz("Node type: ")
+        __mf_print_int(node_type)
+        __mf_print_asciz(", data: ")
+        __mf_print_int(data)
+        __mf_print_asciz("\n")
+        
+        node_count = node_count + 1
+        
+        ; Move to child first, then next
+        var child = mem_load(current, INTENT_OFFSET_CHILD)
+        jika (child != 0) {
+            current = child
+        } selain {
+            current = mem_load(current, INTENT_OFFSET_NEXT)
+        }
+    }
+    
+    __mf_print_asciz("Total nodes traversed: ")
+    __mf_print_int(node_count)
+    __mf_print_asciz("\n")
+    
+    ; Clean up
+    mem_free(child2)
+    mem_free(child1)
+    mem_free(root)
+    
+    jika (node_count == 3) {
+        __mf_print_asciz("✓ Intent tree memory safety test passed\n")
+        kembali 0
+    } selain {
+        __mf_print_asciz("✗ Intent tree memory safety test failed\n")
+        kembali 1
+    }
+tutup_fungsi
+
+fungsi test_memory_intensive_operations() -> i64
+    set_debug_location("test_basic_rpn_intent.fox", 160)
+    
+    __mf_print_asciz("Test 3: Memory Intensive Operations\n")
+    
+    var failed = 0
+    
+    ; Allocate many small blocks (fragmentation test)
+    var blocks = mem_alloc(100 * 8)  ; Array of 100 pointers
+    
+    var i = 0
+    selama (i < 100) {
+        var size = 64 + (i * 8)  ; Varying sizes
+        var block = mem_alloc(size)
+        mem_store(blocks, i * 8, block)
+        
+        ; Write pattern to each block
+        var j = 0
+        selama (j < (size / 8)) {
+            mem_store(block, j * 8, i * 1000 + j)
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    ; Verify patterns
+    i = 0
+    selama (i < 100) {
+        var block = mem_load(blocks, i * 8)
+        var size = 64 + (i * 8)
+        
+        var j = 0
+        selama (j < (size / 8)) {
+            var expected = i * 1000 + j
+            var actual = mem_load(block, j * 8)
+            jika (actual != expected) {
+                __mf_print_asciz("✗ Pattern mismatch at block ")
+                __mf_print_int(i)
+                __mf_print_asciz(", offset ")
+                __mf_print_int(j)
+                __mf_print_asciz("\n")
+                failed = failed + 1
+            }
+            j = j + 1
+        }
+        
+        i = i + 1
+    }
+    
+    ; Free all blocks
+    i = 0
+    selama (i < 100) {
+        var block = mem_load(blocks, i * 8)
+        mem_free(block)
+        i = i + 1
+    }
+    
+    mem_free(blocks)
+    
+    jika (failed == 0) {
+        __mf_print_asciz("✓ Memory intensive operations test passed\n")
+    } selain {
+        __mf_print_asciz("✗ Memory intensive operations test failed: ")
+        __mf_print_int(failed)
+        __mf_print_asciz(" errors\n")
+    }
+    
+    kembali failed
+tutup_fungsi
+
+fungsi run_basic_tests() -> i64
+    __mf_print_asciz("=== BASIC RPN + INTENT TREE MEMORY TESTS ===\n")
+    
+    ; Initialize memory safety system
+    exception_init()
+    
+    var failed = 0
+    
+    failed = failed + test_rpn_memory_safety()
+    failed = failed + test_intent_tree_memory()
+    failed = failed + test_memory_intensive_operations()
+    
+    __mf_print_asciz("\n=== TEST SUMMARY ===\n")
+    jika (failed == 0) {
+        __mf_print_asciz("✓ All basic tests passed!\n")
+    } selain {
+        __mf_print_asciz("✗ ")
+        __mf_print_int(failed)
+        __mf_print_asciz(" tests failed\n")
+    }
+    
+    ; Check for memory leaks
+    var leaks = mem_check_leaks()
+    jika (leaks > 0) {
+        failed = failed + leaks
+    }
+    
+    ; Print memory statistics
+    mem_print_stats()
+    
+    kembali failed
+tutup_fungsi
+
+; Main entry point
+fungsi utama() -> i64
+    kembali run_basic_tests()
+tutup_fungsi

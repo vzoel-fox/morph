@@ -1,0 +1,5 @@
+; Minimal test
+fungsi utama() -> i64
+    __mf_print_asciz("Hello from minimal test\n")
+    kembali 0
+tutup_fungsi

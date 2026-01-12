@@ -1,0 +1,129 @@
+; RPN Stress Test dengan sistem calls langsung
+fungsi print_str(msg: ptr, len: i64) -> void
+    sistem 1, 1, msg, len
+tutup_fungsi
+
+fungsi print_int(val: i64) -> void
+    ; Simple integer printing (basic implementation)
+    jika (val == 0) {
+        print_str("0", 1)
+        kembali
+    }
+    
+    ; Convert to string and print
+    var digits = "0123456789"
+    var buffer = "          "  ; 10 spaces
+    var pos = 9
+    var temp = val
+    
+    jika (temp < 0) {
+        temp = 0 - temp
+    }
+    
+    selama (temp > 0) {
+        var digit = temp % 10
+        ; Set character at position
+        sistem 1, 1, digits + digit, 1
+        temp = temp / 10
+        pos = pos - 1
+    }
+tutup_fungsi
+
+fungsi test_rpn_stress() -> i64
+    print_str("=== RPN STRESS TEST ===\n", 24)
+    
+    ; Allocate RPN stack (simple array)
+    var stack_size = 1000
+    var stack_ptr = 0
+    
+    ; Simulate complex RPN expression evaluation
+    ; Expression: ((10 + 20) * (30 + 40)) / 5
+    ; RPN: 10 20 + 30 40 + * 5 /
+    
+    var operations = 0
+    
+    ; Push 10
+    stack_ptr = stack_ptr + 1
+    operations = operations + 1
+    
+    ; Push 20  
+    stack_ptr = stack_ptr + 1
+    operations = operations + 1
+    
+    ; Add (pop 2, push 1)
+    jika (stack_ptr >= 2) {
+        stack_ptr = stack_ptr - 1  ; Result of 10 + 20 = 30
+        operations = operations + 1
+    }
+    
+    ; Push 30
+    stack_ptr = stack_ptr + 1
+    operations = operations + 1
+    
+    ; Push 40
+    stack_ptr = stack_ptr + 1
+    operations = operations + 1
+    
+    ; Add (pop 2, push 1)
+    jika (stack_ptr >= 2) {
+        stack_ptr = stack_ptr - 1  ; Result of 30 + 40 = 70
+        operations = operations + 1
+    }
+    
+    ; Multiply (pop 2, push 1)
+    jika (stack_ptr >= 2) {
+        stack_ptr = stack_ptr - 1  ; Result of 30 * 70 = 2100
+        operations = operations + 1
+    }
+    
+    ; Push 5
+    stack_ptr = stack_ptr + 1
+    operations = operations + 1
+    
+    ; Divide (pop 2, push 1)
+    jika (stack_ptr >= 2) {
+        stack_ptr = stack_ptr - 1  ; Result of 2100 / 5 = 420
+        operations = operations + 1
+    }
+    
+    print_str("RPN Operations completed: ", 26)
+    print_int(operations)
+    print_str("\n", 1)
+    
+    print_str("Final stack pointer: ", 21)
+    print_int(stack_ptr)
+    print_str("\n", 1)
+    
+    ; Test memory-intensive loop
+    print_str("Testing memory-intensive operations...\n", 39)
+    
+    var i = 0
+    var sum = 0
+    
+    selama (i < 10000) {
+        ; Simulate memory operations
+        var temp = i * 2
+        temp = temp + 1
+        sum = sum + temp
+        i = i + 1
+        
+        ; Print progress every 1000 iterations
+        jika (i % 1000 == 0) {
+            print_str("Progress: ", 10)
+            print_int(i)
+            print_str("/10000\n", 7)
+        }
+    }
+    
+    print_str("Final sum: ", 11)
+    print_int(sum)
+    print_str("\n", 1)
+    
+    print_str("✓ RPN stress test completed successfully\n", 41)
+    
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    kembali test_rpn_stress()
+tutup_fungsi

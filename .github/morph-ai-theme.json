@@ -1,0 +1,92 @@
+{
+  "name": "Morph AI-Readable Theme",
+  "type": "dark",
+  "colors": {
+    "editor.background": "#1e1e1e",
+    "editor.foreground": "#d4d4d4",
+    "editorLineNumber.foreground": "#858585",
+    "editor.selectionBackground": "#264f78",
+    "editor.inactiveSelectionBackground": "#3a3d41"
+  },
+  "tokenColors": [
+    {
+      "name": "Morph Function Definitions",
+      "scope": [
+        "entity.name.function.definition.morph",
+        "entity.name.function.morph"
+      ],
+      "settings": {
+        "foreground": "#4FC1FF",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Morph Keywords",
+      "scope": "keyword.control.morph",
+      "settings": {
+        "foreground": "#C586C0",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Morph Types",
+      "scope": "storage.type.morph",
+      "settings": {
+        "foreground": "#4EC9B0"
+      }
+    },
+    {
+      "name": "Morph Parameters",
+      "scope": "variable.parameter.name.morph",
+      "settings": {
+        "foreground": "#9CDCFE"
+      }
+    },
+    {
+      "name": "Morph Builtin Functions",
+      "scope": "support.function.builtin.morph",
+      "settings": {
+        "foreground": "#DCDCAA"
+      }
+    },
+    {
+      "name": "Morph Numbers",
+      "scope": "constant.numeric.morph",
+      "settings": {
+        "foreground": "#B5CEA8"
+      }
+    },
+    {
+      "name": "Morph Strings",
+      "scope": "string.quoted.double.morph",
+      "settings": {
+        "foreground": "#CE9178"
+      }
+    },
+    {
+      "name": "Morph Comments",
+      "scope": [
+        "comment.line.hash.morph",
+        "comment.block.morph"
+      ],
+      "settings": {
+        "foreground": "#6A9955",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Morph Operators",
+      "scope": "keyword.operator.morph",
+      "settings": {
+        "foreground": "#D4D4D4"
+      }
+    },
+    {
+      "name": "Morph Punctuation",
+      "scope": "punctuation.definition.block.morph",
+      "settings": {
+        "foreground": "#FFD700"
+      }
+    }
+  ]
+}

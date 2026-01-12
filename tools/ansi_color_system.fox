@@ -1,0 +1,324 @@
+; ==============================================================================
+; ANSI COLOR SYSTEM FOR MORPH - AI-READABLE SYNTAX HIGHLIGHTING
+; ==============================================================================
+; Enhanced visual parsing untuk AI dengan color-coded scopes dan functions
+
+ambil "corelib/core/memory_safety.fox"
+
+; ANSI Color Codes
+const ANSI_RESET = "\033[0m"
+const ANSI_BOLD = "\033[1m"
+
+; Function Colors (Blue spectrum)
+const COLOR_FUNCTION_DEF = "\033[94m"      ; Bright Blue - fungsi definition
+const COLOR_FUNCTION_CALL = "\033[36m"     ; Cyan - function calls
+const COLOR_FUNCTION_PARAM = "\033[96m"    ; Bright Cyan - parameters
+
+; Scope Colors (Green spectrum)  
+const COLOR_SCOPE_GLOBAL = "\033[92m"      ; Bright Green - global scope
+const COLOR_SCOPE_FUNCTION = "\033[32m"    ; Green - function scope
+const COLOR_SCOPE_BLOCK = "\033[93m"       ; Yellow - block scope (jika/selama)
+const COLOR_SCOPE_NESTED = "\033[91m"      ; Bright Red - nested blocks
+
+; Type Colors (Magenta spectrum)
+const COLOR_TYPE_I64 = "\033[95m"          ; Bright Magenta - i64
+const COLOR_TYPE_PTR = "\033[35m"          ; Magenta - ptr
+const COLOR_TYPE_STRING = "\033[33m"       ; Yellow - String
+
+; Keyword Colors
+const COLOR_KEYWORD = "\033[97m"           ; Bright White - keywords
+const COLOR_OPERATOR = "\033[90m"          ; Dark Gray - operators
+const COLOR_LITERAL = "\033[93m"          ; Bright Yellow - literals
+const COLOR_COMMENT = "\033[37m"          ; Light Gray - comments
+
+; Scope depth tracking
+var current_scope_depth = 0
+var max_scope_depth = 10
+
+; Color mapping for scope depths
+var scope_colors = 0
+
+; Initialize color system
+fungsi ansi_color_init() -> void
+    set_debug_location("ansi_color_system.fox", 35)
+    
+    ; Allocate scope color array
+    scope_colors = mem_alloc(max_scope_depth * 8)
+    
+    ; Define color progression for nested scopes
+    mem_store(scope_colors, 0 * 8, COLOR_SCOPE_GLOBAL)    ; Depth 0: Green
+    mem_store(scope_colors, 1 * 8, COLOR_SCOPE_FUNCTION)  ; Depth 1: Blue  
+    mem_store(scope_colors, 2 * 8, COLOR_SCOPE_BLOCK)     ; Depth 2: Yellow
+    mem_store(scope_colors, 3 * 8, COLOR_SCOPE_NESTED)    ; Depth 3: Red
+    mem_store(scope_colors, 4 * 8, "\033[94m")            ; Depth 4: Bright Blue
+    mem_store(scope_colors, 5 * 8, "\033[95m")            ; Depth 5: Bright Magenta
+    mem_store(scope_colors, 6 * 8, "\033[96m")            ; Depth 6: Bright Cyan
+    mem_store(scope_colors, 7 * 8, "\033[97m")            ; Depth 7: Bright White
+    mem_store(scope_colors, 8 * 8, "\033[91m")            ; Depth 8: Bright Red
+    mem_store(scope_colors, 9 * 8, "\033[93m")            ; Depth 9: Bright Yellow
+    
+    __mf_print_asciz("ANSI Color system initialized\n")
+tutup_fungsi
+
+; Print colored text
+fungsi print_colored(text: ptr, color: ptr) -> void
+    __mf_print_asciz(color)
+    __mf_print_asciz(text)
+    __mf_print_asciz(ANSI_RESET)
+tutup_fungsi
+
+; Print function definition with color
+fungsi print_function_def(name: ptr, params: ptr, return_type: ptr) -> void
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz(COLOR_FUNCTION_DEF)
+    __mf_print_asciz("fungsi ")
+    __mf_print_asciz(ANSI_BOLD)
+    __mf_print_asciz(name)
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz(COLOR_FUNCTION_PARAM)
+    __mf_print_asciz("(")
+    __mf_print_asciz(params)
+    __mf_print_asciz(")")
+    __mf_print_asciz(ANSI_RESET)
+    
+    jika (return_type != 0) {
+        __mf_print_asciz(" -> ")
+        __mf_print_asciz(COLOR_TYPE_I64)
+        __mf_print_asciz(return_type)
+        __mf_print_asciz(ANSI_RESET)
+    }
+    
+    __mf_print_asciz("\n")
+tutup_fungsi
+
+; Enter new scope with color indication
+fungsi enter_scope(scope_name: ptr) -> void
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    ; Print scope entry with indentation
+    var i = 0
+    selama (i < current_scope_depth) {
+        __mf_print_asciz("  ")  ; 2 spaces per depth level
+        i = i + 1
+    }
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz("┌─ ")
+    __mf_print_asciz(scope_name)
+    __mf_print_asciz(" scope")
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz("\n")
+    
+    current_scope_depth = current_scope_depth + 1
+tutup_fungsi
+
+; Exit scope with color indication
+fungsi exit_scope(scope_name: ptr) -> void
+    current_scope_depth = current_scope_depth - 1
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    ; Print scope exit with indentation
+    var i = 0
+    selama (i < current_scope_depth) {
+        __mf_print_asciz("  ")
+        i = i + 1
+    }
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz("└─ end ")
+    __mf_print_asciz(scope_name)
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz("\n")
+tutup_fungsi
+
+; Print variable declaration with type coloring
+fungsi print_var_decl(name: ptr, type: ptr, value: ptr) -> void
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    ; Indentation
+    var i = 0
+    selama (i < current_scope_depth) {
+        __mf_print_asciz("  ")
+        i = i + 1
+    }
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz(COLOR_KEYWORD)
+    __mf_print_asciz("var ")
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz(ANSI_BOLD)
+    __mf_print_asciz(name)
+    __mf_print_asciz(ANSI_RESET)
+    
+    jika (type != 0) {
+        __mf_print_asciz(": ")
+        __mf_print_asciz(COLOR_TYPE_I64)
+        __mf_print_asciz(type)
+        __mf_print_asciz(ANSI_RESET)
+    }
+    
+    jika (value != 0) {
+        __mf_print_asciz(" = ")
+        __mf_print_asciz(COLOR_LITERAL)
+        __mf_print_asciz(value)
+        __mf_print_asciz(ANSI_RESET)
+    }
+    
+    __mf_print_asciz("\n")
+tutup_fungsi
+
+; Print function call with highlighting
+fungsi print_function_call(name: ptr, args: ptr) -> void
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    ; Indentation
+    var i = 0
+    selama (i < current_scope_depth) {
+        __mf_print_asciz("  ")
+        i = i + 1
+    }
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz(COLOR_FUNCTION_CALL)
+    __mf_print_asciz(name)
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz(COLOR_FUNCTION_PARAM)
+    __mf_print_asciz("(")
+    __mf_print_asciz(args)
+    __mf_print_asciz(")")
+    __mf_print_asciz(ANSI_RESET)
+    __mf_print_asciz("\n")
+tutup_fungsi
+
+; Print control flow with scope colors
+fungsi print_control_flow(keyword: ptr, condition: ptr) -> void
+    var scope_color = mem_load(scope_colors, current_scope_depth * 8)
+    
+    ; Indentation
+    var i = 0
+    selama (i < current_scope_depth) {
+        __mf_print_asciz("  ")
+        i = i + 1
+    }
+    
+    __mf_print_asciz(scope_color)
+    __mf_print_asciz(COLOR_KEYWORD)
+    __mf_print_asciz(keyword)
+    __mf_print_asciz(ANSI_RESET)
+    
+    jika (condition != 0) {
+        __mf_print_asciz(" (")
+        __mf_print_asciz(COLOR_LITERAL)
+        __mf_print_asciz(condition)
+        __mf_print_asciz(ANSI_RESET)
+        __mf_print_asciz(")")
+    }
+    
+    __mf_print_asciz(" {\n")
+tutup_fungsi
+
+; ==============================================================================
+; DEMO: AI-READABLE COLORED MORPH CODE
+; ==============================================================================
+
+fungsi demo_colored_morph_code() -> i64
+    __mf_print_asciz("\n=== AI-READABLE COLORED MORPH SYNTAX ===\n\n")
+    
+    ; Initialize color system
+    ansi_color_init()
+    
+    ; Demo: Complex nested function with multiple scopes
+    enter_scope("global")
+    
+    print_function_def("calculate_fibonacci", "n: i64", "i64")
+    enter_scope("function")
+    
+    print_var_decl("result", "i64", "0")
+    print_var_decl("a", "i64", "0") 
+    print_var_decl("b", "i64", "1")
+    print_var_decl("i", "i64", "0")
+    
+    print_control_flow("jika", "n <= 1")
+    enter_scope("if")
+    print_function_call("kembali", "n")
+    exit_scope("if")
+    
+    print_control_flow("selama", "i < n")
+    enter_scope("while")
+    
+    print_var_decl("temp", "i64", "a + b")
+    print_var_decl("a", 0, "b")
+    print_var_decl("b", 0, "temp")
+    print_var_decl("i", 0, "i + 1")
+    
+    print_control_flow("jika", "i % 10 == 0")
+    enter_scope("nested_if")
+    print_function_call("print_progress", "i")
+    exit_scope("nested_if")
+    
+    exit_scope("while")
+    
+    print_function_call("kembali", "b")
+    
+    exit_scope("function")
+    
+    __mf_print_asciz("\n")
+    
+    ; Demo: Memory management function
+    print_function_def("safe_memory_operation", "size: i64", "ptr")
+    enter_scope("function")
+    
+    print_var_decl("buffer", "ptr", "mem_alloc(size)")
+    
+    print_control_flow("jika", "buffer == 0")
+    enter_scope("error_handling")
+    print_function_call("exception_throw", "EXC_MEMORY, \"Allocation failed\"")
+    print_function_call("kembali", "0")
+    exit_scope("error_handling")
+    
+    print_function_call("mem_store", "buffer, 0, 42")
+    print_function_call("kembali", "buffer")
+    
+    exit_scope("function")
+    
+    exit_scope("global")
+    
+    __mf_print_asciz("\n=== COLOR LEGEND ===\n")
+    print_colored("■ Function Definitions", COLOR_FUNCTION_DEF)
+    __mf_print_asciz("\n")
+    print_colored("■ Function Calls", COLOR_FUNCTION_CALL)
+    __mf_print_asciz("\n")
+    print_colored("■ Parameters", COLOR_FUNCTION_PARAM)
+    __mf_print_asciz("\n")
+    print_colored("■ Keywords", COLOR_KEYWORD)
+    __mf_print_asciz("\n")
+    print_colored("■ Types (i64)", COLOR_TYPE_I64)
+    __mf_print_asciz("\n")
+    print_colored("■ Literals", COLOR_LITERAL)
+    __mf_print_asciz("\n")
+    
+    __mf_print_asciz("\n=== SCOPE DEPTH COLORS ===\n")
+    var depth = 0
+    selama (depth < 6) {
+        var color = mem_load(scope_colors, depth * 8)
+        __mf_print_asciz("Depth ")
+        __mf_print_int(depth)
+        __mf_print_asciz(": ")
+        print_colored("■■■■■", color)
+        __mf_print_asciz("\n")
+        depth = depth + 1
+    }
+    
+    ; Clean up
+    mem_free(scope_colors)
+    
+    __mf_print_asciz("\n✓ AI-readable color system demo completed\n")
+    kembali 0
+tutup_fungsi
+
+; Main entry point
+fungsi utama() -> i64
+    kembali demo_colored_morph_code()
+tutup_fungsi

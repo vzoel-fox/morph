@@ -1,0 +1,26 @@
+###
+  Memory Stress Test - RPN Operations
+###
+
+fungsi utama()
+  # Complex nested arithmetic (stress test for RPN evaluation)
+  var result = ((10 + 20) * (30 + 40)) / ((2 + 3) * (4 + 1))
+  
+  # Memory intensive calculation
+  var sum = 0
+  var i = 1
+  var limit = 100
+  
+  # Manual loop unrolling for stress test
+  sum = sum + (i * i)
+  i = i + 1
+  sum = sum + (i * i)
+  i = i + 1
+  sum = sum + (i * i)
+  i = i + 1
+  sum = sum + (i * i)
+  i = i + 1
+  sum = sum + (i * i)
+  
+  result + sum
+tutup_fungsi

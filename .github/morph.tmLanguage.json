@@ -12,6 +12,21 @@
       "match": "\\b(i64|ptr|String)\\b"
     },
     {
+      "name": "entity.name.function.morph",
+      "match": "\\b(fungsi)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.morph" },
+        "2": { "name": "entity.name.function.definition.morph" }
+      }
+    },
+    {
+      "name": "variable.parameter.morph",
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*:",
+      "captures": {
+        "1": { "name": "variable.parameter.name.morph" }
+      }
+    },
+    {
       "name": "comment.line.hash.morph",
       "match": "#.*$"
     },
@@ -36,8 +51,31 @@
       "match": "\\b\\d+\\b"
     },
     {
-      "name": "support.function.morph",
-      "match": "\\b(sistem|print_line)\\b"
+      "name": "support.function.builtin.morph",
+      "match": "\\b(sistem|print_line|mem_alloc|mem_free|__mf_\\w+)\\b"
+    },
+    {
+      "name": "keyword.operator.morph",
+      "match": "[+\\-*/=<>!&|]+"
+    },
+    {
+      "name": "punctuation.definition.block.morph",
+      "match": "[{}()]"
+    },
+    {
+      "name": "meta.scope.function.morph",
+      "begin": "\\b(fungsi)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "end": "\\b(tutup_fungsi)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.morph" },
+        "2": { "name": "entity.name.function.morph" }
+      },
+      "endCaptures": {
+        "1": { "name": "keyword.control.morph" }
+      },
+      "patterns": [
+        { "include": "$self" }
+      ]
     }
   ]
 }

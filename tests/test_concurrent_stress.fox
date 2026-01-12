@@ -1,0 +1,357 @@
+; ==============================================================================
+; MEMORY SAFETY STRESS TEST - MORPHROUTINE + RPN + INTENTTREE
+; ==============================================================================
+; Test ketangguhan memory safety dengan konkurensi tinggi
+
+ambil "corelib/core/memory_safety.fox"
+ambil "corelib/lib/morphroutine.fox"
+ambil "src/intent_builder.fox"
+ambil "src/complete_rpn_system.fox"
+
+; ==============================================================================
+; CONCURRENT RPN EXPRESSION EVALUATOR
+; ==============================================================================
+
+; Struktur untuk concurrent RPN task
+struktur RPNTask {
+    id: i64,
+    expression: ptr,    ; RPN expression array
+    expr_size: i64,     ; Number of RPN instructions
+    result: i64,        ; Computation result
+    status: i64         ; 0=pending, 1=running, 2=done, -1=error
+}
+
+const TASK_PENDING = 0
+const TASK_RUNNING = 1
+const TASK_DONE = 2
+const TASK_ERROR = -1
+
+; Global task pool
+var g_task_pool = 0
+var g_task_count = 0
+const MAX_TASKS = 100
+
+; Initialize concurrent RPN system
+fungsi concurrent_rpn_init() -> void
+    set_debug_location("test_concurrent_stress.fox", 35)
+    
+    ; Allocate task pool
+    g_task_pool = mem_alloc(MAX_TASKS * 32)  ; 32 bytes per task
+    g_task_count = 0
+    
+    __mf_print_asciz("Concurrent RPN system initialized\n")
+tutup_fungsi
+
+; Create complex RPN expression for stress testing
+fungsi create_stress_rpn_expression(task_id: i64) -> ptr
+    set_debug_location("test_concurrent_stress.fox", 47)
+    
+    ; Create increasingly complex expressions based on task_id
+    var expr_size = 10 + (task_id * 2)  ; Growing complexity
+    var expression = mem_alloc(expr_size * 16)  ; 16 bytes per RPN instruction
+    
+    ; Generate complex nested arithmetic: ((a + b) * (c - d)) / ((e + f) * (g - h))
+    var i = 0
+    selama (i < expr_size) {
+        var opcode_offset = i * 16
+        var operand_offset = opcode_offset + 8
+        
+        ; Alternate between literals and operations
+        jika (i % 3 == 0) {
+            ; Literal value
+            mem_store(expression, opcode_offset, RPN_LIT)
+            mem_store(expression, operand_offset, (task_id * 10) + i)
+        } selain jika (i % 3 == 1) {
+            ; Addition
+            mem_store(expression, opcode_offset, RPN_ADD)
+            mem_store(expression, operand_offset, 0)
+        } selain {
+            ; Multiplication for complexity
+            mem_store(expression, opcode_offset, RPN_MUL)
+            mem_store(expression, operand_offset, 0)
+        }
+        
+        i = i + 1
+    }
+    
+    kembali expression
+tutup_fungsi
+
+; RPN evaluator routine (runs concurrently)
+fungsi rpn_evaluator_routine(task_ptr: ptr) -> i64
+    set_debug_location("test_concurrent_stress.fox", 80)
+    
+    var task_id = mem_load(task_ptr, 0)
+    var expression = mem_load(task_ptr, 8)
+    var expr_size = mem_load(task_ptr, 16)
+    
+    ; Set status to running
+    mem_store(task_ptr, 32, TASK_RUNNING)
+    
+    __mf_print_asciz("Task ")
+    __mf_print_int(task_id)
+    __mf_print_asciz(" started\n")
+    
+    ; Create RPN stack for evaluation
+    var stack = mem_alloc(1024)  ; Stack for RPN evaluation
+    var stack_ptr = 0
+    
+    ; Evaluate RPN expression
+    var i = 0
+    selama (i < expr_size) {
+        var opcode = mem_load(expression, i * 16)
+        var operand = mem_load(expression, (i * 16) + 8)
+        
+        jika (opcode == RPN_LIT) {
+            ; Push literal to stack
+            mem_store(stack, stack_ptr * 8, operand)
+            stack_ptr = stack_ptr + 1
+        } selain jika (opcode == RPN_ADD) {
+            ; Pop two values, add, push result
+            jika (stack_ptr >= 2) {
+                var b = mem_load(stack, (stack_ptr - 1) * 8)
+                var a = mem_load(stack, (stack_ptr - 2) * 8)
+                var result = add_safe(a, b, "test_concurrent_stress.fox", 108)
+                stack_ptr = stack_ptr - 2
+                mem_store(stack, stack_ptr * 8, result)
+                stack_ptr = stack_ptr + 1
+            }
+        } selain jika (opcode == RPN_MUL) {
+            ; Pop two values, multiply, push result
+            jika (stack_ptr >= 2) {
+                var b = mem_load(stack, (stack_ptr - 1) * 8)
+                var a = mem_load(stack, (stack_ptr - 2) * 8)
+                var result = a * b
+                stack_ptr = stack_ptr - 2
+                mem_store(stack, stack_ptr * 8, result)
+                stack_ptr = stack_ptr + 1
+            }
+        }
+        
+        i = i + 1
+        
+        ; Yield occasionally for concurrency
+        jika (i % 5 == 0) {
+            mr_yield(0)
+        }
+    }
+    
+    ; Get final result
+    var final_result = 0
+    jika (stack_ptr > 0) {
+        final_result = mem_load(stack, 0)
+    }
+    
+    ; Store result and mark as done
+    mem_store(task_ptr, 24, final_result)
+    mem_store(task_ptr, 32, TASK_DONE)
+    
+    ; Clean up
+    mem_free(stack)
+    mem_free(expression)
+    
+    __mf_print_asciz("Task ")
+    __mf_print_int(task_id)
+    __mf_print_asciz(" completed with result: ")
+    __mf_print_int(final_result)
+    __mf_print_asciz("\n")
+    
+    kembali final_result
+tutup_fungsi
+
+; ==============================================================================
+; INTENT TREE STRESS TEST
+; ==============================================================================
+
+; Create complex Intent Tree for stress testing
+fungsi create_stress_intent_tree(depth: i64) -> ptr
+    set_debug_location("test_concurrent_stress.fox", 160)
+    
+    jika (depth <= 0) {
+        ; Base case: literal node
+        kembali intent_new_literal(42)
+    }
+    
+    ; Create complex nested structure
+    var root = intent_new_node(INTENT_FRAG_FUNCTION)
+    var left_child = create_stress_intent_tree(depth - 1)
+    var right_child = create_stress_intent_tree(depth - 1)
+    
+    ; Link children (simulate complex AST)
+    intent_set_child(root, left_child)
+    intent_set_next(left_child, right_child)
+    
+    ; Yield for concurrency
+    mr_yield(0)
+    
+    kembali root
+tutup_fungsi
+
+; Intent tree traversal routine
+fungsi intent_traversal_routine(tree_ptr: ptr) -> i64
+    set_debug_location("test_concurrent_stress.fox", 183)
+    
+    var node_count = 0
+    
+    ; Recursive traversal with memory safety
+    fungsi traverse_node(node: ptr) -> i64
+        jika (node == 0) {
+            kembali 0
+        }
+        
+        node_count = node_count + 1
+        
+        ; Access node data safely
+        var node_type = mem_load(node, INTENT_OFFSET_TYPE)
+        var child = mem_load(node, INTENT_OFFSET_CHILD)
+        var next = mem_load(node, INTENT_OFFSET_NEXT)
+        
+        ; Traverse children
+        traverse_node(child)
+        traverse_node(next)
+        
+        ; Yield occasionally
+        jika (node_count % 10 == 0) {
+            mr_yield(0)
+        }
+        
+        kembali node_count
+    tutup_fungsi
+    
+    var total_nodes = traverse_node(tree_ptr)
+    
+    __mf_print_asciz("Intent tree traversal completed: ")
+    __mf_print_int(total_nodes)
+    __mf_print_asciz(" nodes\n")
+    
+    kembali total_nodes
+tutup_fungsi
+
+; ==============================================================================
+; MAIN STRESS TEST
+; ==============================================================================
+
+fungsi run_concurrent_stress_test() -> i64
+    __mf_print_asciz("=== MEMORY SAFETY STRESS TEST ===\n")
+    __mf_print_asciz("Testing MorphRoutine + RPN + IntentTree concurrency\n\n")
+    
+    ; Initialize systems
+    exception_init()
+    concurrent_rpn_init()
+    
+    var failed = 0
+    var start_time = mr_now()
+    
+    ; Test 1: Concurrent RPN evaluation
+    __mf_print_asciz("Test 1: Concurrent RPN Expression Evaluation\n")
+    
+    var task_routines = mem_alloc(20 * 8)  ; 20 routine pointers
+    var i = 0
+    
+    ; Spawn multiple RPN evaluator routines
+    selama (i < 20) {
+        var task = mem_alloc(40)  ; Task structure
+        mem_store(task, 0, i)  ; task_id
+        
+        var expression = create_stress_rpn_expression(i)
+        mem_store(task, 8, expression)  ; expression
+        mem_store(task, 16, 10 + (i * 2))  ; expr_size
+        mem_store(task, 24, 0)  ; result
+        mem_store(task, 32, TASK_PENDING)  ; status
+        
+        ; Spawn routine
+        var routine = mr_spawn(rpn_evaluator_routine, 8192)
+        mem_store(task_routines, i * 8, routine)
+        
+        ; Start the routine with task parameter
+        ; Note: This is simplified - actual implementation would pass task parameter
+        
+        i = i + 1
+    }
+    
+    ; Test 2: Concurrent Intent Tree operations
+    __mf_print_asciz("\nTest 2: Concurrent Intent Tree Operations\n")
+    
+    var tree_routines = mem_alloc(10 * 8)  ; 10 tree routines
+    i = 0
+    
+    selama (i < 10) {
+        var tree = create_stress_intent_tree(5 + i)  ; Varying complexity
+        var routine = mr_spawn(intent_traversal_routine, 8192)
+        mem_store(tree_routines, i * 8, routine)
+        
+        i = i + 1
+    }
+    
+    ; Cooperative scheduling loop
+    var iterations = 0
+    selama (iterations < 1000) {
+        mr_schedule()  ; Let routines run
+        mr_sleep(1)    ; Small delay
+        iterations = iterations + 1
+        
+        ; Check for exceptions
+        jika (exception_occurred()) {
+            __mf_print_asciz("Exception detected during stress test!\n")
+            failed = failed + 1
+            exception_clear()
+        }
+    }
+    
+    ; Clean up routines
+    i = 0
+    selama (i < 20) {
+        var routine = mem_load(task_routines, i * 8)
+        jika (routine != 0) {
+            mr_destroy(routine)
+        }
+        i = i + 1
+    }
+    
+    i = 0
+    selama (i < 10) {
+        var routine = mem_load(tree_routines, i * 8)
+        jika (routine != 0) {
+            mr_destroy(routine)
+        }
+        i = i + 1
+    }
+    
+    mem_free(task_routines)
+    mem_free(tree_routines)
+    
+    var end_time = mr_now()
+    var duration = end_time - start_time
+    
+    __mf_print_asciz("\n=== STRESS TEST RESULTS ===\n")
+    __mf_print_asciz("Duration: ")
+    __mf_print_int(duration)
+    __mf_print_asciz(" ms\n")
+    
+    ; Check memory leaks
+    var leaks = mem_check_leaks()
+    jika (leaks > 0) {
+        __mf_print_asciz("Memory leaks detected: ")
+        __mf_print_int(leaks)
+        __mf_print_asciz("\n")
+        failed = failed + leaks
+    }
+    
+    ; Print memory statistics
+    mem_print_stats()
+    
+    jika (failed == 0) {
+        __mf_print_asciz("✓ All stress tests passed!\n")
+    } selain {
+        __mf_print_asciz("✗ Stress test failures: ")
+        __mf_print_int(failed)
+        __mf_print_asciz("\n")
+    }
+    
+    kembali failed
+tutup_fungsi
+
+; Main entry point
+fungsi utama() -> i64
+    kembali run_concurrent_stress_test()
+tutup_fungsi

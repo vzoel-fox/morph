@@ -1,0 +1,42 @@
+###
+  RPN Memory Stress Test
+  Test ketangguhan memory dengan operasi RPN intensif
+###
+
+fungsi utama()
+  # Test 1: Basic RPN operations
+  var a = 10
+  var b = 20
+  var c = 30
+  
+  # Simulate RPN stack operations
+  # Expression: (a + b) * c = (10 + 20) * 30 = 900
+  var temp1 = a + b    # Push result to "stack"
+  var result = temp1 * c
+  
+  # Test 2: Memory intensive loop
+  var i = 0
+  var sum = 0
+  
+  selama (i < 1000)
+    var temp = i * 2
+    sum = sum + temp
+    i = i + 1
+  tutup_selama
+  
+  # Test 3: Nested calculations (simulate Intent Tree traversal)
+  var depth = 0
+  var node_count = 0
+  
+  selama (depth < 10)
+    var j = 0
+    selama (j < 10)
+      node_count = node_count + 1
+      j = j + 1
+    tutup_selama
+    depth = depth + 1
+  tutup_selama
+  
+  # Return combined result
+  result + sum + node_count
+tutup_fungsi

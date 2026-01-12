@@ -1,0 +1,59 @@
+; Simple RPN memory test
+ambil "corelib/core/memory_safety.fox"
+
+fungsi test_simple_rpn() -> i64
+    ; Initialize exception system
+    exception_init()
+    
+    __mf_print_asciz("=== SIMPLE RPN MEMORY TEST ===\n")
+    
+    ; Test basic memory allocation
+    var buffer = mem_alloc(64)
+    jika (buffer == 0) {
+        __mf_print_asciz("Memory allocation failed\n")
+        kembali 1
+    }
+    
+    ; Test memory write/read
+    mem_store(buffer, 0, 42)
+    var value = mem_load(buffer, 0)
+    
+    __mf_print_asciz("Stored: 42, Read: ")
+    __mf_print_int(value)
+    __mf_print_asciz("\n")
+    
+    ; Test RPN-like operations
+    mem_store(buffer, 8, 10)   ; Push 10
+    mem_store(buffer, 16, 20)  ; Push 20
+    
+    var a = mem_load(buffer, 8)
+    var b = mem_load(buffer, 16)
+    var result = add_safe(a, b, "simple_test.fox", 30)
+    
+    __mf_print_asciz("RPN Add: ")
+    __mf_print_int(a)
+    __mf_print_asciz(" + ")
+    __mf_print_int(b)
+    __mf_print_asciz(" = ")
+    __mf_print_int(result)
+    __mf_print_asciz("\n")
+    
+    ; Clean up
+    mem_free(buffer)
+    
+    ; Check for leaks
+    var leaks = mem_check_leaks()
+    mem_print_stats()
+    
+    jika (leaks == 0 && value == 42 && result == 30) {
+        __mf_print_asciz("✓ Simple RPN test passed\n")
+        kembali 0
+    } selain {
+        __mf_print_asciz("✗ Simple RPN test failed\n")
+        kembali 1
+    }
+tutup_fungsi
+
+fungsi utama() -> i64
+    kembali test_simple_rpn()
+tutup_fungsi

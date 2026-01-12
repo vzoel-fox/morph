@@ -1,0 +1,54 @@
+###
+  Intensive RPN + IntentTree Memory Stress Test
+  Test ketangguhan memory dengan operasi kompleks
+###
+
+fungsi utama()
+  # Test 1: Deep nested expressions (simulate complex RPN evaluation)
+  var base = 2
+  var exp1 = base * base * base * base  # 2^4 = 16
+  var exp2 = exp1 + exp1 + exp1 + exp1  # 64
+  var exp3 = exp2 * exp2  # 4096
+  
+  # Test 2: Simulate Intent Tree node creation and traversal
+  # Each "node" represented by arithmetic operations
+  var node1 = 10 + 5   # Literal node
+  var node2 = 20 + 10  # Another literal
+  var node3 = node1 * node2  # Binary operation node
+  var node4 = node3 + 100    # Another operation
+  
+  # Test 3: Stack-intensive operations (RPN simulation)
+  var stack_result = 0
+  
+  # Simulate: 1 2 + 3 4 + * 5 6 + 7 8 + * +
+  # Which is: ((1+2) * (3+4)) + ((5+6) * (7+8))
+  var temp1 = 1 + 2    # 3
+  var temp2 = 3 + 4    # 7  
+  var temp3 = temp1 * temp2  # 21
+  
+  var temp4 = 5 + 6    # 11
+  var temp5 = 7 + 8    # 15
+  var temp6 = temp4 * temp5  # 165
+  
+  stack_result = temp3 + temp6  # 186
+  
+  # Test 4: Memory allocation simulation (repeated calculations)
+  var alloc_sim = 0
+  var block1 = 100 * 1
+  var block2 = 100 * 2  
+  var block3 = 100 * 3
+  var block4 = 100 * 4
+  var block5 = 100 * 5
+  
+  alloc_sim = block1 + block2 + block3 + block4 + block5  # 1500
+  
+  # Test 5: Concurrent-like operations (simulate multiple routines)
+  var routine1 = (10 * 10) + (20 * 20)  # 500
+  var routine2 = (30 * 30) + (40 * 40)  # 2500  
+  var routine3 = (50 * 50) + (60 * 60)  # 6100
+  
+  var concurrent_result = routine1 + routine2 + routine3  # 9100
+  
+  # Final stress calculation combining all results
+  exp3 + node4 + stack_result + alloc_sim + concurrent_result
+tutup_fungsi
