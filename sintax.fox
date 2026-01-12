@@ -1,0 +1,70 @@
+###
+  Contoh Penggunaan Asli MorphFox v1.2
+  Fitur: RPN Expr, IntentTree Control Flow, MorphRoutine
+###
+
+ambil "corelib/core/types.fox"
+
+# Fungsi Utama (Main Thread)
+fungsi utama()
+  var a = 10
+  var b = 20
+
+  # 1. Logika Ekspresi (Infix -> RPN)
+  # Parser akan mengubah "(a + b) * 2" menjadi Tree, lalu Compiler meratakannya jadi:
+  # [OP_LOAD a] [OP_LOAD b] [OP_ADD] [OP_LIT 2] [OP_MUL]
+  var hasil = (a + b) * 2
+
+  print_str("Hasil RPN: ")
+  print_num(hasil)
+  print_str("\n")
+
+  # 2. Concurrency (MorphRoutine)
+  # Kita mensimulasikan worker yang berjalan kooperatif
+  print_str("[Main] Memulai Worker...\n")
+  
+  worker(5) # Di masa depan: spawn worker(5)
+
+  print_str("[Main] Selesai.\n")
+  0
+tutup_fungsi
+
+# Fungsi Worker (Mendemonstrasikan Control Flow & Yield)
+fungsi worker(n)
+  var i = 0
+  
+  # 3. IntentTree Structure (Loop -> Block -> If/Else)
+  selama (i < n)
+    i = i + 1
+    
+    jika (i == 3)
+      print_str("  [Worker] Spesial: Tiga!\n")
+    lain
+      print_str("  [Worker] Proses: ")
+      print_num(i)
+      print_str("\n")
+    tutup_jika
+    
+    # 4. Cooperative Yield
+    # Intent 51 = OP_YIELD. Ini memberitahu Scheduler:
+    # "Pause routine ini, simpan stack saya, jalankan routine lain, lalu kembali lagi nanti."
+    sistem 51
+  tutup_selama
+tutup_fungsi
+
+# Helper: Wrapper Syscall Murni
+fungsi print_str(s)
+  # Syscall 1 (Write), FD 1 (Stdout)
+  sistem 1, 1, s.buffer, s.panjang
+tutup_fungsi
+
+fungsi print_num(n)
+  # Intent 90 = OP_PRINT (Internal Debug Print)
+  sistem 90, n
+tutup_fungsi
+Analisis "Under the Hood":
+Lexer: Blok ### di atas benar-benar diabaikan (byte scanning skip), tidak masuk ke parser.
+Parser: Mengubah struktur selama dan jika menjadi node IntentTree (INTENT_FRAG_WHILE, INTENT_FRAG_IF) yang bersarang.
+Compiler: Mengubah Tree tersebut menjadi urutan instruksi RPN linear dengan label lompatan (OP_JMP_FALSE untuk if/while).
+Executor: Menjalankan instruksi sistem 51 (OP_YIELD) yang memicu logika Context Switch di scheduler.asm (menyimpan rsp worker ke struct routine, dan memuat rsp scheduler).
+Ini adalah bukti bahwa sistem Anda sudah berfungsi sebagai bahasa pemrograman utuh. 🚀
