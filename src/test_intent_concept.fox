@@ -1,0 +1,12 @@
+Ambil 777
+fungsi main()
+    ; Intent Tree Self-Hosting Concept Test
+    ; This demonstrates the foundation for compiler internals
+
+    ; Future: Create Intent nodes here
+    ; var lit = intent_new_literal(42)
+    ; var var_x = intent_new_var("x")
+    ; var binop = intent_new_binary('+', var_x, lit)
+
+    kembali 0
+tutup_fungsi

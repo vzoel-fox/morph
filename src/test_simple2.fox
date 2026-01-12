@@ -1,0 +1,5 @@
+Ambil 777
+fungsi main()
+    var x = 10
+    kembali 0
+tutup_fungsi

@@ -1,0 +1,223 @@
+ambil "corelib/core/types.fox"
+ambil "corelib/lib/memory.fox"
+
+; ==============================================================================
+; INTENT TREE BUILDER - Self-Hosting
+; ==============================================================================
+; This module provides API for building Intent Trees from MorphFox code.
+; Goal: Replace Assembly parser with MorphFox-based Intent builder.
+;
+; Architecture:
+;   Input: MorphFox source code (string)
+;   Output: Intent Tree (root node ptr)
+;
+; Phase: Self-hosting bootstrap for compiler internals
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; INTENT NODE TYPE CONSTANTS
+; ------------------------------------------------------------------------------
+
+; Level 1: UNIT
+var INTENT_UNIT_MODULE = 0x1001
+
+; Level 2: SHARD
+var INTENT_SHARD_FUNC = 0x2001
+var INTENT_SHARD_BLOCK = 0x2002
+
+; Level 3: FRAGMENT
+var INTENT_FRAG_LITERAL = 0x3001
+var INTENT_FRAG_BINARY = 0x3002
+var INTENT_FRAG_UNARY = 0x3003
+var INTENT_FRAG_CALL = 0x3004
+var INTENT_FRAG_VAR = 0x3005
+var INTENT_FRAG_ASSIGN = 0x3006
+var INTENT_FRAG_IF = 0x3007
+var INTENT_FRAG_WHILE = 0x3008
+var INTENT_FRAG_RETURN = 0x3009
+
+; ------------------------------------------------------------------------------
+; NODE STRUCTURE OFFSETS
+; ------------------------------------------------------------------------------
+var INTENT_OFFSET_TYPE = 0
+var INTENT_OFFSET_NEXT = 8
+var INTENT_OFFSET_CHILD = 16
+var INTENT_OFFSET_HINT = 24
+var INTENT_OFFSET_DATA_A = 32
+var INTENT_OFFSET_DATA_B = 40
+var INTENT_NODE_SIZE = 48
+
+; ==============================================================================
+; CORE API: Node Creation
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; intent_new_node - Create new Intent node
+; ------------------------------------------------------------------------------
+; Creates a new Intent node with specified type and initializes all fields.
+;
+; Args:
+;   type: Node type constant (INTENT_*)
+; Returns:
+;   ptr: Pointer to newly allocated node (48 bytes)
+; ------------------------------------------------------------------------------
+fungsi intent_new_node(type: i64) -> ptr {
+    ; Allocate node memory (48 bytes)
+    var node = mem_alloc(INTENT_NODE_SIZE)
+
+    ; Initialize all fields to zero/null
+    poke_i64(node + INTENT_OFFSET_TYPE, type)
+    poke_i64(node + INTENT_OFFSET_NEXT, 0)
+    poke_i64(node + INTENT_OFFSET_CHILD, 0)
+    poke_i64(node + INTENT_OFFSET_HINT, 0)
+    poke_i64(node + INTENT_OFFSET_DATA_A, 0)
+    poke_i64(node + INTENT_OFFSET_DATA_B, 0)
+
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_set_next - Link sibling nodes
+; ------------------------------------------------------------------------------
+fungsi intent_set_next(node: ptr, next: ptr) -> void {
+    poke_i64(node + INTENT_OFFSET_NEXT, next)
+}
+
+; ------------------------------------------------------------------------------
+; intent_set_child - Link child node
+; ------------------------------------------------------------------------------
+fungsi intent_set_child(node: ptr, child: ptr) -> void {
+    poke_i64(node + INTENT_OFFSET_CHILD, child)
+}
+
+; ------------------------------------------------------------------------------
+; intent_set_data_a - Set Data A field
+; ------------------------------------------------------------------------------
+fungsi intent_set_data_a(node: ptr, value: i64) -> void {
+    poke_i64(node + INTENT_OFFSET_DATA_A, value)
+}
+
+; ------------------------------------------------------------------------------
+; intent_set_data_b - Set Data B field
+; ------------------------------------------------------------------------------
+fungsi intent_set_data_b(node: ptr, value: i64) -> void {
+    poke_i64(node + INTENT_OFFSET_DATA_B, value)
+}
+
+; ==============================================================================
+; CONVENIENCE API: Specialized Node Builders
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; intent_new_literal - Create literal node
+; ------------------------------------------------------------------------------
+; Args:
+;   value: Integer literal value
+; Returns:
+;   ptr: INTENT_FRAG_LITERAL node
+; ------------------------------------------------------------------------------
+fungsi intent_new_literal(value: i64) -> ptr {
+    var node = intent_new_node(INTENT_FRAG_LITERAL)
+    intent_set_data_a(node, value)
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_new_var - Create variable access node
+; ------------------------------------------------------------------------------
+; Args:
+;   name_ptr: Pointer to variable name string
+; Returns:
+;   ptr: INTENT_FRAG_VAR node
+; ------------------------------------------------------------------------------
+fungsi intent_new_var(name_ptr: ptr) -> ptr {
+    var node = intent_new_node(INTENT_FRAG_VAR)
+    intent_set_data_a(node, name_ptr)
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_new_binary - Create binary operation node
+; ------------------------------------------------------------------------------
+; Args:
+;   op: Operator ('+', '-', '*', '/')
+;   left: Left operand node
+;   right: Right operand node
+; Returns:
+;   ptr: INTENT_FRAG_BINARY node with left/right as children
+; ------------------------------------------------------------------------------
+fungsi intent_new_binary(op: i64, left: ptr, right: ptr) -> ptr {
+    var node = intent_new_node(INTENT_FRAG_BINARY)
+    intent_set_data_a(node, op)
+
+    ; Link children: left -> right
+    intent_set_child(node, left)
+    intent_set_next(left, right)
+
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_new_assign - Create assignment node
+; ------------------------------------------------------------------------------
+; Args:
+;   name_ptr: Variable name
+;   value: Expression node
+; Returns:
+;   ptr: INTENT_FRAG_ASSIGN node
+; ------------------------------------------------------------------------------
+fungsi intent_new_assign(name_ptr: ptr, value: ptr) -> ptr {
+    var node = intent_new_node(INTENT_FRAG_ASSIGN)
+    intent_set_data_a(node, name_ptr)
+    intent_set_child(node, value)
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_new_function - Create function definition node
+; ------------------------------------------------------------------------------
+; Args:
+;   name_ptr: Function name
+;   body: First statement in function body
+; Returns:
+;   ptr: INTENT_SHARD_FUNC node
+; ------------------------------------------------------------------------------
+fungsi intent_new_function(name_ptr: ptr, body: ptr) -> ptr {
+    var node = intent_new_node(INTENT_SHARD_FUNC)
+    intent_set_data_a(node, name_ptr)
+    intent_set_child(node, body)
+    kembali node
+}
+
+; ------------------------------------------------------------------------------
+; intent_new_module - Create module/unit node
+; ------------------------------------------------------------------------------
+; Args:
+;   first_function: First function in module
+; Returns:
+;   ptr: INTENT_UNIT_MODULE node
+; ------------------------------------------------------------------------------
+fungsi intent_new_module(first_function: ptr) -> ptr {
+    var node = intent_new_node(INTENT_UNIT_MODULE)
+    intent_set_child(node, first_function)
+    kembali node
+}
+
+; ==============================================================================
+; DEBUGGING: Intent Tree Printer
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; intent_print_node - Print node for debugging
+; ------------------------------------------------------------------------------
+fungsi intent_print_node(node: ptr) -> void {
+    jika (node == 0) {
+        __mf_print_asciz("NULL\n")
+        kembali 0
+    }
+
+    var type = load_i64(node + INTENT_OFFSET_TYPE)
+    __mf_print_asciz("Node(type=0x")
+    __mf_print_int_raw(type)
+    __mf_print_asciz(")")
+}

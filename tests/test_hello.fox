@@ -1,0 +1,5 @@
+utama {
+    var msg = "Hello dari Intent Tree test!\n"
+    sistem 1, 1, msg, 30
+    kembali 0
+}

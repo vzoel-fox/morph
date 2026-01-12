@@ -23,8 +23,14 @@ fungsi __mf_abs(val: i64) -> i64
 fungsi __mf_sqrt(val: i64) -> i64
 fungsi __mf_pow(base: i64, exp: i64) -> i64
 
-; Memory
+; Memory Operations
 fungsi __mf_memcpy(dest: ptr, src: ptr, size: i64) -> ptr
+fungsi __mf_mem_alloc(size: i64) -> ptr
+fungsi __mf_mem_free(ptr: ptr, size: i64) -> void
+fungsi __mf_load_i64(addr: ptr) -> i64
+fungsi __mf_poke_i64(addr: ptr, value: i64) -> void
+fungsi __mf_load_byte(addr: ptr) -> i64
+fungsi __mf_poke_byte(addr: ptr, value: i64) -> void
 
 ; Crypto (SHA-256)
 fungsi __mf_sha256_init(ctx: ptr) -> void

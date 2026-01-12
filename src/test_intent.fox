@@ -1,0 +1,44 @@
+; ==============================================================================
+; TEST: Intent Tree Builder
+; ==============================================================================
+; Simple test to verify Intent Tree node creation works.
+; This tests the self-hosting foundation for compiler.
+; ==============================================================================
+
+ambil "src/intent_builder.fox"
+
+utama {
+    __mf_print_asciz("[Test] Creating Intent Tree nodes...\n")
+
+    ; Test 1: Create a literal node
+    __mf_print_asciz("[1] Creating literal(42)...\n")
+    var lit = intent_new_literal(42)
+    intent_print_node(lit)
+    __mf_print_asciz("\n")
+
+    ; Test 2: Create a variable node
+    __mf_print_asciz("[2] Creating var(x)...\n")
+    var name_x = "x"
+    var var_x = intent_new_var(name_x)
+    intent_print_node(var_x)
+    __mf_print_asciz("\n")
+
+    ; Test 3: Create binary operation (x + 42)
+    __mf_print_asciz("[3] Creating binary(x + 42)...\n")
+    var var_x2 = intent_new_var(name_x)
+    var lit2 = intent_new_literal(42)
+    var binop = intent_new_binary(43, var_x2, lit2)  ; 43 = ASCII '+'
+    intent_print_node(binop)
+    __mf_print_asciz("\n")
+
+    ; Test 4: Create assignment (y = x + 42)
+    __mf_print_asciz("[4] Creating assignment(y = x + 42)...\n")
+    var name_y = "y"
+    var assign = intent_new_assign(name_y, binop)
+    intent_print_node(assign)
+    __mf_print_asciz("\n")
+
+    __mf_print_asciz("[Test] Intent Tree creation successful!\n")
+
+    kembali 0
+}

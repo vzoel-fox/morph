@@ -1,0 +1,55 @@
+; ==============================================================================
+; TEST: Intent Tree Structure (Conceptual)
+; ==============================================================================
+; This test demonstrates the Intent Tree structure without actual memory ops.
+; Goal: Document the self-hosting approach for compiler internals.
+; ==============================================================================
+
+utama {
+    var msg1 = "[Intent] Conceptual test started.\n"
+    sistem 1, 1, msg1, 36
+
+    ; Intent Tree Structure Example:
+    ; ================================
+    ; Module (UNIT)
+    ;   └─> Function "main" (SHARD)
+    ;         └─> Assign "x" = 42 (FRAGMENT)
+    ;               └─> Literal 42 (FRAGMENT)
+
+    var msg2 = "[Intent] Tree structure:\n"
+    sistem 1, 1, msg2, 26
+
+    var msg3 = "  UNIT_MODULE\n"
+    sistem 1, 1, msg3, 16
+
+    var msg4 = "    └─> SHARD_FUNC(main)\n"
+    sistem 1, 1, msg4, 26
+
+    var msg5 = "          └─> FRAG_ASSIGN(x)\n"
+    sistem 1, 1, msg5, 30
+
+    var msg6 = "                └─> FRAG_LITERAL(42)\n"
+    sistem 1, 1, msg6, 38
+
+    var msg7 = "[Intent] Self-hosting foundation ready!\n"
+    sistem 1, 1, msg7, 42
+
+    ; Demonstrate memory allocation via syscall (for future builtins)
+    var msg8 = "[Intent] Allocating 48 bytes (node size)...\n"
+    sistem 1, 1, msg8, 46
+
+    ; mmap syscall: addr(0), len(48), prot(3), flags(34), fd(-1), offset(0)
+    var node_ptr = sistem 9, 0, 4096, 3, 34, -1, 0
+
+    jika (node_ptr > 0) {
+        var msg9 = "[Intent] Allocation successful at: "
+        sistem 1, 1, msg9, 36
+        __mf_print_int_raw(node_ptr)
+        sistem 1, 1, "\n", 1
+    }
+
+    var msg10 = "[Intent] Test complete.\n"
+    sistem 1, 1, msg10, 25
+
+    kembali 0
+}

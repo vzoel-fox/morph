@@ -1,0 +1,7 @@
+Ambil 888
+fungsi main()
+    var node_size = 48
+    var type_literal = 0x3001
+    var x = node_size + type_literal
+    kembali 0
+tutup_fungsi

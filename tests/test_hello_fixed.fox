@@ -1,0 +1,5 @@
+fungsi main()
+    var msg = "Hello dari Intent Tree!\n"
+    sistem 1, 1, msg, 25
+    kembali 0
+tutup_fungsi

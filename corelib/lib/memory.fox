@@ -1,0 +1,56 @@
+ambil "corelib/core/types.fox"
+ambil "corelib/core/builtins.fox"
+
+; ==============================================================================
+; MEMORY HELPERS - Self-Hosting Support
+; ==============================================================================
+; Convenience wrappers around memory builtins for Intent Tree builder.
+; All heavy lifting is done in Assembly builtins for performance.
+; ==============================================================================
+
+; ------------------------------------------------------------------------------
+; Memory Allocation
+; ------------------------------------------------------------------------------
+; Wraps __mf_mem_alloc builtin
+fungsi mem_alloc(size: i64) -> ptr {
+    kembali __mf_mem_alloc(size)
+}
+
+fungsi mem_free(ptr: ptr, size: i64) -> void {
+    __mf_mem_free(ptr, size)
+}
+
+; ------------------------------------------------------------------------------
+; Memory Read/Write (i64)
+; ------------------------------------------------------------------------------
+; Wraps __mf_load_i64 and __mf_poke_i64 builtins
+fungsi load_i64(addr: ptr) -> i64 {
+    kembali __mf_load_i64(addr)
+}
+
+fungsi poke_i64(addr: ptr, value: i64) -> void {
+    __mf_poke_i64(addr, value)
+}
+
+; ------------------------------------------------------------------------------
+; Memory Read/Write (byte)
+; ------------------------------------------------------------------------------
+; Wraps __mf_load_byte and __mf_poke_byte builtins
+fungsi load_byte(addr: ptr) -> i64 {
+    kembali __mf_load_byte(addr)
+}
+
+fungsi poke_byte(addr: ptr, value: i64) -> void {
+    __mf_poke_byte(addr, value)
+}
+
+; ------------------------------------------------------------------------------
+; Memory Zero
+; ------------------------------------------------------------------------------
+fungsi mem_zero(addr: ptr, size: i64) -> void {
+    var i = 0
+    selama (i < size) {
+        poke_byte(addr + i, 0)
+        i = i + 1
+    }
+}
