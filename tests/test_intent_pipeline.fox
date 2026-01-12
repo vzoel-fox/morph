@@ -1,0 +1,133 @@
+ambil "src/intent_parser.fox"
+
+; ==============================================================================
+; SELF-HOST PIPELINE TEST
+; ==============================================================================
+; Test complete pipeline: Source -> Intent Tree -> Verification
+
+fungsi test_intent_pipeline() -> i64
+  var msg1 = "=== Intent Tree Self-Host Pipeline ===\n"
+  print(msg1, 39)
+  
+  ; Test 1: Simple literal
+  var msg2 = "Test 1: Literal parsing\n"
+  print(msg2, 24)
+  
+  var source1 = "42"
+  var tree1 = parse_intent_tree(source1, 2)
+  
+  jika (tree1 != 0)
+    var ok1 = "✓ Literal tree created\n"
+    print(ok1, 23)
+  lain
+    var fail1 = "✗ Literal parsing failed\n"
+    print(fail1, 25)
+    kembali 1
+  tutup_jika
+  
+  ; Test 2: Variable assignment
+  var msg3 = "Test 2: Assignment parsing\n"
+  print(msg3, 27)
+  
+  var source2 = "x = 10"
+  var tree2 = parse_intent_tree(source2, 6)
+  
+  jika (tree2 != 0)
+    var ok2 = "✓ Assignment tree created\n"
+    print(ok2, 26)
+  lain
+    var fail2 = "✗ Assignment parsing failed\n"
+    print(fail2, 28)
+    kembali 2
+  tutup_jika
+  
+  ; Test 3: Binary expression
+  var msg4 = "Test 3: Binary expression\n"
+  print(msg4, 26)
+  
+  var source3 = "y = x + 5"
+  var tree3 = parse_intent_tree(source3, 9)
+  
+  jika (tree3 != 0)
+    var ok3 = "✓ Binary expression tree created\n"
+    print(ok3, 33)
+  lain
+    var fail3 = "✗ Binary expression failed\n"
+    print(fail3, 27)
+    kembali 3
+  tutup_jika
+  
+  ; Test 4: Tree structure verification
+  var msg5 = "Test 4: Tree structure verification\n"
+  print(msg5, 36)
+  
+  ; Verify tree3 has correct structure
+  ; Module -> Function -> Assignment -> Binary
+  var module_type = __mf_load_i64(tree3 + INTENT_OFFSET_TYPE)
+  jika (module_type == INTENT_UNIT_MODULE)
+    var func_node = __mf_load_i64(tree3 + INTENT_OFFSET_CHILD)
+    jika (func_node != 0)
+      var func_type = __mf_load_i64(func_node + INTENT_OFFSET_TYPE)
+      jika (func_type == INTENT_SHARD_FUNC)
+        var assign_node = __mf_load_i64(func_node + INTENT_OFFSET_CHILD)
+        jika (assign_node != 0)
+          var assign_type = __mf_load_i64(assign_node + INTENT_OFFSET_TYPE)
+          jika (assign_type == INTENT_FRAG_ASSIGN)
+            var ok4 = "✓ Tree structure verified\n"
+            print(ok4, 26)
+          lain
+            var fail4 = "✗ Assignment node wrong type\n"
+            print(fail4, 29)
+            kembali 4
+          tutup_jika
+        lain
+          var fail5 = "✗ No assignment node found\n"
+          print(fail5, 27)
+          kembali 5
+        tutup_jika
+      lain
+        var fail6 = "✗ Function node wrong type\n"
+        print(fail6, 27)
+        kembali 6
+      tutup_jika
+    lain
+      var fail7 = "✗ No function node found\n"
+      print(fail7, 25)
+      kembali 7
+    tutup_jika
+  lain
+    var fail8 = "✗ Module node wrong type\n"
+    print(fail8, 25)
+    kembali 8
+  tutup_jika
+  
+  var success = "=== All Intent Tree tests passed! ===\n"
+  print(success, 39)
+  
+  kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+  ; Initialize stdlib
+  var version = stdlib_version()
+  var msg_ver = "MorphFox Stdlib v"
+  print(msg_ver, 17)
+  __mf_print_int(version)
+  var newline = "\n"
+  print(newline, 1)
+  
+  ; Run Intent Tree pipeline test
+  var result = test_intent_pipeline()
+  
+  jika (result == 0)
+    var msg_ok = "Self-host pipeline ready for Phase 2!\n"
+    print(msg_ok, 39)
+  lain
+    var msg_fail = "Pipeline test failed with code: "
+    print(msg_fail, 33)
+    __mf_print_int(result)
+    print(newline, 1)
+  tutup_jika
+  
+  kembali result
+tutup_fungsi

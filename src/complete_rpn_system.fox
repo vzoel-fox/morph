@@ -1,0 +1,382 @@
+ambil "corelib/core/rpn.fox"
+
+; ==============================================================================
+; COMPLETE RPN INSTRUCTION SET IMPLEMENTATION
+; ==============================================================================
+; Based on corelib/core/rpn.fox SSOT specification
+
+; Complete opcode definitions (40+ opcodes)
+const OP_LIT = 1
+const OP_LOAD = 2
+const OP_STORE = 3
+const OP_DUP = 4
+const OP_POP = 5
+const OP_PICK = 6
+const OP_POKE = 7
+
+; Arithmetic
+const OP_ADD = 10
+const OP_SUB = 11
+const OP_MUL = 12
+const OP_DIV = 13
+const OP_MOD = 14
+
+; Comparison & Logic
+const OP_EQ = 20
+const OP_NEQ = 21
+const OP_LT = 22
+const OP_GT = 23
+const OP_LTE = 24
+const OP_GTE = 25
+
+; Control Flow
+const OP_JMP = 30
+const OP_JMP_IF = 31
+const OP_JMP_FALSE = 32
+const OP_CALL = 33
+const OP_RET = 34
+const OP_EXIT = 35
+const OP_LABEL = 36
+const OP_SWITCH = 37
+const OP_CASE = 38
+const OP_CYCLE = 39
+
+; System Interface
+const OP_SYSCALL = 40
+
+; Concurrency
+const OP_SPAWN = 50
+const OP_YIELD = 51
+
+; Debug & Meta
+const OP_PRINT = 90
+const OP_DUMP = 91
+const OP_HINT = 99
+
+; RPN instruction structure (16 bytes)
+const RPN_OPCODE = 0
+const RPN_OPERAND = 8
+const RPN_INSTRUCTION_SIZE = 16
+
+; RPN program state
+var rpn_program_buffer: ptr
+var rpn_program_size: i64
+var rpn_program_capacity: i64
+var rpn_label_counter: i64
+
+; Initialize RPN program builder
+fungsi rpn_init(capacity: i64) -> i64
+  rpn_program_buffer = mem_alloc_safe(capacity * RPN_INSTRUCTION_SIZE)
+  jika (rpn_program_buffer == 0)
+    kembali -1
+  tutup_jika
+  
+  rpn_program_size = 0
+  rpn_program_capacity = capacity
+  rpn_label_counter = 1000  ; Start labels from 1000
+  
+  kembali 0
+tutup_fungsi
+
+; Emit RPN instruction
+fungsi rpn_emit(opcode: i64, operand: i64) -> i64
+  jika (rpn_program_size >= rpn_program_capacity)
+    kembali -1  ; Program buffer full
+  tutup_jika
+  
+  var instruction_ptr = rpn_program_buffer + (rpn_program_size * RPN_INSTRUCTION_SIZE)
+  __mf_poke_i64(instruction_ptr + RPN_OPCODE, opcode)
+  __mf_poke_i64(instruction_ptr + RPN_OPERAND, operand)
+  
+  rpn_program_size = rpn_program_size + 1
+  kembali rpn_program_size - 1  ; Return instruction index
+tutup_fungsi
+
+; Generate unique label ID
+fungsi rpn_new_label() -> i64
+  var label_id = rpn_label_counter
+  rpn_label_counter = rpn_label_counter + 1
+  kembali label_id
+tutup_fungsi
+
+; Emit label instruction
+fungsi rpn_emit_label(label_id: i64) -> i64
+  kembali rpn_emit(OP_LABEL, label_id)
+tutup_fungsi
+
+; Enhanced codegen with complete RPN instruction set
+fungsi rpn_codegen_node(node: ptr) -> void
+  jika (node == 0)
+    kembali
+  tutup_jika
+  
+  var type = __mf_load_i64(node + INTENT_OFFSET_TYPE)
+  
+  ; Literal: emit OP_LIT + value
+  jika (type == INTENT_FRAG_LITERAL)
+    var value = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    rpn_emit(OP_LIT, value)
+    kembali
+  tutup_jika
+  
+  ; Variable: emit OP_LOAD + symbol hash
+  jika (type == INTENT_FRAG_VAR)
+    var name_ptr = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var hash = hash_string_fnv1a(name_ptr)
+    rpn_emit(OP_LOAD, hash)
+    kembali
+  tutup_jika
+  
+  ; Binary operation: left, right, op
+  jika (type == INTENT_FRAG_BINARY)
+    var left = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var right = __mf_load_i64(left + INTENT_OFFSET_NEXT)
+    var op = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    
+    ; Generate operands
+    rpn_codegen_node(left)
+    rpn_codegen_node(right)
+    
+    ; Generate operator
+    jika (op == 43)  ; '+'
+      rpn_emit(OP_ADD, 0)
+    tutup_jika
+    jika (op == 45)  ; '-'
+      rpn_emit(OP_SUB, 0)
+    tutup_jika
+    jika (op == 42)  ; '*'
+      rpn_emit(OP_MUL, 0)
+    tutup_jika
+    jika (op == 47)  ; '/'
+      rpn_emit(OP_DIV, 0)
+    tutup_jika
+    jika (op == 37)  ; '%'
+      rpn_emit(OP_MOD, 0)
+    tutup_jika
+    
+    ; Comparison operators
+    jika (op == 61)  ; '=' (comparison)
+      rpn_emit(OP_EQ, 0)
+    tutup_jika
+    jika (op == 60)  ; '<'
+      rpn_emit(OP_LT, 0)
+    tutup_jika
+    jika (op == 62)  ; '>'
+      rpn_emit(OP_GT, 0)
+    tutup_jika
+    
+    kembali
+  tutup_jika
+  
+  ; Assignment: value, store
+  jika (type == INTENT_FRAG_ASSIGN)
+    var name_ptr = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var value = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var hash = hash_string_fnv1a(name_ptr)
+    
+    ; Generate value expression
+    rpn_codegen_node(value)
+    
+    ; Store to variable
+    rpn_emit(OP_STORE, hash)
+    kembali
+  tutup_jika
+  
+  ; Function call
+  jika (type == INTENT_FRAG_CALL)
+    var func_name = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var args = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    
+    ; Generate arguments (right to left for stack)
+    rpn_codegen_args_reverse(args)
+    
+    ; Call function
+    var func_hash = hash_string_fnv1a(func_name)
+    rpn_emit(OP_CALL, func_hash)
+    kembali
+  tutup_jika
+  
+  ; If statement with proper control flow
+  jika (type == INTENT_FRAG_IF)
+    var condition = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var then_block = __mf_load_i64(condition + INTENT_OFFSET_NEXT)
+    var else_block = 0
+    jika (then_block != 0)
+      else_block = __mf_load_i64(then_block + INTENT_OFFSET_NEXT)
+    tutup_jika
+    
+    ; Generate condition
+    rpn_codegen_node(condition)
+    
+    ; Create labels
+    var else_label = rpn_new_label()
+    var end_label = rpn_new_label()
+    
+    ; Jump to else if condition is false
+    rpn_emit(OP_JMP_FALSE, else_label)
+    
+    ; Generate then block
+    rpn_codegen_node(then_block)
+    rpn_emit(OP_JMP, end_label)
+    
+    ; Else block
+    rpn_emit_label(else_label)
+    jika (else_block != 0)
+      rpn_codegen_node(else_block)
+    tutup_jika
+    
+    ; End label
+    rpn_emit_label(end_label)
+    kembali
+  tutup_jika
+  
+  ; While loop with proper control flow
+  jika (type == INTENT_FRAG_WHILE)
+    var condition = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var body = __mf_load_i64(condition + INTENT_OFFSET_NEXT)
+    
+    ; Create labels
+    var loop_start = rpn_new_label()
+    var loop_end = rpn_new_label()
+    
+    ; Loop start
+    rpn_emit_label(loop_start)
+    
+    ; Generate condition
+    rpn_codegen_node(condition)
+    
+    ; Exit if false
+    rpn_emit(OP_JMP_FALSE, loop_end)
+    
+    ; Generate body
+    rpn_codegen_node(body)
+    
+    ; Jump back to start
+    rpn_emit(OP_JMP, loop_start)
+    
+    ; Loop end
+    rpn_emit_label(loop_end)
+    kembali
+  tutup_jika
+  
+  ; Function definition
+  jika (type == INTENT_SHARD_FUNC)
+    var name_ptr = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var body = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    
+    ; Create function label
+    var func_hash = hash_string_fnv1a(name_ptr)
+    rpn_emit_label(func_hash)
+    
+    ; Generate function body
+    rpn_codegen_node(body)
+    
+    ; Return instruction
+    rpn_emit(OP_RET, 0)
+    kembali
+  tutup_jika
+  
+  ; Module: generate all functions
+  jika (type == INTENT_UNIT_MODULE)
+    var func = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    selama (func != 0)
+      rpn_codegen_node(func)
+      func = __mf_load_i64(func + INTENT_OFFSET_NEXT)
+    tutup_selama
+    
+    ; Program exit
+    rpn_emit(OP_EXIT, 0)
+    kembali
+  tutup_jika
+tutup_fungsi
+
+; Generate arguments in reverse order for stack
+fungsi rpn_codegen_args_reverse(args: ptr) -> void
+  jika (args == 0)
+    kembali
+  tutup_jika
+  
+  ; Recursive call to reverse order
+  var next_arg = __mf_load_i64(args + INTENT_OFFSET_NEXT)
+  jika (next_arg != 0)
+    rpn_codegen_args_reverse(next_arg)
+  tutup_jika
+  
+  ; Generate this argument
+  rpn_codegen_node(args)
+tutup_fungsi
+
+; FNV-1a hash function (64-bit)
+fungsi hash_string_fnv1a(str: ptr) -> i64
+  var hash = 14695981039346656037  ; FNV offset basis
+  var prime = 1099511628211        ; FNV prime
+  var i = 0
+  
+  var ch = __mf_load_byte(str + i)
+  selama (ch != 0)
+    hash = hash ^ ch
+    hash = hash * prime
+    i = i + 1
+    ch = __mf_load_byte(str + i)
+  tutup_selama
+  
+  kembali hash
+tutup_fungsi
+
+; Get RPN program buffer
+fungsi rpn_get_program() -> ptr
+  kembali rpn_program_buffer
+tutup_fungsi
+
+; Get RPN program size
+fungsi rpn_get_program_size() -> i64
+  kembali rpn_program_size
+tutup_fungsi
+
+; Get RPN program size in bytes
+fungsi rpn_get_program_bytes() -> i64
+  kembali rpn_program_size * RPN_INSTRUCTION_SIZE
+tutup_fungsi
+
+; Debug: print RPN instruction
+fungsi rpn_debug_instruction(index: i64) -> void
+  jika (index >= rpn_program_size)
+    kembali
+  tutup_jika
+  
+  var instruction_ptr = rpn_program_buffer + (index * RPN_INSTRUCTION_SIZE)
+  var opcode = __mf_load_i64(instruction_ptr + RPN_OPCODE)
+  var operand = __mf_load_i64(instruction_ptr + RPN_OPERAND)
+  
+  var msg = "RPN["
+  print(msg, 4)
+  __mf_print_int(index)
+  var msg2 = "]: "
+  print(msg2, 3)
+  __mf_print_int(opcode)
+  var msg3 = " "
+  print(msg3, 1)
+  __mf_print_int(operand)
+  var newline = "\n"
+  print(newline, 1)
+tutup_fungsi
+
+; Complete RPN compilation pipeline
+fungsi rpn_compile_complete(source: ptr, len: i64) -> ptr
+  ; Initialize RPN system
+  var init_result = rpn_init(1024)
+  jika (init_result != 0)
+    kembali 0
+  tutup_jika
+  
+  ; Parse to Intent Tree
+  var tree = parse_intent_tree(source, len)
+  jika (tree == 0)
+    kembali 0
+  tutup_jika
+  
+  ; Generate RPN code
+  rpn_codegen_node(tree)
+  
+  kembali rpn_program_buffer
+tutup_fungsi

@@ -1,0 +1,174 @@
+ambil "src/intent_codegen.fox"
+
+; ==============================================================================
+; SELF-HOST COMPILER - COMPLETE PIPELINE
+; ==============================================================================
+; Full MorphFox compiler written in MorphFox
+
+; Compiler state
+var compiler_initialized = 0
+
+; Initialize compiler
+fungsi compiler_init() -> i64
+  jika (compiler_initialized == 1)
+    kembali 0
+  tutup_jika
+  
+  ; Initialize stdlib
+  var version = stdlib_version()
+  jika (version < 10000)
+    kembali -1
+  tutup_jika
+  
+  compiler_initialized = 1
+  kembali 0
+tutup_fungsi
+
+; Compile MorphFox source to bytecode
+fungsi morph_compile(source: ptr, source_len: i64, output: ptr) -> i64
+  ; Initialize if needed
+  var init_result = compiler_init()
+  jika (init_result != 0)
+    kembali -1
+  tutup_jika
+  
+  ; Step 1: Parse source to Intent Tree
+  var tree = parse_intent_tree(source, source_len)
+  jika (tree == 0)
+    var err1 = "Parse error: Failed to build Intent Tree\n"
+    print(err1, 42)
+    kembali -2
+  tutup_jika
+  
+  ; Step 2: Generate RPN bytecode
+  var bytecode = compile_source(source, source_len)
+  jika (bytecode == 0)
+    var err2 = "Codegen error: Failed to generate bytecode\n"
+    print(err2, 44)
+    kembali -3
+  tutup_jika
+  
+  ; Step 3: Copy bytecode to output buffer
+  var bytecode_size = codegen_get_size()
+  mem_copy_safe(output, bytecode, bytecode_size)
+  
+  kembali bytecode_size
+tutup_fungsi
+
+; Write bytecode to file
+fungsi write_bytecode_file(filename: ptr, bytecode: ptr, size: i64) -> i64
+  var fd = open_file(filename, O_WRONLY + O_CREAT + O_TRUNC)
+  jika (fd < 0)
+    kembali -1
+  tutup_jika
+  
+  var written = write_fd(fd, bytecode, size)
+  close_file(fd)
+  
+  jika (written != size)
+    kembali -2
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Main compiler entry point
+fungsi compiler_main(input_file: ptr, output_file: ptr) -> i64
+  var msg1 = "MorphFox Self-Host Compiler v1.0\n"
+  print(msg1, 34)
+  
+  ; Read input file
+  var input_fd = open_file(input_file, O_RDONLY)
+  jika (input_fd < 0)
+    var err1 = "Error: Cannot open input file\n"
+    print(err1, 31)
+    kembali 1
+  tutup_jika
+  
+  ; Allocate source buffer (64KB max)
+  var source_buffer = mem_alloc_safe(65536)
+  jika (source_buffer == 0)
+    var err2 = "Error: Cannot allocate source buffer\n"
+    print(err2, 38)
+    close_file(input_fd)
+    kembali 2
+  tutup_jika
+  
+  ; Read source code
+  var source_len = read_fd(input_fd, source_buffer, 65536)
+  close_file(input_fd)
+  
+  jika (source_len <= 0)
+    var err3 = "Error: Cannot read source file\n"
+    print(err3, 32)
+    mem_free_safe(source_buffer, 65536)
+    kembali 3
+  tutup_jika
+  
+  var msg2 = "Compiling "
+  print(msg2, 10)
+  print(input_file, string_length(input_file))
+  var msg3 = "...\n"
+  print(msg3, 4)
+  
+  ; Allocate output buffer
+  var output_buffer = mem_alloc_safe(32768)
+  jika (output_buffer == 0)
+    var err4 = "Error: Cannot allocate output buffer\n"
+    print(err4, 38)
+    mem_free_safe(source_buffer, 65536)
+    kembali 4
+  tutup_jika
+  
+  ; Compile source
+  var bytecode_size = morph_compile(source_buffer, source_len, output_buffer)
+  jika (bytecode_size < 0)
+    var err5 = "Compilation failed with error code: "
+    print(err5, 37)
+    __mf_print_int(bytecode_size)
+    var newline = "\n"
+    print(newline, 1)
+    
+    mem_free_safe(source_buffer, 65536)
+    mem_free_safe(output_buffer, 32768)
+    kembali 5
+  tutup_jika
+  
+  ; Write output file
+  var write_result = write_bytecode_file(output_file, output_buffer, bytecode_size)
+  jika (write_result != 0)
+    var err6 = "Error: Cannot write output file\n"
+    print(err6, 33)
+    mem_free_safe(source_buffer, 65536)
+    mem_free_safe(output_buffer, 32768)
+    kembali 6
+  tutup_jika
+  
+  var msg4 = "Successfully compiled to "
+  print(msg4, 25)
+  print(output_file, string_length(output_file))
+  var msg5 = " ("
+  print(msg5, 2)
+  __mf_print_int(bytecode_size)
+  var msg6 = " bytes)\n"
+  print(msg6, 8)
+  
+  ; Cleanup
+  mem_free_safe(source_buffer, 65536)
+  mem_free_safe(output_buffer, 32768)
+  
+  kembali 0
+tutup_fungsi
+
+; Helper: get string length
+fungsi string_length(str: ptr) -> i64
+  var len = 0
+  var ch = __mf_load_byte(str + len)
+  
+  selama (ch != 0)
+    len = len + 1
+    ch = __mf_load_byte(str + len)
+  tutup_selama
+  
+  kembali len
+tutup_fungsi

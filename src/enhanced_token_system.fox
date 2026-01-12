@@ -1,0 +1,305 @@
+ambil "corelib/core/types.fox"
+
+; ==============================================================================
+; ENHANCED TOKEN SYSTEM (32-byte structure)
+; ==============================================================================
+; Based on corelib/core/token.fox SSOT specification
+
+; Token type constants
+const TOKEN_EOF = 0
+const TOKEN_INTEGER = 1
+const TOKEN_IDENTIFIER = 2
+const TOKEN_OPERATOR = 3
+const TOKEN_KEYWORD = 4
+const TOKEN_STRING = 5
+const TOKEN_DELIMITER = 6
+const TOKEN_MARKER = 7
+
+; Token structure size
+const TOKEN_SIZE = 32
+
+; Token field offsets
+const TOKEN_TYPE = 0
+const TOKEN_VALUE = 8
+const TOKEN_LINE = 16
+const TOKEN_COLUMN = 24
+
+; Create new token
+fungsi token_create(type: i64, value: i64, line: i64, column: i64) -> ptr
+  var token = mem_alloc_safe(TOKEN_SIZE)
+  jika (token == 0)
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(token + TOKEN_TYPE, type)
+  __mf_poke_i64(token + TOKEN_VALUE, value)
+  __mf_poke_i64(token + TOKEN_LINE, line)
+  __mf_poke_i64(token + TOKEN_COLUMN, column)
+  
+  kembali token
+tutup_fungsi
+
+; Get token type
+fungsi token_get_type(token: ptr) -> i64
+  jika (token == 0)
+    kembali TOKEN_EOF
+  tutup_jika
+  kembali __mf_load_i64(token + TOKEN_TYPE)
+tutup_fungsi
+
+; Get token value
+fungsi token_get_value(token: ptr) -> i64
+  jika (token == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(token + TOKEN_VALUE)
+tutup_fungsi
+
+; Get token line
+fungsi token_get_line(token: ptr) -> i64
+  jika (token == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(token + TOKEN_LINE)
+tutup_fungsi
+
+; Get token column
+fungsi token_get_column(token: ptr) -> i64
+  jika (token == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(token + TOKEN_COLUMN)
+tutup_fungsi
+
+; Enhanced lexer with proper token structure
+fungsi enhanced_lexer_create(input: ptr, len: i64) -> ptr
+  var lex = mem_alloc_safe(48)  ; Enhanced lexer state
+  jika (lex == 0)
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(lex + 0, input)    ; Input ptr
+  __mf_poke_i64(lex + 8, len)      ; Input length
+  __mf_poke_i64(lex + 16, 0)       ; Current position
+  __mf_poke_i64(lex + 24, 1)       ; Current line
+  __mf_poke_i64(lex + 32, 1)       ; Current column
+  __mf_poke_i64(lex + 40, 0)       ; Current char
+  
+  kembali lex
+tutup_fungsi
+
+; Get next token with metadata
+fungsi enhanced_lexer_next_token(lex: ptr) -> ptr
+  jika (lex == 0)
+    kembali token_create(TOKEN_EOF, 0, 0, 0)
+  tutup_jika
+  
+  var pos = __mf_load_i64(lex + 16)
+  var len = __mf_load_i64(lex + 8)
+  var line = __mf_load_i64(lex + 24)
+  var column = __mf_load_i64(lex + 32)
+  
+  ; Skip whitespace and update line/column
+  enhanced_lexer_skip_whitespace(lex)
+  
+  ; Update position info
+  pos = __mf_load_i64(lex + 16)
+  line = __mf_load_i64(lex + 24)
+  column = __mf_load_i64(lex + 32)
+  
+  jika (pos >= len)
+    kembali token_create(TOKEN_EOF, 0, line, column)
+  tutup_jika
+  
+  var input = __mf_load_i64(lex + 0)
+  var ch = __mf_load_byte(input + pos)
+  
+  ; Parse integer
+  jika (ch >= 48 dan ch <= 57)  ; '0' to '9'
+    var value = enhanced_lexer_parse_integer(lex)
+    kembali token_create(TOKEN_INTEGER, value, line, column)
+  tutup_jika
+  
+  ; Parse identifier/keyword
+  jika (is_alpha(ch))
+    var ident_ptr = enhanced_lexer_parse_identifier(lex)
+    var token_type = TOKEN_IDENTIFIER
+    
+    ; Check if it's a keyword
+    jika (is_keyword(ident_ptr))
+      token_type = TOKEN_KEYWORD
+    tutup_jika
+    
+    kembali token_create(token_type, ident_ptr, line, column)
+  tutup_jika
+  
+  ; Parse operators and delimiters
+  jika (ch == 43 atau ch == 45 atau ch == 42 atau ch == 47)  ; +, -, *, /
+    enhanced_lexer_advance(lex)
+    kembali token_create(TOKEN_OPERATOR, ch, line, column)
+  tutup_jika
+  
+  jika (ch == 40 atau ch == 41 atau ch == 44)  ; (, ), ,
+    enhanced_lexer_advance(lex)
+    kembali token_create(TOKEN_DELIMITER, ch, line, column)
+  tutup_jika
+  
+  ; Unknown character - advance and return as operator
+  enhanced_lexer_advance(lex)
+  kembali token_create(TOKEN_OPERATOR, ch, line, column)
+tutup_fungsi
+
+; Skip whitespace and update line/column tracking
+fungsi enhanced_lexer_skip_whitespace(lex: ptr) -> void
+  var input = __mf_load_i64(lex + 0)
+  var len = __mf_load_i64(lex + 8)
+  var pos = __mf_load_i64(lex + 16)
+  var line = __mf_load_i64(lex + 24)
+  var column = __mf_load_i64(lex + 32)
+  
+  selama (pos < len)
+    var ch = __mf_load_byte(input + pos)
+    
+    jika (ch == 32 atau ch == 9)  ; space, tab
+      pos = pos + 1
+      column = column + 1
+    tutup_jika
+    jika (ch == 10)  ; newline
+      pos = pos + 1
+      line = line + 1
+      column = 1
+    tutup_jika
+    jika (ch == 13)  ; carriage return
+      pos = pos + 1
+      ; Don't increment column for CR
+    tutup_jika
+    jika (ch != 32 dan ch != 9 dan ch != 10 dan ch != 13)
+      ; Non-whitespace found
+      jmp .done
+    tutup_jika
+  tutup_selama
+  
+.done:
+  __mf_poke_i64(lex + 16, pos)
+  __mf_poke_i64(lex + 24, line)
+  __mf_poke_i64(lex + 32, column)
+tutup_fungsi
+
+; Advance lexer position with line/column tracking
+fungsi enhanced_lexer_advance(lex: ptr) -> void
+  var input = __mf_load_i64(lex + 0)
+  var len = __mf_load_i64(lex + 8)
+  var pos = __mf_load_i64(lex + 16)
+  var line = __mf_load_i64(lex + 24)
+  var column = __mf_load_i64(lex + 32)
+  
+  jika (pos < len)
+    var ch = __mf_load_byte(input + pos)
+    pos = pos + 1
+    
+    jika (ch == 10)  ; newline
+      line = line + 1
+      column = 1
+    lain
+      column = column + 1
+    tutup_jika
+    
+    __mf_poke_i64(lex + 16, pos)
+    __mf_poke_i64(lex + 24, line)
+    __mf_poke_i64(lex + 32, column)
+  tutup_jika
+tutup_fungsi
+
+; Parse integer with proper error handling
+fungsi enhanced_lexer_parse_integer(lex: ptr) -> i64
+  var result = 0
+  var input = __mf_load_i64(lex + 0)
+  var len = __mf_load_i64(lex + 8)
+  var pos = __mf_load_i64(lex + 16)
+  
+  selama (pos < len)
+    var ch = __mf_load_byte(input + pos)
+    jika (ch >= 48 dan ch <= 57)  ; '0' to '9'
+      result = result * 10 + (ch - 48)
+      enhanced_lexer_advance(lex)
+      pos = __mf_load_i64(lex + 16)
+    lain
+      jmp .done
+    tutup_jika
+  tutup_selama
+  
+.done:
+  kembali result
+tutup_fungsi
+
+; Parse identifier with memory allocation
+fungsi enhanced_lexer_parse_identifier(lex: ptr) -> ptr
+  var buffer = mem_alloc_safe(64)
+  jika (buffer == 0)
+    kembali 0
+  tutup_jika
+  
+  var buffer_len = 0
+  var input = __mf_load_i64(lex + 0)
+  var len = __mf_load_i64(lex + 8)
+  var pos = __mf_load_i64(lex + 16)
+  
+  selama (pos < len dan buffer_len < 63)
+    var ch = __mf_load_byte(input + pos)
+    jika (is_alpha(ch) atau is_digit(ch) atau ch == 95)  ; underscore
+      __mf_poke_byte(buffer + buffer_len, ch)
+      buffer_len = buffer_len + 1
+      enhanced_lexer_advance(lex)
+      pos = __mf_load_i64(lex + 16)
+    lain
+      jmp .done
+    tutup_jika
+  tutup_selama
+  
+.done:
+  __mf_poke_byte(buffer + buffer_len, 0)  ; Null terminate
+  kembali buffer
+tutup_fungsi
+
+; Check if identifier is a keyword
+fungsi is_keyword(ident: ptr) -> i64
+  ; Simple keyword checking
+  jika (string_equals(ident, "fungsi"))
+    kembali 1
+  tutup_jika
+  jika (string_equals(ident, "jika"))
+    kembali 1
+  tutup_jika
+  jika (string_equals(ident, "selama"))
+    kembali 1
+  tutup_jika
+  jika (string_equals(ident, "var"))
+    kembali 1
+  tutup_jika
+  jika (string_equals(ident, "kembali"))
+    kembali 1
+  tutup_jika
+  jika (string_equals(ident, "ambil"))
+    kembali 1
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; String comparison helper
+fungsi string_equals(str1: ptr, str2: ptr) -> i64
+  var i = 0
+  var ch1 = __mf_load_byte(str1 + i)
+  var ch2 = __mf_load_byte(str2 + i)
+  
+  selama (ch1 != 0 dan ch2 != 0)
+    jika (ch1 != ch2)
+      kembali 0
+    tutup_jika
+    i = i + 1
+    ch1 = __mf_load_byte(str1 + i)
+    ch2 = __mf_load_byte(str2 + i)
+  tutup_selama
+  
+  kembali ch1 - ch2
+tutup_fungsi

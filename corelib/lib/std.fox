@@ -1,40 +1,31 @@
-ambil "corelib/core/types.fox"
-ambil "corelib/core/builtins.fox"
+ambil "corelib/lib/memory.fox"
+ambil "corelib/lib/io.fox"
+ambil "corelib/lib/morphroutine.fox"
 
 ; ==============================================================================
-; STANDARD LIBRARY (STD)
+; STANDARD LIBRARY - MAIN MODULE
 ; ==============================================================================
-; Wrapper functions for common operations.
-; ==============================================================================
+; Entry point for all stdlib functionality
 
-; Math
-fungsi math_abs(n)
-  jika (n < 0)
-    kembali 0 - n
-  tutup_jika
-  kembali n
-tutup_fungsi
+; Export all public functions
+; Memory management
+; - mem_alloc_safe, mem_free_safe, mem_zero, mem_copy_safe, mem_compare
 
-fungsi math_max(a, b)
-  jika (a > b)
-    kembali a
-  tutup_jika
-  kembali b
-tutup_fungsi
+; I/O operations  
+; - print, println, read_fd, write_fd, open_file, close_file
 
-; Memory
-fungsi std_memcpy(dest, src, len)
-  var i = 0
-  selama (i < len)
-    var b = load_byte(src + i)
-    poke_byte(dest + i, b)
-    i = i + 1
-  tutup_selama
-tutup_fungsi
+; MorphRoutine threading
+; - mr_spawn, mr_yield, mr_resume, mr_current, mr_destroy
+; - mr_sleep, mr_now, mr_schedule
 
-; IO
-fungsi print_line(ptr)
-  __mf_print_asciz(ptr)
-  ; Newline
-  ; TODO: Platform specific newline or just print char 10
+; Version info
+const STDLIB_VERSION_MAJOR = 1
+const STDLIB_VERSION_MINOR = 0
+const STDLIB_VERSION_PATCH = 0
+
+fungsi stdlib_version() -> i64
+  var major = STDLIB_VERSION_MAJOR * 10000
+  var minor = STDLIB_VERSION_MINOR * 100
+  var patch = STDLIB_VERSION_PATCH
+  kembali major + minor + patch
 tutup_fungsi

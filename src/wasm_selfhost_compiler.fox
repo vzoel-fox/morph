@@ -1,0 +1,480 @@
+ambil "corelib/lib/html_parser.fox"
+ambil "corelib/lib/css_parser.fox"
+ambil "corelib/platform/wasm/dom_intents.fox"
+
+; ==============================================================================
+; WASM SELF-HOST COMPILER WITH DOM INTEGRATION
+; ==============================================================================
+; Complete WASM porting with HTML/CSS parsing and DOM manipulation
+
+; WASM-specific builtins
+fungsi __mf_dom_create(tag: ptr) -> i64
+fungsi __mf_dom_append(parent: i64, child: i64) -> void
+fungsi __mf_dom_set_attr(el: i64, key: ptr, val: ptr) -> void
+fungsi __mf_dom_set_text(el: i64, text: ptr) -> void
+fungsi __mf_dom_get_by_id(id_str: ptr) -> i64
+
+; WASM DOM Intent IDs
+const DOM_CREATE_ELEMENT = 100
+const DOM_APPEND_CHILD = 101
+const DOM_SET_ATTRIBUTE = 102
+const DOM_SET_TEXT = 103
+const DOM_ADD_EVENT_LISTENER = 104
+const DOM_GET_ELEMENT_BY_ID = 105
+
+; WASM compiler state
+var wasm_dom_elements: ptr
+var wasm_next_element_id: i64
+
+; Initialize WASM DOM system
+fungsi wasm_dom_init() -> i64
+  wasm_dom_elements = mem_alloc_safe(1024 * 8)  ; Element handle table
+  jika (wasm_dom_elements == 0)
+    kembali -1
+  tutup_jika
+  
+  wasm_next_element_id = 2  ; ID 1 reserved for document.body
+  kembali 0
+tutup_fungsi
+
+; Create DOM element via WASM syscall
+fungsi wasm_create_element(tag_name: ptr) -> i64
+  ; Call WASM host via syscall
+  var element_id = sistem(DOM_CREATE_ELEMENT, tag_name)
+  
+  ; Store in element table
+  jika (element_id > 0)
+    var slot = wasm_next_element_id - 2
+    __mf_poke_i64(wasm_dom_elements + (slot * 8), element_id)
+    wasm_next_element_id = wasm_next_element_id + 1
+  tutup_jika
+  
+  kembali element_id
+tutup_fungsi
+
+; Append child element
+fungsi wasm_append_child(parent_id: i64, child_id: i64) -> void
+  sistem(DOM_APPEND_CHILD, parent_id, child_id)
+tutup_fungsi
+
+; Set element text content
+fungsi wasm_set_text(element_id: i64, text: ptr) -> void
+  sistem(DOM_SET_TEXT, element_id, text)
+tutup_fungsi
+
+; Set element attribute
+fungsi wasm_set_attribute(element_id: i64, key: ptr, value: ptr) -> void
+  sistem(DOM_SET_ATTRIBUTE, element_id, key, value)
+tutup_fungsi
+
+; Compile HTML string to DOM operations
+fungsi wasm_compile_html(html_source: ptr) -> i64
+  ; Parse HTML to DOM tree
+  var dom_tree = html_parse(html_source)
+  jika (dom_tree == 0)
+    kembali -1
+  tutup_jika
+  
+  ; Generate WASM DOM operations
+  var result = wasm_generate_dom_ops(dom_tree, 1)  ; Append to body (ID 1)
+  
+  kembali result
+tutup_fungsi
+
+; Generate DOM operations from parsed HTML
+fungsi wasm_generate_dom_ops(node: ptr, parent_id: i64) -> i64
+  jika (node == 0)
+    kembali 0
+  tutup_jika
+  
+  var node_type = __mf_load_i64(node + 0)  ; DOM_NODE_TYPE offset
+  
+  jika (node_type == DOM_NODE_ELEMENT)
+    ; Get tag name
+    var tag_name = __mf_load_i64(node + 32)  ; Tag name offset
+    var tag_str = __mf_load_i64(tag_name + 8)  ; String data ptr
+    
+    ; Create element
+    var element_id = wasm_create_element(tag_str)
+    
+    ; Apply styles if present
+    var style_ptr = __mf_load_i64(node + 48)  ; Style offset
+    jika (style_ptr != 0)
+      wasm_apply_styles(element_id, style_ptr)
+    tutup_jika
+    
+    ; Process children
+    var child = __mf_load_i64(node + 16)  ; First child offset
+    selama (child != 0)
+      wasm_generate_dom_ops(child, element_id)
+      child = __mf_load_i64(child + 24)  ; Next sibling offset
+    tutup_selama
+    
+    ; Append to parent
+    wasm_append_child(parent_id, element_id)
+    
+    kembali element_id
+  tutup_jika
+  
+  jika (node_type == DOM_NODE_TEXT)
+    ; Get text content
+    var text_data = __mf_load_i64(node + 40)  ; Text data offset
+    var text_str = __mf_load_i64(text_data + 8)  ; String data ptr
+    
+    ; Set text on parent element
+    wasm_set_text(parent_id, text_str)
+    
+    kembali parent_id
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Apply CSS styles to DOM element
+fungsi wasm_apply_styles(element_id: i64, style_ptr: ptr) -> void
+  ; Convert CSS properties to DOM attributes
+  var display = __mf_load_i64(style_ptr + STYLE_OFFSET_DISPLAY)
+  var width = __mf_load_i64(style_ptr + STYLE_OFFSET_WIDTH)
+  var height = __mf_load_i64(style_ptr + STYLE_OFFSET_HEIGHT)
+  var color = __mf_load_i64(style_ptr + STYLE_OFFSET_COLOR)
+  
+  ; Build style string
+  var style_str = mem_alloc_safe(256)
+  var style_len = 0
+  
+  ; Add display property
+  jika (display == DISPLAY_NONE)
+    style_len = append_style(style_str, style_len, "display:none;")
+  tutup_jika
+  jika (display == DISPLAY_BLOCK)
+    style_len = append_style(style_str, style_len, "display:block;")
+  tutup_jika
+  jika (display == DISPLAY_INLINE)
+    style_len = append_style(style_str, style_len, "display:inline;")
+  tutup_jika
+  
+  ; Add width if specified
+  jika (width > 0)
+    style_len = append_style_value(style_str, style_len, "width:", width, "px;")
+  tutup_jika
+  
+  ; Add height if specified
+  jika (height > 0)
+    style_len = append_style_value(style_str, style_len, "height:", height, "px;")
+  tutup_jika
+  
+  ; Add color if specified
+  jika (color > 0)
+    style_len = append_style_color(style_str, style_len, "color:#", color)
+  tutup_jika
+  
+  ; Apply style attribute
+  jika (style_len > 0)
+    __mf_poke_byte(style_str + style_len, 0)  ; Null terminate
+    var style_key = "style"
+    wasm_set_attribute(element_id, style_key, style_str)
+  tutup_jika
+  
+  mem_free_safe(style_str, 256)
+tutup_fungsi
+
+; Helper: append style property
+fungsi append_style(buffer: ptr, pos: i64, text: ptr) -> i64
+  var i = 0
+  var ch = __mf_load_byte(text + i)
+  
+  selama (ch != 0)
+    __mf_poke_byte(buffer + pos, ch)
+    pos = pos + 1
+    i = i + 1
+    ch = __mf_load_byte(text + i)
+  tutup_selama
+  
+  kembali pos
+tutup_fungsi
+
+; Helper: append style with numeric value
+fungsi append_style_value(buffer: ptr, pos: i64, prop: ptr, value: i64, unit: ptr) -> i64
+  pos = append_style(buffer, pos, prop)
+  pos = append_number(buffer, pos, value)
+  pos = append_style(buffer, pos, unit)
+  kembali pos
+tutup_fungsi
+
+; Helper: append number to buffer
+fungsi append_number(buffer: ptr, pos: i64, num: i64) -> i64
+  jika (num == 0)
+    __mf_poke_byte(buffer + pos, 48)  ; '0'
+    kembali pos + 1
+  tutup_jika
+  
+  ; Convert number to string (simplified)
+  var digits = mem_alloc_safe(20)
+  var digit_count = 0
+  var temp = num
+  
+  selama (temp > 0)
+    __mf_poke_byte(digits + digit_count, (temp % 10) + 48)
+    digit_count = digit_count + 1
+    temp = temp / 10
+  tutup_selama
+  
+  ; Reverse digits
+  var i = digit_count - 1
+  selama (i >= 0)
+    __mf_poke_byte(buffer + pos, __mf_load_byte(digits + i))
+    pos = pos + 1
+    i = i - 1
+  tutup_selama
+  
+  mem_free_safe(digits, 20)
+  kembali pos
+tutup_fungsi
+
+; Helper: append color in hex format
+fungsi append_style_color(buffer: ptr, pos: i64, prefix: ptr, color: i64) -> i64
+  pos = append_style(buffer, pos, prefix)
+  
+  ; Convert color to hex (RRGGBB)
+  var hex_chars = "0123456789ABCDEF"
+  var i = 5
+  
+  selama (i >= 0)
+    var nibble = (color >> (i * 4)) & 15
+    var hex_char = __mf_load_byte(hex_chars + nibble)
+    __mf_poke_byte(buffer + pos, hex_char)
+    pos = pos + 1
+    i = i - 1
+  tutup_selama
+  
+  __mf_poke_byte(buffer + pos, 59)  ; ';'
+  kembali pos + 1
+tutup_fungsi
+
+; WASM-specific MorphFox syntax compiler
+fungsi wasm_compile_morph_syntax(source: ptr, len: i64) -> ptr
+  ; Enhanced parser for WASM-specific syntax
+  var lex = enhanced_lexer_create(source, len)
+  jika (lex == 0)
+    kembali 0
+  tutup_jika
+  
+  ; Initialize WASM systems
+  wasm_dom_init()
+  symbol_table_init()
+  type_system_init()
+  
+  ; Parse with WASM DOM extensions
+  var tree = parse_wasm_enhanced(lex)
+  
+  ; Generate WASM bytecode with DOM operations
+  var bytecode = wasm_generate_bytecode(tree)
+  
+  mem_free_safe(lex, 48)
+  kembali bytecode
+tutup_fungsi
+
+; Enhanced parser with WASM DOM support
+fungsi parse_wasm_enhanced(lex: ptr) -> ptr
+  var statements = 0
+  var last_stmt = 0
+  
+  selama (1)
+    var token = enhanced_lexer_next_token(lex)
+    var token_type = token_get_type(token)
+    
+    jika (token_type == TOKEN_EOF)
+      jmp .done
+    tutup_jika
+    
+    ; Check for DOM function calls
+    jika (token_type == TOKEN_IDENTIFIER)
+      var ident = token_get_value(token)
+      
+      jika (string_equals(ident, "__mf_dom_create"))
+        var stmt = parse_dom_create(lex)
+        jika (stmt != 0)
+          jika (statements == 0)
+            statements = stmt
+            last_stmt = stmt
+          lain
+            intent_set_next(last_stmt, stmt)
+            last_stmt = stmt
+          tutup_jika
+        tutup_jika
+        jmp .continue
+      tutup_jika
+      
+      jika (string_equals(ident, "__mf_dom_set_text"))
+        var stmt = parse_dom_set_text(lex)
+        jika (stmt != 0)
+          jika (statements == 0)
+            statements = stmt
+            last_stmt = stmt
+          lain
+            intent_set_next(last_stmt, stmt)
+            last_stmt = stmt
+          tutup_jika
+        tutup_jika
+        jmp .continue
+      tutup_jika
+      
+      jika (string_equals(ident, "__mf_dom_append"))
+        var stmt = parse_dom_append(lex)
+        jika (stmt != 0)
+          jika (statements == 0)
+            statements = stmt
+            last_stmt = stmt
+          lain
+            intent_set_next(last_stmt, stmt)
+            last_stmt = stmt
+          tutup_jika
+        tutup_jika
+        jmp .continue
+      tutup_jika
+    tutup_jika
+    
+    ; Fall back to regular parsing
+    var stmt = parse_statement_with_imports(lex)
+    jika (stmt != 0)
+      jika (statements == 0)
+        statements = stmt
+        last_stmt = stmt
+      lain
+        intent_set_next(last_stmt, stmt)
+        last_stmt = stmt
+      tutup_jika
+    tutup_jika
+    
+.continue:
+  tutup_selama
+  
+.done:
+  ; Wrap in function and module
+  var func_name = mem_alloc_safe(8)
+  mem_copy_safe(func_name, "main", 4)
+  var func = intent_new_function(func_name, statements)
+  var module = intent_new_module(func)
+  
+  kembali module
+tutup_fungsi
+
+; Parse DOM create call
+fungsi parse_dom_create(lex: ptr) -> ptr
+  ; Expect: __mf_dom_create("tag_name")
+  ; Skip opening parenthesis
+  var token = enhanced_lexer_next_token(lex)
+  
+  ; Get string argument
+  token = enhanced_lexer_next_token(lex)
+  jika (token_get_type(token) != TOKEN_STRING)
+    kembali 0
+  tutup_jika
+  
+  var tag_name = token_get_value(token)
+  
+  ; Skip closing parenthesis
+  enhanced_lexer_next_token(lex)
+  
+  ; Create DOM create node
+  var node = intent_new_node(INTENT_FRAG_CALL)
+  intent_set_data_a(node, "__mf_dom_create")
+  
+  var arg_node = intent_new_literal(tag_name)
+  intent_set_child(node, arg_node)
+  
+  kembali node
+tutup_fungsi
+
+; Parse DOM set text call
+fungsi parse_dom_set_text(lex: ptr) -> ptr
+  ; Expect: __mf_dom_set_text("text")
+  var token = enhanced_lexer_next_token(lex)  ; Skip (
+  token = enhanced_lexer_next_token(lex)      ; Get string
+  
+  jika (token_get_type(token) != TOKEN_STRING)
+    kembali 0
+  tutup_jika
+  
+  var text_content = token_get_value(token)
+  enhanced_lexer_next_token(lex)  ; Skip )
+  
+  var node = intent_new_node(INTENT_FRAG_CALL)
+  intent_set_data_a(node, "__mf_dom_set_text")
+  
+  var arg_node = intent_new_literal(text_content)
+  intent_set_child(node, arg_node)
+  
+  kembali node
+tutup_fungsi
+
+; Parse DOM append call
+fungsi parse_dom_append(lex: ptr) -> ptr
+  ; Expect: __mf_dom_append(parent_id)
+  var token = enhanced_lexer_next_token(lex)  ; Skip (
+  token = enhanced_lexer_next_token(lex)      ; Get number
+  
+  jika (token_get_type(token) != TOKEN_INTEGER)
+    kembali 0
+  tutup_jika
+  
+  var parent_id = token_get_value(token)
+  enhanced_lexer_next_token(lex)  ; Skip )
+  
+  var node = intent_new_node(INTENT_FRAG_CALL)
+  intent_set_data_a(node, "__mf_dom_append")
+  
+  var arg_node = intent_new_literal(parent_id)
+  intent_set_child(node, arg_node)
+  
+  kembali node
+tutup_fungsi
+
+; Generate WASM bytecode with DOM operations
+fungsi wasm_generate_bytecode(tree: ptr) -> ptr
+  ; Initialize RPN system
+  rpn_init(2048)
+  
+  ; Generate enhanced RPN with DOM syscalls
+  wasm_codegen_node(tree)
+  
+  kembali rpn_get_program()
+tutup_fungsi
+
+; Enhanced codegen with WASM DOM support
+fungsi wasm_codegen_node(node: ptr) -> void
+  jika (node == 0)
+    kembali
+  tutup_jika
+  
+  var type = __mf_load_i64(node + INTENT_OFFSET_TYPE)
+  
+  ; Handle DOM function calls
+  jika (type == INTENT_FRAG_CALL)
+    var func_name = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    
+    jika (string_equals(func_name, "__mf_dom_create"))
+      var arg = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+      wasm_codegen_node(arg)  ; Generate argument
+      rpn_emit(OP_SYSCALL, DOM_CREATE_ELEMENT)
+      kembali
+    tutup_jika
+    
+    jika (string_equals(func_name, "__mf_dom_set_text"))
+      var arg = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+      wasm_codegen_node(arg)  ; Generate argument
+      rpn_emit(OP_SYSCALL, DOM_SET_TEXT)
+      kembali
+    tutup_jika
+    
+    jika (string_equals(func_name, "__mf_dom_append"))
+      var arg = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+      wasm_codegen_node(arg)  ; Generate argument
+      rpn_emit(OP_SYSCALL, DOM_APPEND_CHILD)
+      kembali
+    tutup_jika
+  tutup_jika
+  
+  ; Fall back to regular RPN codegen
+  rpn_codegen_node(node)
+tutup_fungsi

@@ -1,0 +1,226 @@
+; ==============================================================================
+; GRANULAR IMPORT SYSTEM - SSOT Implementation
+; ==============================================================================
+; Based on bootstrap/asm/parser.s and morphfox test cases
+
+ambil "src/intent_parser.fox"
+
+; Import node types
+const INTENT_UNIT_IMPORT = 0x1002
+const INTENT_FRAG_IMPORT_FULL = 0x3010
+const INTENT_FRAG_IMPORT_GRANULAR = 0x3011
+
+; Import parsing state
+var import_path_buffer: ptr
+var import_symbol_buffer: ptr
+
+; Initialize import system
+fungsi import_init() -> i64
+  import_path_buffer = mem_alloc_safe(256)
+  jika (import_path_buffer == 0)
+    kembali -1
+  tutup_jika
+  
+  import_symbol_buffer = mem_alloc_safe(64)
+  jika (import_symbol_buffer == 0)
+    mem_free_safe(import_path_buffer, 256)
+    kembali -1
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Parse import statement: ambil "path" [: symbol]
+fungsi parse_import_statement(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  
+  ; Expect "ambil" keyword (already consumed by caller)
+  
+  ; Expect string literal (path)
+  lexer_skip_ws(lex)
+  var ch = lexer_char(lex)
+  jika (ch != 34)  ; '"'
+    kembali 0  ; Expected string literal
+  tutup_jika
+  
+  ; Parse path string
+  lexer_advance(lex)  ; Skip opening quote
+  var path_len = 0
+  ch = lexer_char(lex)
+  
+  selama (ch != 34 dan ch != 0 dan path_len < 255)  ; Until closing quote or EOF
+    __mf_poke_byte(import_path_buffer + path_len, ch)
+    path_len = path_len + 1
+    lexer_advance(lex)
+    ch = lexer_char(lex)
+  tutup_selama
+  
+  jika (ch != 34)
+    kembali 0  ; Missing closing quote
+  tutup_jika
+  
+  lexer_advance(lex)  ; Skip closing quote
+  __mf_poke_byte(import_path_buffer + path_len, 0)  ; Null terminate
+  
+  ; Check for granular import (colon)
+  lexer_skip_ws(lex)
+  ch = lexer_char(lex)
+  
+  jika (ch == 58)  ; ':'
+    ; Granular import
+    lexer_advance(lex)  ; Skip colon
+    lexer_skip_ws(lex)
+    
+    ; Parse symbol name
+    ch = lexer_char(lex)
+    jika (is_alpha(ch) == 0)
+      kembali 0  ; Expected identifier
+    tutup_jika
+    
+    var symbol_len = lexer_parse_ident(lex, import_symbol_buffer)
+    jika (symbol_len == 0)
+      kembali 0
+    tutup_jika
+    
+    ; Create granular import node
+    var node = intent_new_node(INTENT_FRAG_IMPORT_GRANULAR)
+    intent_set_data_a(node, import_path_buffer)
+    intent_set_data_b(node, import_symbol_buffer)
+    kembali node
+  lain
+    ; Full import
+    var node = intent_new_node(INTENT_FRAG_IMPORT_FULL)
+    intent_set_data_a(node, import_path_buffer)
+    intent_set_data_b(0)  ; No specific symbol
+    kembali node
+  tutup_jika
+tutup_fungsi
+
+; Enhanced parser with import support
+fungsi parse_statement_with_imports(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  var ch = lexer_char(lex)
+  
+  ; Check for "ambil" keyword
+  jika (is_alpha(ch))
+    var keyword_buf = mem_alloc_safe(16)
+    var keyword_len = lexer_parse_ident(lex, keyword_buf)
+    
+    ; Check if it's "ambil"
+    jika (string_compare(keyword_buf, "ambil") == 0)
+      mem_free_safe(keyword_buf, 16)
+      kembali parse_import_statement(lex)
+    tutup_jika
+    
+    ; Reset lexer position for other keywords
+    ; (This is simplified - real implementation would need proper backtracking)
+    mem_free_safe(keyword_buf, 16)
+  tutup_jika
+  
+  ; Fall back to regular statement parsing
+  kembali parse_assignment(lex)
+tutup_fungsi
+
+; String comparison helper
+fungsi string_compare(str1: ptr, str2: ptr) -> i64
+  var i = 0
+  var ch1 = __mf_load_byte(str1 + i)
+  var ch2 = __mf_load_byte(str2 + i)
+  
+  selama (ch1 != 0 dan ch2 != 0)
+    jika (ch1 != ch2)
+      kembali ch1 - ch2
+    tutup_jika
+    i = i + 1
+    ch1 = __mf_load_byte(str1 + i)
+    ch2 = __mf_load_byte(str2 + i)
+  tutup_selama
+  
+  kembali ch1 - ch2
+tutup_fungsi
+
+; Import resolution system
+fungsi resolve_import(import_node: ptr) -> i64
+  var import_type = __mf_load_i64(import_node + INTENT_OFFSET_TYPE)
+  var path = __mf_load_i64(import_node + INTENT_OFFSET_DATA_A)
+  var symbol = __mf_load_i64(import_node + INTENT_OFFSET_DATA_B)
+  
+  jika (import_type == INTENT_FRAG_IMPORT_FULL)
+    ; Full import - load entire module
+    var msg1 = "Full import: "
+    print(msg1, 13)
+    print_string(path)
+    var newline = "\n"
+    print(newline, 1)
+    kembali 0
+  tutup_jika
+  
+  jika (import_type == INTENT_FRAG_IMPORT_GRANULAR)
+    ; Granular import - load specific symbol
+    var msg2 = "Granular import: "
+    print(msg2, 17)
+    print_string(symbol)
+    var msg3 = " from "
+    print(msg3, 6)
+    print_string(path)
+    var newline2 = "\n"
+    print(newline2, 1)
+    kembali 0
+  tutup_jika
+  
+  kembali -1  ; Unknown import type
+tutup_fungsi
+
+; Helper to print null-terminated string
+fungsi print_string(str: ptr) -> void
+  var len = 0
+  var ch = __mf_load_byte(str + len)
+  
+  selama (ch != 0)
+    len = len + 1
+    ch = __mf_load_byte(str + len)
+  tutup_selama
+  
+  print(str, len)
+tutup_fungsi
+
+; Enhanced parser entry point with import support
+fungsi parse_with_imports(source: ptr, len: i64) -> ptr
+  ; Initialize import system
+  var init_result = import_init()
+  jika (init_result != 0)
+    kembali 0
+  tutup_jika
+  
+  var lex = lexer_create(source, len)
+  jika (lex == 0)
+    kembali 0
+  tutup_jika
+  
+  ; Parse statements (including imports)
+  var stmt = parse_statement_with_imports(lex)
+  jika (stmt == 0)
+    stmt = parse_binary(lex)
+  tutup_jika
+  
+  ; Process imports if found
+  jika (stmt != 0)
+    var stmt_type = __mf_load_i64(stmt + INTENT_OFFSET_TYPE)
+    jika (stmt_type == INTENT_FRAG_IMPORT_FULL atau stmt_type == INTENT_FRAG_IMPORT_GRANULAR)
+      resolve_import(stmt)
+    tutup_jika
+  tutup_jika
+  
+  ; Wrap in function and module
+  var func_name = mem_alloc_safe(8)
+  mem_copy_safe(func_name, "main", 4)
+  var func = intent_new_function(func_name, stmt)
+  var module = intent_new_module(func)
+  
+  ; Cleanup
+  mem_free_safe(lex, LEX_SIZE)
+  mem_free_safe(import_path_buffer, 256)
+  mem_free_safe(import_symbol_buffer, 64)
+  
+  kembali module
+tutup_fungsi

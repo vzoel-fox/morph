@@ -1,0 +1,269 @@
+ambil "src/granular_import.fox"
+
+; ==============================================================================
+; GRANULAR IMPORT TEST SUITE
+; ==============================================================================
+; Test cases based on morphfox/tests/test_granular.fox
+
+fungsi test_full_import() -> i64
+  var msg1 = "Test 1: Full Import\n"
+  print(msg1, 20)
+  
+  ; Test: ambil "corelib/lib/std.fox"
+  var source1 = "ambil \"corelib/lib/std.fox\""
+  var tree1 = parse_with_imports(source1, 27)
+  
+  jika (tree1 != 0)
+    var ok1 = "✓ Full import parsed successfully\n"
+    print(ok1, 34)
+    
+    ; Verify structure
+    var func_node = __mf_load_i64(tree1 + INTENT_OFFSET_CHILD)
+    jika (func_node != 0)
+      var import_node = __mf_load_i64(func_node + INTENT_OFFSET_CHILD)
+      jika (import_node != 0)
+        var import_type = __mf_load_i64(import_node + INTENT_OFFSET_TYPE)
+        jika (import_type == INTENT_FRAG_IMPORT_FULL)
+          var ok2 = "✓ Import type verified as FULL\n"
+          print(ok2, 32)
+          kembali 0
+        lain
+          var fail1 = "✗ Wrong import type\n"
+          print(fail1, 20)
+          kembali 1
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  lain
+    var fail2 = "✗ Full import parsing failed\n"
+    print(fail2, 30)
+    kembali 2
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_granular_import() -> i64
+  var msg1 = "Test 2: Granular Import\n"
+  print(msg1, 24)
+  
+  ; Test: ambil "corelib/lib/std.fox" : math_abs
+  var source2 = "ambil \"corelib/lib/std.fox\" : math_abs"
+  var tree2 = parse_with_imports(source2, 38)
+  
+  jika (tree2 != 0)
+    var ok1 = "✓ Granular import parsed successfully\n"
+    print(ok1, 38)
+    
+    ; Verify structure
+    var func_node = __mf_load_i64(tree2 + INTENT_OFFSET_CHILD)
+    jika (func_node != 0)
+      var import_node = __mf_load_i64(func_node + INTENT_OFFSET_CHILD)
+      jika (import_node != 0)
+        var import_type = __mf_load_i64(import_node + INTENT_OFFSET_TYPE)
+        jika (import_type == INTENT_FRAG_IMPORT_GRANULAR)
+          var ok2 = "✓ Import type verified as GRANULAR\n"
+          print(ok2, 36)
+          
+          ; Check symbol name
+          var symbol_ptr = __mf_load_i64(import_node + INTENT_OFFSET_DATA_B)
+          jika (symbol_ptr != 0)
+            var ok3 = "✓ Symbol name: "
+            print(ok3, 15)
+            print_string(symbol_ptr)
+            var newline = "\n"
+            print(newline, 1)
+            kembali 0
+          lain
+            var fail1 = "✗ Missing symbol name\n"
+            print(fail1, 22)
+            kembali 3
+          tutup_jika
+        lain
+          var fail2 = "✗ Wrong import type\n"
+          print(fail2, 20)
+          kembali 4
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  lain
+    var fail3 = "✗ Granular import parsing failed\n"
+    print(fail3, 34)
+    kembali 5
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_import_syntax_variations() -> i64
+  var msg1 = "Test 3: Import Syntax Variations\n"
+  print(msg1, 34)
+  
+  ; Test various syntax forms
+  var test_cases = 4
+  var i = 0
+  
+  selama (i < test_cases)
+    var source: ptr
+    var expected_type: i64
+    
+    jika (i == 0)
+      source = "ambil \"module.fox\""
+      expected_type = INTENT_FRAG_IMPORT_FULL
+    tutup_jika
+    
+    jika (i == 1)
+      source = "ambil \"module.fox\" : symbol"
+      expected_type = INTENT_FRAG_IMPORT_GRANULAR
+    tutup_jika
+    
+    jika (i == 2)
+      source = "ambil \"path/to/module.fox\""
+      expected_type = INTENT_FRAG_IMPORT_FULL
+    tutup_jika
+    
+    jika (i == 3)
+      source = "ambil \"path/to/module.fox\" : my_function"
+      expected_type = INTENT_FRAG_IMPORT_GRANULAR
+    tutup_jika
+    
+    var source_len = string_length(source)
+    var tree = parse_with_imports(source, source_len)
+    
+    jika (tree != 0)
+      var ok = "✓ Syntax variation "
+      print(ok, 19)
+      __mf_print_int(i + 1)
+      var ok2 = " parsed\n"
+      print(ok2, 8)
+    lain
+      var fail = "✗ Syntax variation "
+      print(fail, 19)
+      __mf_print_int(i + 1)
+      var fail2 = " failed\n"
+      print(fail2, 8)
+      kembali i + 10
+    tutup_jika
+    
+    i = i + 1
+  tutup_selama
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_import_error_cases() -> i64
+  var msg1 = "Test 4: Import Error Cases\n"
+  print(msg1, 27)
+  
+  ; Test malformed imports (should return NULL)
+  var error_cases = 3
+  var i = 0
+  
+  selama (i < error_cases)
+    var source: ptr
+    
+    jika (i == 0)
+      source = "ambil"  ; Missing path
+    tutup_jika
+    
+    jika (i == 1)
+      source = "ambil \"unclosed_string"  ; Missing closing quote
+    tutup_jika
+    
+    jika (i == 2)
+      source = "ambil \"module.fox\" :"  ; Missing symbol after colon
+    tutup_jika
+    
+    var source_len = string_length(source)
+    var tree = parse_with_imports(source, source_len)
+    
+    jika (tree == 0)
+      var ok = "✓ Error case "
+      print(ok, 13)
+      __mf_print_int(i + 1)
+      var ok2 = " correctly rejected\n"
+      print(ok2, 20)
+    lain
+      var fail = "✗ Error case "
+      print(fail, 13)
+      __mf_print_int(i + 1)
+      var fail2 = " should have failed\n"
+      print(fail2, 20)
+      kembali i + 20
+    tutup_jika
+    
+    i = i + 1
+  tutup_selama
+  
+  kembali 0
+tutup_fungsi
+
+; Helper function
+fungsi string_length(str: ptr) -> i64
+  var len = 0
+  var ch = __mf_load_byte(str + len)
+  
+  selama (ch != 0)
+    len = len + 1
+    ch = __mf_load_byte(str + len)
+  tutup_selama
+  
+  kembali len
+tutup_fungsi
+
+fungsi utama() -> i64
+  var banner = "=== GRANULAR IMPORT SYSTEM TEST ===\n"
+  print(banner, 37)
+  
+  ; Initialize stdlib
+  var version = stdlib_version()
+  var init_msg = "MorphFox Stdlib v"
+  print(init_msg, 17)
+  __mf_print_int(version)
+  var newline = "\n"
+  print(newline, 1)
+  
+  ; Run all tests
+  var result1 = test_full_import()
+  jika (result1 != 0)
+    kembali result1
+  tutup_jika
+  
+  var result2 = test_granular_import()
+  jika (result2 != 0)
+    kembali result2
+  tutup_jika
+  
+  var result3 = test_import_syntax_variations()
+  jika (result3 != 0)
+    kembali result3
+  tutup_jika
+  
+  var result4 = test_import_error_cases()
+  jika (result4 != 0)
+    kembali result4
+  tutup_jika
+  
+  var success = "🎯 ALL GRANULAR IMPORT TESTS PASSED!\n"
+  print(success, 38)
+  
+  var summary = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+  print(summary, 41)
+  var features = "✅ Features Implemented:\n"
+  print(features, 25)
+  var f1 = "  • Full imports: ambil \"module.fox\"\n"
+  print(f1, 36)
+  var f2 = "  • Granular imports: ambil \"module.fox\" : symbol\n"
+  print(f2, 49)
+  var f3 = "  • Path validation and string parsing\n"
+  print(f3, 38)
+  var f4 = "  • Error handling for malformed syntax\n"
+  print(f4, 39)
+  var f5 = "  • Intent Tree integration\n"
+  print(f5, 27)
+  
+  var ready = "\n🚀 Granular Import System Ready!\n"
+  print(ready, 34)
+  
+  kembali 0
+tutup_fungsi

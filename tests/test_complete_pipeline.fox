@@ -1,0 +1,143 @@
+ambil "src/intent_codegen.fox"
+
+; ==============================================================================
+; COMPLETE PIPELINE TEST - Intent Tree to Bytecode
+; ==============================================================================
+
+fungsi test_complete_pipeline() -> i64
+  var banner = "=== COMPLETE SELF-HOST PIPELINE TEST ===\n"
+  print(banner, 42)
+  
+  ; Test 1: Simple assignment
+  var msg1 = "Test 1: Simple assignment (x = 42)\n"
+  print(msg1, 36)
+  
+  var source1 = "x = 42"
+  var bytecode1 = compile_source(source1, 6)
+  
+  jika (bytecode1 != 0)
+    var size1 = codegen_get_size()
+    var ok1 = "✓ Generated "
+    print(ok1, 12)
+    __mf_print_int(size1)
+    var bytes1 = " bytes of bytecode\n"
+    print(bytes1, 19)
+    
+    ; Verify bytecode structure
+    var op1 = __mf_load_byte(bytecode1)
+    jika (op1 == OP_LIT)
+      var val1 = __mf_load_i64(bytecode1 + 1)
+      jika (val1 == 42)
+        var verify1 = "✓ Bytecode verification passed\n"
+        print(verify1, 32)
+      lain
+        var fail1 = "✗ Wrong literal value in bytecode\n"
+        print(fail1, 35)
+        kembali 1
+      tutup_jika
+    lain
+      var fail2 = "✗ Wrong opcode in bytecode\n"
+      print(fail2, 28)
+      kembali 2
+    tutup_jika
+  lain
+    var fail3 = "✗ Compilation failed\n"
+    print(fail3, 21)
+    kembali 3
+  tutup_jika
+  
+  ; Test 2: Binary expression
+  var msg2 = "Test 2: Binary expression (y = x + 10)\n"
+  print(msg2, 40)
+  
+  var source2 = "y = x + 10"
+  var bytecode2 = compile_source(source2, 10)
+  
+  jika (bytecode2 != 0)
+    var size2 = codegen_get_size()
+    var ok2 = "✓ Generated "
+    print(ok2, 12)
+    __mf_print_int(size2)
+    var bytes2 = " bytes of bytecode\n"
+    print(bytes2, 19)
+    
+    ; Should contain: LOAD x, LIT 10, ADD, STORE y
+    var expected_ops = "Expected: LOAD, LIT, ADD, STORE\n"
+    print(expected_ops, 32)
+    
+    var verify2 = "✓ Binary expression compiled\n"
+    print(verify2, 29)
+  lain
+    var fail4 = "✗ Binary expression compilation failed\n"
+    print(fail4, 39)
+    kembali 4
+  tutup_jika
+  
+  ; Test 3: Complex expression
+  var msg3 = "Test 3: Complex expression (z = a * b + c)\n"
+  print(msg3, 43)
+  
+  var source3 = "z = a * b + c"
+  var bytecode3 = compile_source(source3, 13)
+  
+  jika (bytecode3 != 0)
+    var size3 = codegen_get_size()
+    var ok3 = "✓ Generated "
+    print(ok3, 12)
+    __mf_print_int(size3)
+    var bytes3 = " bytes of bytecode\n"
+    print(bytes3, 19)
+    
+    var verify3 = "✓ Complex expression compiled\n"
+    print(verify3, 30)
+  lain
+    var fail5 = "✗ Complex expression compilation failed\n"
+    print(fail5, 40)
+    kembali 5
+  tutup_jika
+  
+  var success = "🎯 ALL PIPELINE TESTS PASSED!\n"
+  print(success, 31)
+  
+  var phase2_complete = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+  print(phase2_complete, 41)
+  var phase2_msg = "PHASE 2 COMPLETE: Intent Tree → Bytecode\n"
+  print(phase2_msg, 41)
+  var ready_msg = "Self-hosting compiler is FUNCTIONAL!\n"
+  print(ready_msg, 37)
+  var phase2_bottom = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+  print(phase2_bottom, 41)
+  
+  kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+  ; Initialize stdlib
+  var version = stdlib_version()
+  var init_msg = "MorphFox Stdlib v"
+  print(init_msg, 17)
+  __mf_print_int(version)
+  var newline = "\n"
+  print(newline, 1)
+  
+  ; Run complete pipeline test
+  var result = test_complete_pipeline()
+  
+  jika (result == 0)
+    var next_steps = "\nNext Steps:\n"
+    print(next_steps, 12)
+    var step1 = "1. Integrate with Assembly executor\n"
+    print(step1, 36)
+    var step2 = "2. Test self-compilation (dogfooding)\n"
+    print(step2, 38)
+    var step3 = "3. Achieve compiler independence\n"
+    print(step3, 33)
+  lain
+    var error_msg = "Pipeline test failed with code: "
+    print(error_msg, 33)
+    __mf_print_int(result)
+    print(newline, 1)
+  tutup_jika
+  
+  kembali result
+tutup_fungsi

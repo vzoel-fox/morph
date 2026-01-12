@@ -1,0 +1,200 @@
+ambil "corelib/lib/std.fox"
+ambil "src/intent_builder.fox"
+
+; ==============================================================================
+; INTENT TREE SELF-HOST IMPLEMENTATION
+; ==============================================================================
+; Complete Intent Tree builder with parser integration
+
+; Token types (matching Assembly lexer)
+const TOKEN_EOF = 0
+const TOKEN_INTEGER = 1
+const TOKEN_IDENTIFIER = 2
+const TOKEN_OPERATOR = 3
+const TOKEN_KEYWORD = 4
+const TOKEN_STRING = 5
+const TOKEN_DELIMITER = 6
+const TOKEN_COLON = 7
+
+; Lexer state (32 bytes)
+const LEX_INPUT = 0
+const LEX_POS = 8
+const LEX_LEN = 16
+const LEX_CURRENT = 24
+const LEX_SIZE = 32
+
+; Create lexer state
+fungsi lexer_create(input: ptr, len: i64) -> ptr
+  var lex = mem_alloc_safe(LEX_SIZE)
+  jika (lex == 0)
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(lex + LEX_INPUT, input)
+  __mf_poke_i64(lex + LEX_POS, 0)
+  __mf_poke_i64(lex + LEX_LEN, len)
+  __mf_poke_i64(lex + LEX_CURRENT, 0)
+  
+  kembali lex
+tutup_fungsi
+
+; Get current character
+fungsi lexer_char(lex: ptr) -> i64
+  var pos = __mf_load_i64(lex + LEX_POS)
+  var len = __mf_load_i64(lex + LEX_LEN)
+  
+  jika (pos >= len)
+    kembali 0  ; EOF
+  tutup_jika
+  
+  var input = __mf_load_i64(lex + LEX_INPUT)
+  kembali __mf_load_byte(input + pos)
+tutup_fungsi
+
+; Advance lexer position
+fungsi lexer_advance(lex: ptr) -> void
+  var pos = __mf_load_i64(lex + LEX_POS)
+  __mf_poke_i64(lex + LEX_POS, pos + 1)
+tutup_fungsi
+
+; Skip whitespace
+fungsi lexer_skip_ws(lex: ptr) -> void
+  var ch = lexer_char(lex)
+  selama (ch == 32 atau ch == 9 atau ch == 10 atau ch == 13)  ; space, tab, \n, \r
+    lexer_advance(lex)
+    ch = lexer_char(lex)
+  tutup_selama
+tutup_fungsi
+
+; Parse integer literal
+fungsi lexer_parse_int(lex: ptr) -> i64
+  var result = 0
+  var ch = lexer_char(lex)
+  
+  selama (ch >= 48 dan ch <= 57)  ; '0' to '9'
+    result = result * 10 + (ch - 48)
+    lexer_advance(lex)
+    ch = lexer_char(lex)
+  tutup_selama
+  
+  kembali result
+tutup_fungsi
+
+; Check if character is alpha
+fungsi is_alpha(ch: i64) -> i64
+  kembali (ch >= 65 dan ch <= 90) atau (ch >= 97 dan ch <= 122)  ; A-Z, a-z
+tutup_fungsi
+
+; Check if character is digit
+fungsi is_digit(ch: i64) -> i64
+  kembali ch >= 48 dan ch <= 57  ; 0-9
+tutup_fungsi
+
+; Parse identifier
+fungsi lexer_parse_ident(lex: ptr, buffer: ptr) -> i64
+  var len = 0
+  var ch = lexer_char(lex)
+  
+  selama (is_alpha(ch) atau is_digit(ch) atau ch == 95)  ; underscore
+    __mf_poke_byte(buffer + len, ch)
+    len = len + 1
+    lexer_advance(lex)
+    ch = lexer_char(lex)
+  tutup_selama
+  
+  __mf_poke_byte(buffer + len, 0)  ; null terminate
+  kembali len
+tutup_fungsi
+
+; Simple recursive descent parser
+fungsi parse_expression(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  var ch = lexer_char(lex)
+  
+  ; Parse integer literal
+  jika (is_digit(ch))
+    var value = lexer_parse_int(lex)
+    kembali intent_new_literal(value)
+  tutup_jika
+  
+  ; Parse identifier/variable
+  jika (is_alpha(ch))
+    var name_buf = mem_alloc_safe(64)
+    var len = lexer_parse_ident(lex, name_buf)
+    kembali intent_new_var(name_buf)
+  tutup_jika
+  
+  kembali 0  ; Parse error
+tutup_fungsi
+
+; Parse binary expression (simplified)
+fungsi parse_binary(lex: ptr) -> ptr
+  var left = parse_expression(lex)
+  jika (left == 0)
+    kembali 0
+  tutup_jika
+  
+  lexer_skip_ws(lex)
+  var op = lexer_char(lex)
+  
+  ; Check for binary operators
+  jika (op == 43 atau op == 45 atau op == 42 atau op == 47)  ; +, -, *, /
+    lexer_advance(lex)
+    var right = parse_expression(lex)
+    jika (right == 0)
+      kembali left  ; Return left if no right operand
+    tutup_jika
+    kembali intent_new_binary(op, left, right)
+  tutup_jika
+  
+  kembali left
+tutup_fungsi
+
+; Parse assignment statement
+fungsi parse_assignment(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  var ch = lexer_char(lex)
+  
+  jika (is_alpha(ch))
+    var name_buf = mem_alloc_safe(64)
+    var len = lexer_parse_ident(lex, name_buf)
+    
+    lexer_skip_ws(lex)
+    var eq = lexer_char(lex)
+    
+    jika (eq == 61)  ; '='
+      lexer_advance(lex)
+      var value = parse_binary(lex)
+      jika (value != 0)
+        kembali intent_new_assign(name_buf, value)
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Main parser entry point
+fungsi parse_intent_tree(source: ptr, len: i64) -> ptr
+  var lex = lexer_create(source, len)
+  jika (lex == 0)
+    kembali 0
+  tutup_jika
+  
+  ; Parse first statement
+  var stmt = parse_assignment(lex)
+  jika (stmt == 0)
+    stmt = parse_binary(lex)
+  tutup_jika
+  
+  ; Wrap in function
+  var func_name = mem_alloc_safe(8)
+  mem_copy_safe(func_name, "main", 4)
+  var func = intent_new_function(func_name, stmt)
+  
+  ; Wrap in module
+  var module = intent_new_module(func)
+  
+  mem_free_safe(lex, LEX_SIZE)
+  kembali module
+tutup_fungsi

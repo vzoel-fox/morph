@@ -1,0 +1,70 @@
+ambil "corelib/core/runtime.fox"
+ambil "corelib/lib/memory.fox"
+
+; ==============================================================================
+; STANDARD LIBRARY - I/O MODULE
+; ==============================================================================
+
+; File descriptor constants
+const STDIN = 0
+const STDOUT = 1
+const STDERR = 2
+
+; Open flags
+const O_RDONLY = 0
+const O_WRONLY = 1
+const O_RDWR = 2
+const O_CREAT = 64
+const O_TRUNC = 512
+
+; Print string to stdout
+fungsi print(text: ptr, len: i64) -> i64
+  kembali __mf_io_write(STDOUT, text, len)
+tutup_fungsi
+
+; Print line to stdout
+fungsi println(text: ptr, len: i64) -> i64
+  var result = print(text, len)
+  jika (result >= 0)
+    var newline = 10  ; '\n'
+    var nl_ptr = mem_alloc_safe(1)
+    jika (nl_ptr != 0)
+      __mf_poke_byte(nl_ptr, newline)
+      __mf_io_write(STDOUT, nl_ptr, 1)
+      mem_free_safe(nl_ptr, 1)
+    tutup_jika
+  tutup_jika
+  kembali result
+tutup_fungsi
+
+; Read from file descriptor
+fungsi read_fd(fd: i64, buffer: ptr, count: i64) -> i64
+  jika (buffer == 0 atau count <= 0)
+    kembali -1
+  tutup_jika
+  kembali __mf_io_read(fd, buffer, count)
+tutup_fungsi
+
+; Write to file descriptor
+fungsi write_fd(fd: i64, buffer: ptr, count: i64) -> i64
+  jika (buffer == 0 atau count <= 0)
+    kembali -1
+  tutup_jika
+  kembali __mf_io_write(fd, buffer, count)
+tutup_fungsi
+
+; Open file
+fungsi open_file(path: ptr, flags: i64) -> i64
+  jika (path == 0)
+    kembali -1
+  tutup_jika
+  kembali __mf_io_open(path, flags)
+tutup_fungsi
+
+; Close file
+fungsi close_file(fd: i64) -> i64
+  jika (fd < 0)
+    kembali -1
+  tutup_jika
+  kembali __mf_io_close(fd)
+tutup_fungsi

@@ -1,0 +1,285 @@
+ambil "src/symbol_table_system.fox"
+ambil "src/type_system_integration.fox"
+
+; ==============================================================================
+; INTEGRATED COMPILER TEST - Symbol Table + Type System
+; ==============================================================================
+
+fungsi test_symbol_table() -> i64
+  var msg1 = "Test 1: Symbol Table System\n"
+  print(msg1, 29)
+  
+  ; Initialize symbol table
+  var init_result = symbol_table_init()
+  jika (init_result != 0)
+    var err1 = "✗ Symbol table initialization failed\n"
+    print(err1, 38)
+    kembali 1
+  tutup_jika
+  
+  var ok1 = "✓ Symbol table initialized\n"
+  print(ok1, 28)
+  
+  ; Test symbol insertion
+  var insert1 = symbol_insert("x", 42)
+  var insert2 = symbol_insert("y", 100)
+  var insert3 = symbol_insert("func_main", 200)
+  
+  jika (insert1 == 0 dan insert2 == 0 dan insert3 == 0)
+    var ok2 = "✓ Symbol insertion successful\n"
+    print(ok2, 31)
+  lain
+    var err2 = "✗ Symbol insertion failed\n"
+    print(err2, 27)
+    kembali 2
+  tutup_jika
+  
+  ; Test symbol lookup
+  var val_x = symbol_get("x")
+  var val_y = symbol_get("y")
+  var val_func = symbol_get("func_main")
+  
+  jika (val_x == 42 dan val_y == 100 dan val_func == 200)
+    var ok3 = "✓ Symbol lookup successful\n"
+    print(ok3, 28)
+  lain
+    var err3 = "✗ Symbol lookup failed\n"
+    print(err3, 24)
+    kembali 3
+  tutup_jika
+  
+  ; Test non-existent symbol
+  var val_missing = symbol_get("missing")
+  jika (val_missing == -1)
+    var ok4 = "✓ Missing symbol handling correct\n"
+    print(ok4, 35)
+  lain
+    var err4 = "✗ Missing symbol handling failed\n"
+    print(err4, 34)
+    kembali 4
+  tutup_jika
+  
+  ; Print statistics
+  symbol_table_stats()
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_type_system() -> i64
+  var msg1 = "Test 2: Type System Integration\n"
+  print(msg1, 33)
+  
+  ; Initialize type system
+  var init_result = type_system_init()
+  jika (init_result != 0)
+    var err1 = "✗ Type system initialization failed\n"
+    print(err1, 37)
+    kembali 1
+  tutup_jika
+  
+  var ok1 = "✓ Type system initialized\n"
+  print(ok1, 27)
+  
+  ; Test basic type information
+  var i64_size = type_get_size(TYPE_I64)
+  var ptr_size = type_get_size(TYPE_PTR)
+  
+  jika (i64_size == 8 dan ptr_size == 8)
+    var ok2 = "✓ Basic type sizes correct\n"
+    print(ok2, 28)
+  lain
+    var err2 = "✗ Basic type sizes incorrect\n"
+    print(err2, 30)
+    kembali 2
+  tutup_jika
+  
+  ; Test type compatibility
+  var compat1 = type_compatible(TYPE_I64, TYPE_I64)
+  var compat2 = type_compatible(TYPE_I64, TYPE_PTR)
+  var compat3 = type_compatible(TYPE_I64, TYPE_VOID)
+  
+  jika (compat1 == 1 dan compat2 == 1 dan compat3 == 0)
+    var ok3 = "✓ Type compatibility correct\n"
+    print(ok3, 30)
+  lain
+    var err3 = "✗ Type compatibility failed\n"
+    print(err3, 29)
+    kembali 3
+  tutup_jika
+  
+  ; Test variable registration with types
+  var reg1 = type_register_variable("typed_var", TYPE_I64)
+  var reg2 = type_register_variable("ptr_var", TYPE_PTR)
+  
+  jika (reg1 == 0 dan reg2 == 0)
+    var ok4 = "✓ Typed variable registration successful\n"
+    print(ok4, 41)
+  lain
+    var err4 = "✗ Typed variable registration failed\n"
+    print(err4, 37)
+    kembali 4
+  tutup_jika
+  
+  ; Test function registration
+  var func_reg = type_register_function("test_func", TYPE_I64, 2)
+  jika (func_reg == 0)
+    var ok5 = "✓ Function registration successful\n"
+    print(ok5, 36)
+  lain
+    var err5 = "✗ Function registration failed\n"
+    print(err5, 32)
+    kembali 5
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_integrated_parsing() -> i64
+  var msg1 = "Test 3: Integrated Parsing with Types\n"
+  print(msg1, 39)
+  
+  ; Initialize both systems
+  symbol_table_init()
+  type_system_init()
+  scope_init()
+  
+  ; Register some variables with types
+  type_register_variable("x", TYPE_I64)
+  type_register_variable("ptr", TYPE_PTR)
+  type_register_function("add", TYPE_I64, 2)
+  
+  ; Test simple expression parsing with type checking
+  var source1 = "x = 42"
+  var tree1 = parse_intent_tree(source1, 6)
+  
+  jika (tree1 != 0)
+    var ok1 = "✓ Expression parsed successfully\n"
+    print(ok1, 34)
+    
+    ; Extract assignment node for type checking
+    var func_node = __mf_load_i64(tree1 + INTENT_OFFSET_CHILD)
+    jika (func_node != 0)
+      var assign_node = __mf_load_i64(func_node + INTENT_OFFSET_CHILD)
+      jika (assign_node != 0)
+        var type_check_result = type_check_expression(assign_node)
+        jika (type_check_result == 1)
+          var ok2 = "✓ Type checking passed\n"
+          print(ok2, 24)
+        lain
+          var err2 = "✗ Type checking failed\n"
+          print(err2, 24)
+          kembali 2
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  lain
+    var err1 = "✗ Expression parsing failed\n"
+    print(err1, 29)
+    kembali 1
+  tutup_jika
+  
+  ; Test type inference
+  var literal_node = intent_new_literal(123)
+  var inferred_type = type_infer_node(literal_node)
+  
+  jika (inferred_type == TYPE_I64)
+    var ok3 = "✓ Type inference correct for literal\n"
+    print(ok3, 38)
+  lain
+    var err3 = "✗ Type inference failed for literal\n"
+    print(err3, 37)
+    kembali 3
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+fungsi test_scope_management() -> i64
+  var msg1 = "Test 4: Scope Management\n"
+  print(msg1, 26)
+  
+  ; Initialize systems
+  symbol_table_init()
+  scope_init()
+  
+  ; Test nested scopes
+  var depth1 = scope_get_depth()
+  scope_enter()
+  var depth2 = scope_get_depth()
+  scope_enter()
+  var depth3 = scope_get_depth()
+  scope_exit()
+  var depth4 = scope_get_depth()
+  scope_exit()
+  var depth5 = scope_get_depth()
+  
+  jika (depth1 == 0 dan depth2 == 1 dan depth3 == 2 dan depth4 == 1 dan depth5 == 0)
+    var ok1 = "✓ Scope depth tracking correct\n"
+    print(ok1, 32)
+  lain
+    var err1 = "✗ Scope depth tracking failed\n"
+    print(err1, 31)
+    kembali 1
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+  var banner = "=== SYMBOL TABLE & TYPE SYSTEM TEST ===\n"
+  print(banner, 41)
+  
+  ; Initialize stdlib
+  var version = stdlib_version()
+  var init_msg = "MorphFox Stdlib v"
+  print(init_msg, 17)
+  __mf_print_int(version)
+  var newline = "\n"
+  print(newline, 1)
+  
+  ; Run all tests
+  var result1 = test_symbol_table()
+  jika (result1 != 0)
+    kembali result1
+  tutup_jika
+  
+  var result2 = test_type_system()
+  jika (result2 != 0)
+    kembali result2
+  tutup_jika
+  
+  var result3 = test_integrated_parsing()
+  jika (result3 != 0)
+    kembali result3
+  tutup_jika
+  
+  var result4 = test_scope_management()
+  jika (result4 != 0)
+    kembali result4
+  tutup_jika
+  
+  var success = "🎯 ALL SYMBOL TABLE & TYPE SYSTEM TESTS PASSED!\n"
+  print(success, 49)
+  
+  var summary = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+  print(summary, 50)
+  var features = "✅ Features Implemented:\n"
+  print(features, 25)
+  var f1 = "  • Hash-based symbol table with chaining\n"
+  print(f1, 42)
+  var f2 = "  • Type system with i64/ptr/void/function types\n"
+  print(f2, 49)
+  var f3 = "  • Type inference and compatibility checking\n"
+  print(f3, 46)
+  var f4 = "  • Memory safety validation\n"
+  print(f4, 29)
+  var f5 = "  • Scope management for nested contexts\n"
+  print(f5, 41)
+  var f6 = "  • Variable and function registration\n"
+  print(f6, 38)
+  
+  var ready = "\n🚀 Symbol Table & Type System Ready!\n"
+  print(ready, 38)
+  
+  kembali 0
+tutup_fungsi

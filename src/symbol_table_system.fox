@@ -1,0 +1,262 @@
+ambil "corelib/core/structures.fox"
+ambil "src/enhanced_token_system.fox"
+
+; ==============================================================================
+; SYMBOL TABLE SYSTEM (Hash Map with Chaining)
+; ==============================================================================
+; Based on corelib/core/structures.fox SSOT specification
+
+; Symbol node structure (32 bytes)
+const SYMBOL_NEXT = 0
+const SYMBOL_HASH = 8
+const SYMBOL_KEY = 16
+const SYMBOL_VALUE = 24
+const SYMBOL_NODE_SIZE = 32
+
+; Symbol table configuration
+const SYMBOL_TABLE_SIZE = 256  ; Hash table buckets
+const SYMBOL_TABLE_BYTES = SYMBOL_TABLE_SIZE * 8  ; Bucket array size
+
+; Symbol table state
+var symbol_table: ptr
+var symbol_pool: ptr
+
+; Initialize symbol table
+fungsi symbol_table_init() -> i64
+  ; Allocate hash table buckets
+  symbol_table = mem_alloc_safe(SYMBOL_TABLE_BYTES)
+  jika (symbol_table == 0)
+    kembali -1
+  tutup_jika
+  
+  ; Zero initialize all buckets
+  mem_zero(symbol_table, SYMBOL_TABLE_BYTES)
+  
+  ; Create pool for symbol nodes
+  symbol_pool = __mf_pool_create(SYMBOL_NODE_SIZE, 1024)
+  jika (symbol_pool == 0)
+    mem_free_safe(symbol_table, SYMBOL_TABLE_BYTES)
+    kembali -1
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Hash function for symbol names
+fungsi symbol_hash(name: ptr) -> i64
+  var hash = 5381  ; djb2 hash
+  var i = 0
+  var ch = __mf_load_byte(name + i)
+  
+  selama (ch != 0)
+    hash = hash * 33 + ch
+    i = i + 1
+    ch = __mf_load_byte(name + i)
+  tutup_selama
+  
+  kembali hash
+tutup_fungsi
+
+; Get bucket index from hash
+fungsi symbol_bucket_index(hash: i64) -> i64
+  kembali hash & (SYMBOL_TABLE_SIZE - 1)  ; Modulo power of 2
+tutup_fungsi
+
+; Insert symbol into table
+fungsi symbol_insert(name: ptr, value: i64) -> i64
+  var hash = symbol_hash(name)
+  var bucket_idx = symbol_bucket_index(hash)
+  var bucket_ptr = symbol_table + (bucket_idx * 8)
+  
+  ; Check if symbol already exists
+  var existing = symbol_find(name)
+  jika (existing != 0)
+    ; Update existing value
+    __mf_poke_i64(existing + SYMBOL_VALUE, value)
+    kembali 0
+  tutup_jika
+  
+  ; Allocate new symbol node
+  var node = __mf_pool_alloc(symbol_pool)
+  jika (node == 0)
+    kembali -1
+  tutup_jika
+  
+  ; Copy name string
+  var name_copy = symbol_copy_string(name)
+  jika (name_copy == 0)
+    __mf_pool_free(symbol_pool, node)
+    kembali -1
+  tutup_jika
+  
+  ; Initialize node
+  var head = __mf_load_i64(bucket_ptr)
+  __mf_poke_i64(node + SYMBOL_NEXT, head)
+  __mf_poke_i64(node + SYMBOL_HASH, hash)
+  __mf_poke_i64(node + SYMBOL_KEY, name_copy)
+  __mf_poke_i64(node + SYMBOL_VALUE, value)
+  
+  ; Update bucket head
+  __mf_poke_i64(bucket_ptr, node)
+  
+  kembali 0
+tutup_fungsi
+
+; Find symbol in table
+fungsi symbol_find(name: ptr) -> ptr
+  var hash = symbol_hash(name)
+  var bucket_idx = symbol_bucket_index(hash)
+  var bucket_ptr = symbol_table + (bucket_idx * 8)
+  var node = __mf_load_i64(bucket_ptr)
+  
+  selama (node != 0)
+    var node_hash = __mf_load_i64(node + SYMBOL_HASH)
+    jika (node_hash == hash)
+      var node_key = __mf_load_i64(node + SYMBOL_KEY)
+      jika (symbol_string_equals(node_key, name))
+        kembali node
+      tutup_jika
+    tutup_jika
+    node = __mf_load_i64(node + SYMBOL_NEXT)
+  tutup_selama
+  
+  kembali 0
+tutup_fungsi
+
+; Get symbol value
+fungsi symbol_get(name: ptr) -> i64
+  var node = symbol_find(name)
+  jika (node == 0)
+    kembali -1  ; Symbol not found
+  tutup_jika
+  kembali __mf_load_i64(node + SYMBOL_VALUE)
+tutup_fungsi
+
+; Copy string for symbol storage
+fungsi symbol_copy_string(src: ptr) -> ptr
+  var len = symbol_string_length(src)
+  var copy = mem_alloc_safe(len + 1)
+  jika (copy == 0)
+    kembali 0
+  tutup_jika
+  
+  mem_copy_safe(copy, src, len)
+  __mf_poke_byte(copy + len, 0)  ; Null terminate
+  
+  kembali copy
+tutup_fungsi
+
+; String comparison for symbols
+fungsi symbol_string_equals(str1: ptr, str2: ptr) -> i64
+  var i = 0
+  var ch1 = __mf_load_byte(str1 + i)
+  var ch2 = __mf_load_byte(str2 + i)
+  
+  selama (ch1 != 0 dan ch2 != 0)
+    jika (ch1 != ch2)
+      kembali 0
+    tutup_jika
+    i = i + 1
+    ch1 = __mf_load_byte(str1 + i)
+    ch2 = __mf_load_byte(str2 + i)
+  tutup_selama
+  
+  kembali (ch1 == ch2)
+tutup_fungsi
+
+; Get string length
+fungsi symbol_string_length(str: ptr) -> i64
+  var len = 0
+  var ch = __mf_load_byte(str + len)
+  
+  selama (ch != 0)
+    len = len + 1
+    ch = __mf_load_byte(str + len)
+  tutup_selama
+  
+  kembali len
+tutup_fungsi
+
+; Symbol table statistics
+fungsi symbol_table_stats() -> void
+  var total_symbols = 0
+  var used_buckets = 0
+  var max_chain = 0
+  
+  var i = 0
+  selama (i < SYMBOL_TABLE_SIZE)
+    var bucket_ptr = symbol_table + (i * 8)
+    var node = __mf_load_i64(bucket_ptr)
+    var chain_length = 0
+    
+    jika (node != 0)
+      used_buckets = used_buckets + 1
+    tutup_jika
+    
+    selama (node != 0)
+      chain_length = chain_length + 1
+      total_symbols = total_symbols + 1
+      node = __mf_load_i64(node + SYMBOL_NEXT)
+    tutup_selama
+    
+    jika (chain_length > max_chain)
+      max_chain = chain_length
+    tutup_jika
+    
+    i = i + 1
+  tutup_selama
+  
+  var msg1 = "Symbol Table Stats:\n"
+  print(msg1, 20)
+  var msg2 = "  Total symbols: "
+  print(msg2, 17)
+  __mf_print_int(total_symbols)
+  var newline = "\n"
+  print(newline, 1)
+  var msg3 = "  Used buckets: "
+  print(msg3, 16)
+  __mf_print_int(used_buckets)
+  print(newline, 1)
+  var msg4 = "  Max chain length: "
+  print(msg4, 20)
+  __mf_print_int(max_chain)
+  print(newline, 1)
+tutup_fungsi
+
+; Scope management for nested scopes
+var scope_stack: ptr
+var scope_depth: i64
+
+; Initialize scope system
+fungsi scope_init() -> i64
+  scope_stack = mem_alloc_safe(256 * 8)  ; Max 256 nested scopes
+  jika (scope_stack == 0)
+    kembali -1
+  tutup_jika
+  
+  scope_depth = 0
+  kembali 0
+tutup_fungsi
+
+; Enter new scope
+fungsi scope_enter() -> void
+  jika (scope_depth < 255)
+    ; Save current symbol table state
+    __mf_poke_i64(scope_stack + (scope_depth * 8), symbol_table)
+    scope_depth = scope_depth + 1
+  tutup_jika
+tutup_fungsi
+
+; Exit current scope
+fungsi scope_exit() -> void
+  jika (scope_depth > 0)
+    scope_depth = scope_depth - 1
+    ; Restore previous symbol table state (simplified)
+    ; In full implementation, would need to remove scope-local symbols
+  tutup_jika
+tutup_fungsi
+
+; Get current scope depth
+fungsi scope_get_depth() -> i64
+  kembali scope_depth
+tutup_fungsi

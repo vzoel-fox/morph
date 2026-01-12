@@ -1,0 +1,96 @@
+ambil "corelib/lib/std.fox"
+
+; ==============================================================================
+; TEST: Memory, I/O, and MorphRoutine Builtins
+; ==============================================================================
+
+; Test function for MorphRoutine
+fungsi test_routine_func() -> void
+  var msg = "Hello from MorphRoutine!\n"
+  print(msg, 25)
+  
+  ; Yield with value 42
+  var result = mr_yield(42)
+  
+  var msg2 = "Resumed with value: "
+  print(msg2, 20)
+  ; TODO: Print result value
+  
+  var msg3 = "MorphRoutine finished\n"
+  print(msg3, 22)
+tutup_fungsi
+
+fungsi utama() -> i64
+  var msg_start = "=== MorphFox Stdlib Test ===\n"
+  println(msg_start, 29)
+  
+  ; Test 1: Memory operations
+  var msg1 = "Test 1: Memory allocation\n"
+  print(msg1, 26)
+  
+  var ptr = mem_alloc_safe(1024)
+  jika (ptr == 0)
+    var err = "Memory allocation failed!\n"
+    print(err, 27)
+    kembali 1
+  tutup_jika
+  
+  ; Zero initialize
+  mem_zero(ptr, 1024)
+  
+  ; Write some data
+  var test_data = "Hello Memory!"
+  mem_copy_safe(ptr, test_data, 13)
+  
+  ; Read back and verify
+  var first_byte = __mf_load_byte(ptr)
+  jika (first_byte == 72)  ; 'H'
+    var ok = "Memory test OK\n"
+    print(ok, 15)
+  lain
+    var fail = "Memory test FAILED\n"
+    print(fail, 19)
+  tutup_jika
+  
+  mem_free_safe(ptr, 1024)
+  
+  ; Test 2: MorphRoutine
+  var msg2 = "Test 2: MorphRoutine\n"
+  print(msg2, 21)
+  
+  var routine = mr_spawn(test_routine_func, 8192)
+  jika (routine == 0)
+    var err2 = "MorphRoutine creation failed!\n"
+    print(err2, 31)
+    kembali 2
+  tutup_jika
+  
+  ; Resume routine
+  var yielded_val = mr_resume(routine)
+  jika (yielded_val == 42)
+    var ok2 = "MorphRoutine yielded correct value\n"
+    print(ok2, 35)
+  tutup_jika
+  
+  ; Resume again to finish
+  mr_resume(routine)
+  mr_destroy(routine)
+  
+  ; Test 3: Timer
+  var msg3 = "Test 3: Timer (sleeping 100ms)\n"
+  print(msg3, 32)
+  
+  var start_time = mr_now()
+  mr_sleep(100)
+  var end_time = mr_now()
+  
+  jika (end_time > start_time)
+    var ok3 = "Timer test OK\n"
+    print(ok3, 14)
+  tutup_jika
+  
+  var msg_end = "=== All tests completed ===\n"
+  print(msg_end, 29)
+  
+  kembali 0
+tutup_fungsi

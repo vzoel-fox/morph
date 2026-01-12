@@ -1,0 +1,336 @@
+ambil "corelib/core/types.fox"
+ambil "src/symbol_table_system.fox"
+
+; ==============================================================================
+; TYPE SYSTEM INTEGRATION
+; ==============================================================================
+; Based on corelib/core/types.fox SSOT specification
+
+; Type constants
+const TYPE_UNKNOWN = 0
+const TYPE_I64 = 1
+const TYPE_PTR = 2
+const TYPE_VOID = 3
+const TYPE_FUNCTION = 4
+
+; Type information structure (24 bytes)
+const TYPE_INFO_TYPE = 0
+const TYPE_INFO_SIZE = 8
+const TYPE_INFO_FLAGS = 16
+const TYPE_INFO_SIZE_BYTES = 24
+
+; Type flags
+const TYPE_FLAG_SIGNED = 1
+const TYPE_FLAG_POINTER = 2
+const TYPE_FLAG_FUNCTION = 4
+
+; Type system state
+var type_table: ptr
+var type_checking_enabled: i64
+
+; Initialize type system
+fungsi type_system_init() -> i64
+  ; Create type information table
+  type_table = mem_alloc_safe(16 * TYPE_INFO_SIZE_BYTES)  ; 16 basic types
+  jika (type_table == 0)
+    kembali -1
+  tutup_jika
+  
+  ; Initialize basic types
+  type_init_basic_types()
+  
+  type_checking_enabled = 1
+  kembali 0
+tutup_fungsi
+
+; Initialize basic type definitions
+fungsi type_init_basic_types() -> void
+  ; TYPE_I64
+  var i64_info = type_table + (TYPE_I64 * TYPE_INFO_SIZE_BYTES)
+  __mf_poke_i64(i64_info + TYPE_INFO_TYPE, TYPE_I64)
+  __mf_poke_i64(i64_info + TYPE_INFO_SIZE, 8)
+  __mf_poke_i64(i64_info + TYPE_INFO_FLAGS, TYPE_FLAG_SIGNED)
+  
+  ; TYPE_PTR
+  var ptr_info = type_table + (TYPE_PTR * TYPE_INFO_SIZE_BYTES)
+  __mf_poke_i64(ptr_info + TYPE_INFO_TYPE, TYPE_PTR)
+  __mf_poke_i64(ptr_info + TYPE_INFO_SIZE, 8)
+  __mf_poke_i64(ptr_info + TYPE_INFO_FLAGS, TYPE_FLAG_POINTER)
+  
+  ; TYPE_VOID
+  var void_info = type_table + (TYPE_VOID * TYPE_INFO_SIZE_BYTES)
+  __mf_poke_i64(void_info + TYPE_INFO_TYPE, TYPE_VOID)
+  __mf_poke_i64(void_info + TYPE_INFO_SIZE, 0)
+  __mf_poke_i64(void_info + TYPE_INFO_FLAGS, 0)
+tutup_fungsi
+
+; Get type information
+fungsi type_get_info(type_id: i64) -> ptr
+  jika (type_id < 0 atau type_id >= 16)
+    kembali 0
+  tutup_jika
+  kembali type_table + (type_id * TYPE_INFO_SIZE_BYTES)
+tutup_fungsi
+
+; Get type size
+fungsi type_get_size(type_id: i64) -> i64
+  var info = type_get_info(type_id)
+  jika (info == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(info + TYPE_INFO_SIZE)
+tutup_fungsi
+
+; Check if type is signed
+fungsi type_is_signed(type_id: i64) -> i64
+  var info = type_get_info(type_id)
+  jika (info == 0)
+    kembali 0
+  tutup_jika
+  var flags = __mf_load_i64(info + TYPE_INFO_FLAGS)
+  kembali (flags & TYPE_FLAG_SIGNED) != 0
+tutup_fungsi
+
+; Check if type is pointer
+fungsi type_is_pointer(type_id: i64) -> i64
+  var info = type_get_info(type_id)
+  jika (info == 0)
+    kembali 0
+  tutup_jika
+  var flags = __mf_load_i64(info + TYPE_INFO_FLAGS)
+  kembali (flags & TYPE_FLAG_POINTER) != 0
+tutup_fungsi
+
+; Type compatibility checking
+fungsi type_compatible(type1: i64, type2: i64) -> i64
+  ; Same types are compatible
+  jika (type1 == type2)
+    kembali 1
+  tutup_jika
+  
+  ; i64 and ptr are compatible for arithmetic (unsafe but allowed)
+  jika ((type1 == TYPE_I64 dan type2 == TYPE_PTR) atau (type1 == TYPE_PTR dan type2 == TYPE_I64))
+    kembali 1
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Infer type from Intent node
+fungsi type_infer_node(node: ptr) -> i64
+  jika (node == 0)
+    kembali TYPE_UNKNOWN
+  tutup_jika
+  
+  var type = __mf_load_i64(node + INTENT_OFFSET_TYPE)
+  
+  ; Literal values are i64
+  jika (type == INTENT_FRAG_LITERAL)
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Variables: look up in symbol table
+  jika (type == INTENT_FRAG_VAR)
+    var name_ptr = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var symbol_node = symbol_find(name_ptr)
+    jika (symbol_node != 0)
+      ; Symbol value contains type information
+      var symbol_value = __mf_load_i64(symbol_node + SYMBOL_VALUE)
+      kembali symbol_value & 0xFF  ; Lower 8 bits = type
+    tutup_jika
+    kembali TYPE_UNKNOWN
+  tutup_jika
+  
+  ; Binary operations: infer from operands
+  jika (type == INTENT_FRAG_BINARY)
+    var left = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var right = __mf_load_i64(left + INTENT_OFFSET_NEXT)
+    
+    var left_type = type_infer_node(left)
+    var right_type = type_infer_node(right)
+    
+    ; If both are i64, result is i64
+    jika (left_type == TYPE_I64 dan right_type == TYPE_I64)
+      kembali TYPE_I64
+    tutup_jika
+    
+    ; If one is pointer, result is pointer
+    jika (left_type == TYPE_PTR atau right_type == TYPE_PTR)
+      kembali TYPE_PTR
+    tutup_jika
+    
+    kembali TYPE_I64  ; Default
+  tutup_jika
+  
+  ; Function calls: look up return type
+  jika (type == INTENT_FRAG_CALL)
+    var func_name = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var symbol_node = symbol_find(func_name)
+    jika (symbol_node != 0)
+      var symbol_value = __mf_load_i64(symbol_node + SYMBOL_VALUE)
+      kembali (symbol_value >> 8) & 0xFF  ; Bits 8-15 = return type
+    tutup_jika
+    kembali TYPE_UNKNOWN
+  tutup_jika
+  
+  kembali TYPE_UNKNOWN
+tutup_fungsi
+
+; Type checking for expressions
+fungsi type_check_expression(node: ptr) -> i64
+  jika (type_checking_enabled == 0)
+    kembali 1  ; Type checking disabled
+  tutup_jika
+  
+  jika (node == 0)
+    kembali 1
+  tutup_jika
+  
+  var node_type = __mf_load_i64(node + INTENT_OFFSET_TYPE)
+  
+  ; Check binary operations
+  jika (node_type == INTENT_FRAG_BINARY)
+    var left = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    var right = __mf_load_i64(left + INTENT_OFFSET_NEXT)
+    var op = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    
+    var left_type = type_infer_node(left)
+    var right_type = type_infer_node(right)
+    
+    ; Check type compatibility
+    jika (type_compatible(left_type, right_type) == 0)
+      type_error("Type mismatch in binary operation", node)
+      kembali 0
+    tutup_jika
+    
+    ; Recursively check operands
+    jika (type_check_expression(left) == 0)
+      kembali 0
+    tutup_jika
+    jika (type_check_expression(right) == 0)
+      kembali 0
+    tutup_jika
+  tutup_jika
+  
+  ; Check assignments
+  jika (node_type == INTENT_FRAG_ASSIGN)
+    var name_ptr = __mf_load_i64(node + INTENT_OFFSET_DATA_A)
+    var value = __mf_load_i64(node + INTENT_OFFSET_CHILD)
+    
+    var var_type = TYPE_I64  ; Default for new variables
+    var symbol_node = symbol_find(name_ptr)
+    jika (symbol_node != 0)
+      var symbol_value = __mf_load_i64(symbol_node + SYMBOL_VALUE)
+      var_type = symbol_value & 0xFF
+    tutup_jika
+    
+    var value_type = type_infer_node(value)
+    
+    jika (type_compatible(var_type, value_type) == 0)
+      type_error("Type mismatch in assignment", node)
+      kembali 0
+    tutup_jika
+    
+    ; Check value expression
+    jika (type_check_expression(value) == 0)
+      kembali 0
+    tutup_jika
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+; Type error reporting
+fungsi type_error(message: ptr, node: ptr) -> void
+  var err_msg = "Type Error: "
+  print(err_msg, 12)
+  print_string(message)
+  
+  jika (node != 0)
+    var hint = __mf_load_i64(node + INTENT_OFFSET_HINT)
+    jika (hint != 0)
+      var line = __mf_load_i64(hint + 0)
+      var column = __mf_load_i64(hint + 8)
+      var at_msg = " at line "
+      print(at_msg, 9)
+      __mf_print_int(line)
+      var col_msg = ", column "
+      print(col_msg, 9)
+      __mf_print_int(column)
+    tutup_jika
+  tutup_jika
+  
+  var newline = "\n"
+  print(newline, 1)
+tutup_fungsi
+
+; Register variable with type
+fungsi type_register_variable(name: ptr, type_id: i64) -> i64
+  ; Symbol value format: [type_id:8][flags:8][address:48]
+  var symbol_value = type_id
+  kembali symbol_insert(name, symbol_value)
+tutup_fungsi
+
+; Register function with signature
+fungsi type_register_function(name: ptr, return_type: i64, param_count: i64) -> i64
+  ; Symbol value format: [param_type:8][return_type:8][param_count:8][flags:8][address:32]
+  var symbol_value = (return_type << 8) | TYPE_FUNCTION
+  symbol_value = symbol_value | (param_count << 16)
+  kembali symbol_insert(name, symbol_value)
+tutup_fungsi
+
+; Memory safety validation
+fungsi type_validate_memory_access(ptr_node: ptr, size: i64) -> i64
+  jika (ptr_node == 0)
+    type_error("NULL pointer dereference", ptr_node)
+    kembali 0
+  tutup_jika
+  
+  var ptr_type = type_infer_node(ptr_node)
+  jika (ptr_type != TYPE_PTR)
+    type_error("Invalid memory access on non-pointer", ptr_node)
+    kembali 0
+  tutup_jika
+  
+  ; Size validation
+  jika (size <= 0 atau size > 1073741824)  ; 1GB limit
+    type_error("Invalid memory access size", ptr_node)
+    kembali 0
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+; Enable/disable type checking
+fungsi type_set_checking(enabled: i64) -> void
+  type_checking_enabled = enabled
+tutup_fungsi
+
+; Get type checking status
+fungsi type_is_checking_enabled() -> i64
+  kembali type_checking_enabled
+tutup_fungsi
+
+; Print type name for debugging
+fungsi type_print_name(type_id: i64) -> void
+  jika (type_id == TYPE_I64)
+    var name = "i64"
+    print(name, 3)
+  tutup_jika
+  jika (type_id == TYPE_PTR)
+    var name = "ptr"
+    print(name, 3)
+  tutup_jika
+  jika (type_id == TYPE_VOID)
+    var name = "void"
+    print(name, 4)
+  tutup_jika
+  jika (type_id == TYPE_FUNCTION)
+    var name = "function"
+    print(name, 8)
+  tutup_jika
+  jika (type_id == TYPE_UNKNOWN)
+    var name = "unknown"
+    print(name, 7)
+  tutup_jika
+tutup_fungsi
