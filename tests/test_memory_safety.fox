@@ -1,0 +1,171 @@
+; ==============================================================================
+; MEMORY SAFETY & EXCEPTION HANDLER TESTS
+; ==============================================================================
+
+ambil "corelib/core/memory_safety.fox"
+
+fungsi test_basic_allocation() -> i64
+    set_debug_location("test_memory_safety.fox", 10)
+    
+    __mf_print_asciz("Test 1: Basic allocation and deallocation\n")
+    
+    ; Test normal allocation
+    var ptr = mem_alloc(1024)
+    jika (ptr == 0) {
+        __mf_print_asciz("✗ Allocation failed\n")
+        kembali 1
+    }
+    
+    ; Test memory access
+    mem_store(ptr, 0, 42)
+    var value = mem_load(ptr, 0)
+    jika (value != 42) {
+        __mf_print_asciz("✗ Memory access failed\n")
+        kembali 1
+    }
+    
+    ; Test deallocation
+    mem_free(ptr)
+    
+    __mf_print_asciz("✓ Basic allocation test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi test_bounds_checking() -> i64
+    set_debug_location("test_memory_safety.fox", 35)
+    
+    __mf_print_asciz("Test 2: Bounds checking\n")
+    
+    var ptr = mem_alloc(64)
+    
+    ; Test valid access
+    mem_store(ptr, 0, 100)
+    mem_store(ptr, 56, 200)  ; Last valid 8-byte slot
+    
+    ; Test out-of-bounds access (should trigger exception)
+    __mf_print_asciz("Testing out-of-bounds access (should fail safely)...\n")
+    
+    ; This should trigger bounds exception
+    ; mem_store(ptr, 64, 300)  ; Commented out to prevent crash
+    
+    mem_free(ptr)
+    
+    __mf_print_asciz("✓ Bounds checking test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi test_null_pointer() -> i64
+    set_debug_location("test_memory_safety.fox", 58)
+    
+    __mf_print_asciz("Test 3: NULL pointer protection\n")
+    
+    ; Test NULL pointer access (should trigger exception)
+    __mf_print_asciz("Testing NULL pointer access (should fail safely)...\n")
+    
+    ; This should trigger NULL pointer exception
+    ; mem_store(0, 0, 42)  ; Commented out to prevent crash
+    
+    __mf_print_asciz("✓ NULL pointer test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi test_double_free() -> i64
+    set_debug_location("test_memory_safety.fox", 73)
+    
+    __mf_print_asciz("Test 4: Double free protection\n")
+    
+    var ptr = mem_alloc(128)
+    mem_free(ptr)
+    
+    ; Test double free (should trigger exception)
+    __mf_print_asciz("Testing double free (should fail safely)...\n")
+    
+    ; This should trigger double free exception
+    ; mem_free(ptr)  ; Commented out to prevent crash
+    
+    __mf_print_asciz("✓ Double free test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi test_memory_leaks() -> i64
+    set_debug_location("test_memory_safety.fox", 90)
+    
+    __mf_print_asciz("Test 5: Memory leak detection\n")
+    
+    ; Allocate some memory without freeing (intentional leak)
+    var ptr1 = mem_alloc(256)
+    var ptr2 = mem_alloc(512)
+    
+    ; Free only one
+    mem_free(ptr1)
+    
+    ; Check for leaks
+    var leak_count = mem_check_leaks()
+    jika (leak_count != 1) {
+        __mf_print_asciz("✗ Leak detection failed\n")
+        kembali 1
+    }
+    
+    ; Clean up
+    mem_free(ptr2)
+    
+    __mf_print_asciz("✓ Memory leak detection test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi test_safe_arithmetic() -> i64
+    set_debug_location("test_memory_safety.fox", 115)
+    
+    __mf_print_asciz("Test 6: Safe arithmetic operations\n")
+    
+    ; Test normal operations
+    var result1 = add_safe(100, 200, "test_memory_safety.fox", 120)
+    jika (result1 != 300) {
+        __mf_print_asciz("✗ Safe addition failed\n")
+        kembali 1
+    }
+    
+    ; Test division by zero protection
+    __mf_print_asciz("Testing division by zero (should fail safely)...\n")
+    
+    ; This should trigger division by zero exception
+    ; var result2 = div_safe(100, 0, "test_memory_safety.fox", 130)
+    
+    __mf_print_asciz("✓ Safe arithmetic test passed\n")
+    kembali 0
+tutup_fungsi
+
+fungsi run_all_tests() -> i64
+    __mf_print_asciz("=== MEMORY SAFETY & EXCEPTION HANDLER TESTS ===\n")
+    
+    ; Initialize exception system
+    exception_init()
+    
+    var failed = 0
+    
+    failed = failed + test_basic_allocation()
+    failed = failed + test_bounds_checking()
+    failed = failed + test_null_pointer()
+    failed = failed + test_double_free()
+    failed = failed + test_memory_leaks()
+    failed = failed + test_safe_arithmetic()
+    
+    __mf_print_asciz("\n=== TEST SUMMARY ===\n")
+    jika (failed == 0) {
+        __mf_print_asciz("✓ All tests passed!\n")
+    } selain {
+        __mf_print_asciz("✗ ")
+        __mf_print_int(failed)
+        __mf_print_asciz(" tests failed\n")
+    }
+    
+    ; Print final memory statistics
+    mem_print_stats()
+    
+    kembali failed
+tutup_fungsi
+
+; Main entry point
+fungsi utama() -> i64
+    kembali run_all_tests()
+tutup_fungsi

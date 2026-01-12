@@ -1,0 +1,43 @@
+{
+  "name": "Morph",
+  "scopeName": "source.morph",
+  "fileTypes": ["fox"],
+  "patterns": [
+    {
+      "name": "keyword.control.morph",
+      "match": "\\b(fungsi|tutup_fungsi|utama|jika|selama|kembali|var|Ambil)\\b"
+    },
+    {
+      "name": "storage.type.morph", 
+      "match": "\\b(i64|ptr|String)\\b"
+    },
+    {
+      "name": "comment.line.hash.morph",
+      "match": "#.*$"
+    },
+    {
+      "name": "comment.block.morph",
+      "begin": "###",
+      "end": "###"
+    },
+    {
+      "name": "string.quoted.double.morph",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.morph",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.morph",
+      "match": "\\b\\d+\\b"
+    },
+    {
+      "name": "support.function.morph",
+      "match": "\\b(sistem|print_line)\\b"
+    }
+  ]
+}

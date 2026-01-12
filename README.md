@@ -1,8 +1,10 @@
 # Morph - Self-Hosting Compiler for MorphFox Language
 
 [![Bootstrap Status](https://img.shields.io/badge/bootstrap-v1.2-green)](https://github.com/VzoelFox/morphfox/releases/tag/v1.2-bootstrap)
-[![Language](https://img.shields.io/badge/language-MorphFox-blue)](https://github.com/VzoelFox/morphfox)
+[![Language](https://img.shields.io/badge/language-Morph-ff6b35)](https://github.com/VzoelFox/morphfox)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20WASM-lightgrey)]()
+[![GitHub Linguist](https://img.shields.io/badge/GitHub%20Linguist-Morph-ff6b35)]()
+[![Syntax Highlighting](https://img.shields.io/badge/syntax-supported-brightgreen)]()
 
 **Morph** adalah compiler self-hosting untuk bahasa pemrograman **MorphFox**. Repository ini berisi binary compiler yang di-bootstrap dari Assembly dan akan menjadi foundation untuk compiler yang ditulis dalam MorphFox sendiri.
 

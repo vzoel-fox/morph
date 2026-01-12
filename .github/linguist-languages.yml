@@ -1,0 +1,13 @@
+{
+  "name": "Morph",
+  "type": "programming",
+  "color": "#ff6b35",
+  "extensions": [".fox"],
+  "tm_scope": "source.morph",
+  "ace_mode": "text",
+  "language_id": 999999,
+  "aliases": ["morph"],
+  "filenames": [],
+  "interpreters": ["morph"],
+  "group": "Morph"
+}

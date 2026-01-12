@@ -1,0 +1,13 @@
+# Morph Language Definition for GitHub Linguist
+*.fox linguist-language=Morph
+*.morph linguist-language=Morph-Bytecode linguist-generated=true
+
+# Assembly bootstrap files
+bootstrap/asm/*.s linguist-vendored=true
+
+# Documentation
+*.md linguist-documentation=true
+docs/* linguist-documentation=true
+
+# Generated/build artifacts
+bin/* linguist-generated=true
