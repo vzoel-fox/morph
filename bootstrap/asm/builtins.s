@@ -27,6 +27,14 @@ __mf_memcpy:
 
     ret
 
+# Memory Builtins
+.global __mf_mem_alloc
+.global __mf_mem_free
+.global __mf_load_i64
+.global __mf_poke_i64
+.global __mf_load_byte
+.global __mf_poke_byte
+
 # Crypto
 .global __mf_sha256_init
 .global __mf_sha256_update
@@ -150,6 +158,39 @@ __mf_print_int_raw:
     movq %rcx, %rsi
     call __mf_print_str
     leave
+    ret
+
+# ------------------------------------------------------------------------------
+# MEMORY BUILTINS
+# ------------------------------------------------------------------------------
+
+# func __mf_mem_alloc(size: i64) -> ptr
+__mf_mem_alloc:
+    jmp mem_alloc
+
+# func __mf_mem_free(ptr: ptr, size: i64) -> void
+__mf_mem_free:
+    jmp mem_free
+
+# func __mf_load_i64(addr: ptr) -> i64
+__mf_load_i64:
+    movq (%rdi), %rax
+    ret
+
+# func __mf_poke_i64(addr: ptr, value: i64) -> void
+__mf_poke_i64:
+    movq %rsi, (%rdi)
+    ret
+
+# func __mf_load_byte(addr: ptr) -> i64
+__mf_load_byte:
+    xorq %rax, %rax
+    movb (%rdi), %al
+    ret
+
+# func __mf_poke_byte(addr: ptr, value: i64) -> void
+__mf_poke_byte:
+    movb %sil, (%rdi)
     ret
 
 # ------------------------------------------------------------------------------
