@@ -1,2 +1,31 @@
+# Build artifacts
 build/
+*.o
+*.out
+*.morph
+*.wat
+*.wasm
+
+# Binaries (except bootstrap)
 morph
+morph-self
+morph-self-*
+
+# But keep the bootstrap binary
+!bin/morph
+!bin/morph_merged.wat
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test_output/
+*.log

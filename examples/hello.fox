@@ -1,0 +1,30 @@
+; ==============================================================================
+; HELLO WORLD - MorphFox Example
+; ==============================================================================
+; Demonstrasi dasar bahasa MorphFox dengan sintaks native Indonesia.
+
+utama {
+    var pesan = "Hello from Morph Self-Hosting Compiler!"
+    print_line(pesan)
+
+    var angka = 42
+    print_number(angka)
+
+    kembali 0
+}
+
+fungsi print_line(s: String) {
+    ; Write to stdout (fd=1)
+    sistem 1, 1, s.buffer, s.panjang
+    sistem 1, 1, "\n", 1
+}
+
+fungsi print_number(n: i64) {
+    ; TODO: Proper number to string conversion
+    ; For now, just demo that we can pass numbers
+    var msg = "Angka: "
+    sistem 1, 1, msg, 7
+
+    ; Placeholder - need stdlib for i64_to_string
+    sistem 1, 1, "[number]\n", 9
+}

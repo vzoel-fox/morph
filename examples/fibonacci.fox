@@ -1,0 +1,36 @@
+; ==============================================================================
+; FIBONACCI - MorphFox Example
+; ==============================================================================
+; Menghitung fibonacci dengan iterasi (bukan rekursi).
+
+utama {
+    var n = 10
+    var result = fibonacci(n)
+
+    var msg = "Fibonacci ke-10: "
+    sistem 1, 1, msg, 17
+
+    ; Print result (needs proper i64_to_string in stdlib)
+    ; __mf_print_int(result)  ; Uncomment when available
+
+    kembali 0
+}
+
+fungsi fibonacci(n: i64) -> i64 {
+    jika (n <= 1) {
+        kembali n
+    }
+
+    var a = 0
+    var b = 1
+    var i = 2
+
+    selama (i <= n) {
+        var temp = a + b
+        a = b
+        b = temp
+        i = i + 1
+    }
+
+    kembali b
+}
