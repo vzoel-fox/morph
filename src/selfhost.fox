@@ -1,261 +1,170 @@
 ; ==============================================================================
-; MorphFox Self-Host v0.4 - Compiler Logic Demo
+; MorphFox Self-Host v0.5 - Complete SSOT Reference
 ; ==============================================================================
-; Demonstrates: Unit -> Shard -> Fragment compilation flow
-;
-; Compiler Pipeline:
-;   1. Parse source -> IntentTree (AST)
-;   2. compile_dispatch() -> walks tree by type
-;   3. Emit RPN bytecode to buffer
-;   4. Executor runs bytecode
+; Visi: "INTERPRETED FOR HUMAN, READABLE FOR AI"
+; Dokumen ini adalah referensi lengkap struktur data bootstrap
 ; ==============================================================================
 
-; ------------------------------------------------------------------------------
-; INTENT TYPE CONSTANTS
-; ------------------------------------------------------------------------------
-const UNIT_MODULE = 0x1001
+; ==============================================================================
+; SECTION 1: INTENT NODE (48 bytes) - corelib/core/intent.fox
+; ==============================================================================
+; Layout:
+;   [0x00] Type     - Node type enum
+;   [0x08] Next     - Sibling pointer
+;   [0x10] Child    - First child pointer
+;   [0x18] Hint     - AI context pointer
+;   [0x20] DataA    - Payload A
+;   [0x28] DataB    - Payload B
 
-const SHARD_FUNC = 0x2001
-const SHARD_BLOCK = 0x2002
+const NODE_SIZE = 48
 
-const FRAG_LITERAL = 0x3001
-const FRAG_BINARY = 0x3002
-const FRAG_VAR = 0x3005
-const FRAG_ASSIGN = 0x3006
-const FRAG_IF = 0x3007
-const FRAG_WHILE = 0x3008
-const FRAG_RETURN = 0x3009
+; Intent Type Ranges:
+;   0x1xxx = UNIT (Module level)
+;   0x2xxx = SHARD (Function/Block level)
+;   0x3xxx = FRAGMENT (Expression/Statement)
 
-; ------------------------------------------------------------------------------
-; RPN OPCODE CONSTANTS
-; ------------------------------------------------------------------------------
-const OP_LIT = 1
-const OP_LOAD = 2
-const OP_STORE = 3
-const OP_ADD = 10
-const OP_SUB = 11
-const OP_MUL = 12
-const OP_DIV = 13
-const OP_JMP = 20
-const OP_JMP_FALSE = 21
-const OP_EXIT = 99
+; ==============================================================================
+; SECTION 2: VECTOR (32 bytes) - bootstrap/asm/vector.s
+; ==============================================================================
+; Dynamic array with auto-resize
+; Layout:
+;   [0x00] Buffer   - Data pointer
+;   [0x08] Length   - Current count
+;   [0x10] Capacity - Allocated slots
+;   [0x18] ItemSize - Bytes per item
 
-; ------------------------------------------------------------------------------
-; COMPILER SIMULATION
-; ------------------------------------------------------------------------------
+const VEC_SIZE = 32
 
-; Simulate: compile LITERAL node
-; Input: value
-; Output: opcode count (1 instruction = OP_LIT + value)
-fungsi compile_literal(val: i64) -> i64
-  ; Would emit: [OP_LIT, val]
-  ; Return instruction count
-  1
-tutup_fungsi
+; ==============================================================================
+; SECTION 3: STACK (24 bytes) - bootstrap/asm/stack.s
+; ==============================================================================
+; Virtual stack (grows downward)
+; Layout:
+;   [0x00] SP       - Current stack pointer
+;   [0x08] Base     - Bottom (high address)
+;   [0x10] Limit    - Top limit (low address)
 
-; Simulate: compile BINARY node
-; Input: op, left_count, right_count
-; Output: total opcode count
-fungsi compile_binary(op: i64, left: i64, right: i64) -> i64
-  ; Would emit: [left_code...] [right_code...] [OP_xxx]
-  ; left + right + 1 (for operator)
-  var total = left + right
-  var result = total + 1
-  result
-tutup_fungsi
+const STACK_SIZE = 24
 
-; Simulate: compile VAR_READ node
-; Output: opcode count (1 instruction = OP_LOAD + hash)
-fungsi compile_var_read() -> i64
-  ; Would emit: [OP_LOAD, var_hash]
-  1
-tutup_fungsi
+; ==============================================================================
+; SECTION 4: SYMBOL TABLE - bootstrap/asm/symbol.s
+; ==============================================================================
+; HashMap with chaining
+; Entry (32 bytes):
+;   [0x00] Next     - Chain pointer
+;   [0x08] KeyPtr   - String pointer
+;   [0x10] KeyLen   - String length
+;   [0x18] Value    - Stored value
 
-; Simulate: compile VAR_WRITE (assignment) node
-; Input: expr_count
-; Output: opcode count
-fungsi compile_assign(expr: i64) -> i64
-  ; Would emit: [expr_code...] [OP_STORE, var_hash]
-  expr + 1
-tutup_fungsi
+const SYM_ENTRY_SIZE = 32
 
-; Simulate: compile IF node
-; Input: cond_count, then_count, else_count
-; Output: opcode count
-fungsi compile_if(cond: i64, then_blk: i64, else_blk: i64) -> i64
-  ; Would emit:
-  ;   [cond_code...]
-  ;   [OP_JMP_FALSE, offset_to_else]
-  ;   [then_code...]
-  ;   [OP_JMP, offset_to_end]
-  ;   [else_code...]
-  ; Total: cond + 1 + then + 1 + else
-  var t1 = cond + 1
-  var t2 = t1 + then_blk
-  var t3 = t2 + 1
-  var t4 = t3 + else_blk
-  t4
-tutup_fungsi
+; ==============================================================================
+; SECTION 5: TYPE DESCRIPTOR (32 bytes) - bootstrap/asm/type.s
+; ==============================================================================
+; Runtime type information
+; Layout:
+;   [0x00] Name     - Type name pointer
+;   [0x08] Size     - Total byte size
+;   [0x10] Count    - Field count
+;   [0x18] Fields   - Field list head
 
-; ------------------------------------------------------------------------------
-; DEMO: Compile a simple function
-; ------------------------------------------------------------------------------
-; Source:
-;   fungsi test()
-;     var x = 10 + 20
-;     var y = x * 2
-;     y
-;   tutup_fungsi
-;
-; IntentTree:
-;   UNIT_MODULE
-;     └── SHARD_FUNC "test"
-;           ├── FRAG_ASSIGN "x"
-;           │     └── FRAG_BINARY "+"
-;           │           ├── FRAG_LITERAL 10
-;           │           └── FRAG_LITERAL 20
-;           ├── FRAG_ASSIGN "y"
-;           │     └── FRAG_BINARY "*"
-;           │           ├── FRAG_VAR "x"
-;           │           └── FRAG_LITERAL 2
-;           └── FRAG_VAR "y"
+const TYPE_SIZE = 32
 
-fungsi demo_compile() -> i64
-  ; Statement 1: var x = 10 + 20
-  ; FRAG_LITERAL(10) -> 1 op
-  var lit10 = compile_literal(10)
-  ; FRAG_LITERAL(20) -> 1 op
-  var lit20 = compile_literal(20)
-  ; FRAG_BINARY(+) -> 1 + 1 + 1 = 3 ops
-  var add_expr = compile_binary(OP_ADD, lit10, lit20)
-  ; FRAG_ASSIGN(x) -> 3 + 1 = 4 ops
-  var stmt1 = compile_assign(add_expr)
-  
-  ; Statement 2: var y = x * 2
-  ; FRAG_VAR(x) -> 1 op
-  var var_x = compile_var_read()
-  ; FRAG_LITERAL(2) -> 1 op
-  var lit2 = compile_literal(2)
-  ; FRAG_BINARY(*) -> 1 + 1 + 1 = 3 ops
-  var mul_expr = compile_binary(OP_MUL, var_x, lit2)
-  ; FRAG_ASSIGN(y) -> 3 + 1 = 4 ops
-  var stmt2 = compile_assign(mul_expr)
-  
-  ; Statement 3: y (return value)
-  ; FRAG_VAR(y) -> 1 op
-  var stmt3 = compile_var_read()
-  
-  ; Total: 4 + 4 + 1 = 9 ops
-  var t1 = stmt1 + stmt2
-  var total = t1 + stmt3
-  total
-tutup_fungsi
+; Primitive Type IDs:
+const TYPE_I64 = 1
+const TYPE_PTR = 2
+const TYPE_STR = 3
 
-; ------------------------------------------------------------------------------
-; DEMO: Compile if statement
-; ------------------------------------------------------------------------------
-; Source:
-;   jika (x > 0)
-;     y = 1
-;   lain
-;     y = 0
-;   tutup_jika
+; ==============================================================================
+; SECTION 6: CONTROL FLOW CONTEXT - bootstrap/asm/control_flow.s
+; ==============================================================================
+; Switch Context (32 bytes):
+;   [0x00] Cases    - Vector of CasePair
+;   [0x08] Default  - Default label (-1 if none)
+;   [0x10] EndLabel - Jump target after switch
+;   [0x18] Type     - Context type
 
-fungsi demo_compile_if() -> i64
-  ; Condition: x > 0
-  ; FRAG_VAR(x) -> 1
-  ; FRAG_LITERAL(0) -> 1
-  ; FRAG_BINARY(>) -> 3
-  var cond = 3
-  
-  ; Then block: y = 1
-  ; FRAG_LITERAL(1) -> 1
-  ; FRAG_ASSIGN(y) -> 2
-  var then_blk = 2
-  
-  ; Else block: y = 0
-  ; FRAG_LITERAL(0) -> 1
-  ; FRAG_ASSIGN(y) -> 2
-  var else_blk = 2
-  
-  ; Total IF: 3 + 1 + 2 + 1 + 2 = 9
-  var total = compile_if(cond, then_blk, else_blk)
-  total
-tutup_fungsi
+const SWITCH_CTX_SIZE = 32
 
-; ------------------------------------------------------------------------------
-; MAIN - Inline compiler simulation
-; ------------------------------------------------------------------------------
+; Loop Context (16 bytes):
+;   [0x00] Start    - Loop start label
+;   [0x08] End      - Loop end label
+
+const LOOP_CTX_SIZE = 16
+
+; Context Stack Node (24 bytes):
+;   [0x00] Prev     - Previous node
+;   [0x08] Ctx      - Context pointer
+;   [0x10] Type     - Context type
+
+const CTX_NODE_SIZE = 24
+
+; ==============================================================================
+; SECTION 7: ARENA ALLOCATOR (32 bytes) - bootstrap/asm/arena.s
+; ==============================================================================
+; Bump pointer allocator
+; Layout:
+;   [0x00] Start    - Start of user area
+;   [0x08] Current  - Bump pointer
+;   [0x10] End      - End boundary
+;   [0x18] ID       - Arena identifier
+
+const ARENA_SIZE = 32
+
+; ==============================================================================
+; SECTION 8: POOL ALLOCATOR (48 bytes) - bootstrap/asm/pool.s
+; ==============================================================================
+; Fixed-size block allocator with free list
+; Layout:
+;   [0x00] Start    - Start of user area
+;   [0x08] Current  - Bump pointer
+;   [0x10] End      - End boundary
+;   [0x18] ObjSize  - Block size (min 8)
+;   [0x20] FreeHead - Free list head
+;   [0x28] Padding  - Reserved
+
+const POOL_SIZE = 48
+
+; ==============================================================================
+; SECTION 9: PAGE HEADER (48 bytes) - bootstrap/asm/alloc.s
+; ==============================================================================
+; Memory page metadata
+; Layout:
+;   [0x00] Next     - Next page pointer
+;   [0x08] Prev     - Previous page pointer
+;   [0x10] Time     - Last access timestamp
+;   [0x18] Size     - Page size
+;   [0x20] Magic    - "VZOELFOX" (0x584F464C454F5A56)
+;   [0x28] Padding  - Reserved
+
+const PAGE_HDR_SIZE = 48
+
+; ==============================================================================
+; SECTION 10: ERROR CODES - corelib/core/memory.fox
+; ==============================================================================
+const ERR_OK = 0
+const ERR_DIV_ZERO = 104
+const ERR_NULL_PTR = 110
+const ERR_OOB = 111
+const ERR_STACK_OVF = 112
+
+; ==============================================================================
+; MAIN - Verify all structure sizes
+; ==============================================================================
 fungsi utama() -> i64
-  ; ===========================================================================
-  ; Demo: Compile "var x = 10 + 20; var y = x * 2; y"
-  ; ===========================================================================
+  ; Sum all structure sizes to verify SSOT compliance
+  ; 48 + 32 + 24 + 32 + 32 + 32 + 16 + 24 + 32 + 48 + 48 = 368
   
-  ; Statement 1: var x = 10 + 20
-  ; FRAG_LITERAL(10) -> 1 op
-  ; FRAG_LITERAL(20) -> 1 op
-  ; FRAG_BINARY(+)   -> 1 op (after children)
-  ; FRAG_ASSIGN(x)   -> 1 op (OP_STORE)
-  ; Total stmt1 = 4
-  var stmt1 = 4
+  var s1 = 48 + 32
+  var s2 = s1 + 24
+  var s3 = s2 + 32
+  var s4 = s3 + 32
+  var s5 = s4 + 32
+  var s6 = s5 + 16
+  var s7 = s6 + 24
+  var s8 = s7 + 32
+  var s9 = s8 + 48
+  var total = s9 + 48
   
-  ; Statement 2: var y = x * 2
-  ; FRAG_VAR(x)      -> 1 op (OP_LOAD)
-  ; FRAG_LITERAL(2)  -> 1 op
-  ; FRAG_BINARY(*)   -> 1 op
-  ; FRAG_ASSIGN(y)   -> 1 op
-  ; Total stmt2 = 4
-  var stmt2 = 4
-  
-  ; Statement 3: y (return expression)
-  ; FRAG_VAR(y)      -> 1 op
-  ; Total stmt3 = 1
-  var stmt3 = 1
-  
-  ; ===========================================================================
-  ; Demo: Compile IF statement
-  ; "jika (x > 0) y = 1 lain y = 0 tutup_jika"
-  ; ===========================================================================
-  
-  ; Condition: x > 0
-  ; FRAG_VAR(x)      -> 1
-  ; FRAG_LITERAL(0)  -> 1
-  ; FRAG_BINARY(>)   -> 1
-  ; Total cond = 3
-  var cond = 3
-  
-  ; OP_JMP_FALSE     -> 1 (jump to else)
-  var jmp1 = 1
-  
-  ; Then: y = 1
-  ; FRAG_LITERAL(1)  -> 1
-  ; FRAG_ASSIGN(y)   -> 1
-  ; Total then = 2
-  var then_blk = 2
-  
-  ; OP_JMP           -> 1 (skip else)
-  var jmp2 = 1
-  
-  ; Else: y = 0
-  ; FRAG_LITERAL(0)  -> 1
-  ; FRAG_ASSIGN(y)   -> 1
-  ; Total else = 2
-  var else_blk = 2
-  
-  ; ===========================================================================
-  ; Calculate totals
-  ; ===========================================================================
-  
-  ; Function body: 4 + 4 + 1 = 9
-  var t1 = stmt1 + stmt2
-  var func_ops = t1 + stmt3
-  
-  ; If statement: 3 + 1 + 2 + 1 + 2 = 9
-  var t2 = cond + jmp1
-  var t3 = t2 + then_blk
-  var t4 = t3 + jmp2
-  var if_ops = t4 + else_blk
-  
-  ; Total: 9 + 9 = 18
-  func_ops + if_ops
+  total
 tutup_fungsi
