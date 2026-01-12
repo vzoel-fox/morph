@@ -1,0 +1,372 @@
+###
+  MorphFox Self-Host Compiler v0.1
+  Kompiler yang ditulis dalam bahasa MorphFox sendiri
+  Target: Bootstrap dari assembly ke native MorphFox
+###
+
+ambil "corelib/core/types.fox"
+ambil "corelib/core/builtins.fox"
+ambil "corelib/core/memory.fox" : Arena
+ambil "corelib/core/memory.fox" : Pool
+
+; ==============================================================================
+; KONSTANTA TOKEN
+; ==============================================================================
+const TOKEN_EOF = 0
+const TOKEN_INTEGER = 1
+const TOKEN_IDENTIFIER = 2
+const TOKEN_OPERATOR = 3
+const TOKEN_KEYWORD = 4
+const TOKEN_STRING = 5
+const TOKEN_DELIMITER = 6
+const TOKEN_COLON = 7
+
+; ==============================================================================
+; KONSTANTA INTENT NODE
+; ==============================================================================
+const INTENT_UNIT = 0x1001
+const INTENT_FUNC = 0x2001
+const INTENT_BLOCK = 0x2002
+const INTENT_LITERAL = 0x3001
+const INTENT_BINARY = 0x3002
+const INTENT_VAR = 0x3005
+const INTENT_ASSIGN = 0x3006
+const INTENT_IF = 0x3007
+const INTENT_WHILE = 0x3008
+const INTENT_RETURN = 0x3009
+
+; ==============================================================================
+; STRUKTUR LEXER
+; ==============================================================================
+fungsi lexer_buat(input: ptr, panjang: i64) -> ptr
+  var state = __mf_mem_alloc(40)
+  
+  __mf_poke_i64(state, input)        ; [0] input ptr
+  __mf_poke_i64(state + 8, panjang)  ; [8] panjang
+  __mf_poke_i64(state + 16, 0)       ; [16] posisi
+  __mf_poke_i64(state + 24, 1)       ; [24] baris
+  __mf_poke_i64(state + 32, 1)       ; [32] kolom
+  
+  kembali state
+tutup_fungsi
+
+fungsi lexer_char(lex: ptr) -> i64
+  var pos = __mf_load_i64(lex + 16)
+  var len = __mf_load_i64(lex + 8)
+  
+  jika (pos >= len)
+    kembali 0
+  tutup_jika
+  
+  var base = __mf_load_i64(lex)
+  kembali __mf_load_byte(base + pos)
+tutup_fungsi
+
+fungsi lexer_maju(lex: ptr) -> void
+  var pos = __mf_load_i64(lex + 16)
+  var c = lexer_char(lex)
+  
+  __mf_poke_i64(lex + 16, pos + 1)
+  
+  jika (c == 10)
+    var baris = __mf_load_i64(lex + 24)
+    __mf_poke_i64(lex + 24, baris + 1)
+    __mf_poke_i64(lex + 32, 1)
+  lain
+    var kolom = __mf_load_i64(lex + 32)
+    __mf_poke_i64(lex + 32, kolom + 1)
+  tutup_jika
+tutup_fungsi
+
+fungsi lexer_skip_ws(lex: ptr) -> void
+  selama (1)
+    var c = lexer_char(lex)
+    
+    jika (c == 0)
+      kembali 0
+    tutup_jika
+    
+    ; Spasi, Tab, Newline, CR
+    jika (c == 32)
+      lexer_maju(lex)
+    lain
+      jika (c == 9)
+        lexer_maju(lex)
+      lain
+        jika (c == 10)
+          lexer_maju(lex)
+        lain
+          jika (c == 13)
+            lexer_maju(lex)
+          lain
+            ; Komentar (;)
+            jika (c == 59)
+              selama (lexer_char(lex) != 10)
+                jika (lexer_char(lex) == 0)
+                  kembali 0
+                tutup_jika
+                lexer_maju(lex)
+              tutup_selama
+            lain
+              kembali 0
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_selama
+tutup_fungsi
+
+; ==============================================================================
+; TOKEN STRUCT: [type: i64, value: i64]
+; ==============================================================================
+fungsi token_buat(tipe: i64, nilai: i64) -> ptr
+  var tok = __mf_mem_alloc(16)
+  __mf_poke_i64(tok, tipe)
+  __mf_poke_i64(tok + 8, nilai)
+  kembali tok
+tutup_fungsi
+
+fungsi lexer_next(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  
+  var c = lexer_char(lex)
+  
+  ; EOF
+  jika (c == 0)
+    kembali token_buat(TOKEN_EOF, 0)
+  tutup_jika
+  
+  ; Integer
+  jika (c >= 48)
+    jika (c <= 57)
+      var nilai = 0
+      selama (c >= 48)
+        jika (c <= 57)
+          nilai = nilai * 10 + (c - 48)
+          lexer_maju(lex)
+          c = lexer_char(lex)
+        lain
+          kembali token_buat(TOKEN_INTEGER, nilai)
+        tutup_jika
+      tutup_selama
+      kembali token_buat(TOKEN_INTEGER, nilai)
+    tutup_jika
+  tutup_jika
+  
+  ; String literal
+  jika (c == 34)
+    lexer_maju(lex)
+    var start = __mf_load_i64(lex + 16)
+    var base = __mf_load_i64(lex)
+    
+    selama (lexer_char(lex) != 34)
+      jika (lexer_char(lex) == 0)
+        kembali token_buat(TOKEN_EOF, 0)
+      tutup_jika
+      lexer_maju(lex)
+    tutup_selama
+    
+    var end = __mf_load_i64(lex + 16)
+    lexer_maju(lex)
+    
+    ; Buat string struct
+    var str = __mf_mem_alloc(16)
+    __mf_poke_i64(str, end - start)
+    __mf_poke_i64(str + 8, base + start)
+    
+    kembali token_buat(TOKEN_STRING, str)
+  tutup_jika
+  
+  ; Identifier / Keyword
+  jika (c >= 65)
+    jika (c <= 122)
+      var start = __mf_load_i64(lex + 16)
+      var base = __mf_load_i64(lex)
+      
+      selama (1)
+        c = lexer_char(lex)
+        jika (c >= 48)
+          jika (c <= 57)
+            lexer_maju(lex)
+          lain
+            jika (c >= 65)
+              jika (c <= 122)
+                lexer_maju(lex)
+              lain
+                jika (c == 95)
+                  lexer_maju(lex)
+                lain
+                  kembali 0
+                tutup_jika
+              tutup_jika
+            lain
+              jika (c == 95)
+                lexer_maju(lex)
+              lain
+                kembali 0
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        lain
+          jika (c == 95)
+            lexer_maju(lex)
+          lain
+            kembali 0
+          tutup_jika
+        tutup_jika
+      tutup_selama
+      
+      var end = __mf_load_i64(lex + 16)
+      var str = __mf_mem_alloc(16)
+      __mf_poke_i64(str, end - start)
+      __mf_poke_i64(str + 8, base + start)
+      
+      ; TODO: cek keyword
+      kembali token_buat(TOKEN_IDENTIFIER, str)
+    tutup_jika
+  tutup_jika
+  
+  ; Operator & Delimiter
+  lexer_maju(lex)
+  
+  jika (c == 58)
+    kembali token_buat(TOKEN_COLON, c)
+  tutup_jika
+  
+  jika (c == 40)
+    kembali token_buat(TOKEN_DELIMITER, c)
+  tutup_jika
+  jika (c == 41)
+    kembali token_buat(TOKEN_DELIMITER, c)
+  tutup_jika
+  jika (c == 44)
+    kembali token_buat(TOKEN_DELIMITER, c)
+  tutup_jika
+  
+  kembali token_buat(TOKEN_OPERATOR, c)
+tutup_fungsi
+
+; ==============================================================================
+; INTENT NODE: [type, next, child, hint, data_a, data_b] = 48 bytes
+; ==============================================================================
+fungsi node_buat(tipe: i64) -> ptr
+  var node = __mf_mem_alloc(48)
+  __mf_poke_i64(node, tipe)
+  __mf_poke_i64(node + 8, 0)
+  __mf_poke_i64(node + 16, 0)
+  __mf_poke_i64(node + 24, 0)
+  __mf_poke_i64(node + 32, 0)
+  __mf_poke_i64(node + 40, 0)
+  kembali node
+tutup_fungsi
+
+; ==============================================================================
+; PARSER
+; ==============================================================================
+fungsi parse_expr(lex: ptr) -> ptr
+  var tok = lexer_next(lex)
+  var tipe = __mf_load_i64(tok)
+  var nilai = __mf_load_i64(tok + 8)
+  
+  jika (tipe == TOKEN_INTEGER)
+    var node = node_buat(INTENT_LITERAL)
+    __mf_poke_i64(node + 32, nilai)
+    kembali node
+  tutup_jika
+  
+  jika (tipe == TOKEN_IDENTIFIER)
+    var node = node_buat(INTENT_VAR)
+    __mf_poke_i64(node + 32, nilai)
+    kembali node
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; COMPILER: Intent -> RPN Bytecode
+; ==============================================================================
+const OP_LIT = 1
+const OP_LOAD = 2
+const OP_STORE = 3
+const OP_ADD = 10
+const OP_SUB = 11
+const OP_MUL = 12
+const OP_DIV = 13
+const OP_EXIT = 99
+
+fungsi compile_node(node: ptr, buf: ptr, pos: ptr) -> void
+  var tipe = __mf_load_i64(node)
+  var offset = __mf_load_i64(pos)
+  
+  jika (tipe == INTENT_LITERAL)
+    __mf_poke_i64(buf + offset, OP_LIT)
+    __mf_poke_i64(buf + offset + 8, __mf_load_i64(node + 32))
+    __mf_poke_i64(pos, offset + 16)
+  tutup_jika
+  
+  jika (tipe == INTENT_VAR)
+    __mf_poke_i64(buf + offset, OP_LOAD)
+    __mf_poke_i64(buf + offset + 8, __mf_load_i64(node + 32))
+    __mf_poke_i64(pos, offset + 16)
+  tutup_jika
+  
+  jika (tipe == INTENT_BINARY)
+    ; Compile left
+    var left = __mf_load_i64(node + 16)
+    compile_node(left, buf, pos)
+    
+    ; Compile right
+    var right = __mf_load_i64(left + 8)
+    compile_node(right, buf, pos)
+    
+    ; Emit operator
+    var op = __mf_load_i64(node + 32)
+    offset = __mf_load_i64(pos)
+    
+    jika (op == 43)
+      __mf_poke_i64(buf + offset, OP_ADD)
+    tutup_jika
+    jika (op == 45)
+      __mf_poke_i64(buf + offset, OP_SUB)
+    tutup_jika
+    jika (op == 42)
+      __mf_poke_i64(buf + offset, OP_MUL)
+    tutup_jika
+    jika (op == 47)
+      __mf_poke_i64(buf + offset, OP_DIV)
+    tutup_jika
+    
+    __mf_poke_i64(buf + offset + 8, 0)
+    __mf_poke_i64(pos, offset + 16)
+  tutup_jika
+tutup_fungsi
+
+; ==============================================================================
+; MAIN
+; ==============================================================================
+fungsi utama() -> i64
+  print_str("MorphFox Self-Host Compiler v0.1\n")
+  
+  ; Test lexer
+  var kode = "var x = 42"
+  var lex = lexer_buat(kode, 10)
+  
+  var tok = lexer_next(lex)
+  var tipe = __mf_load_i64(tok)
+  
+  print_str("Token type: ")
+  print_num(tipe)
+  print_str("\n")
+  
+  kembali 0
+tutup_fungsi
+
+fungsi print_str(s: ptr) -> void
+  sistem 1, 1, s, 32
+tutup_fungsi
+
+fungsi print_num(n: i64) -> void
+  __mf_print_int(n)
+tutup_fungsi
