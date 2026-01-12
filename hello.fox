@@ -1,0 +1,13 @@
+###
+  Tes Bootstrap MorphFox
+  Verifikasi: Lexer, Parser, Compiler, Executor, Stack
+###
+
+fungsi utama()
+  # Tes ekspresi matematika sederhana
+  # (10 + 20) * 2 = 60
+
+  var a = 10
+  var b = 20
+  (a + b) * 2
+tutup_fungsi
