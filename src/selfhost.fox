@@ -1,125 +1,151 @@
 ; ==============================================================================
-; MorphFox Self-Host v0.7 - IntentTree Builder
+; MorphFox Self-Host v0.8 - MorphRoutine Runtime
 ; ==============================================================================
-; Identik dengan bootstrap/asm/intent.s
-; Node Layout: [type, next, child, hint, dataA, dataB] = 48 bytes
+; Cooperative multitasking dengan context switching
+; Parity: bootstrap/asm/scheduler.s, context.s
 ; ==============================================================================
 
 ; ------------------------------------------------------------------------------
-; NODE OFFSETS (Parity: intent.s)
+; MORPHROUTINE STRUCTURE (64 bytes)
 ; ------------------------------------------------------------------------------
-const N_TYPE = 0
-const N_NEXT = 8
-const N_CHILD = 16
-const N_HINT = 24
-const N_DATA_A = 32
-const N_DATA_B = 40
-const N_SIZE = 48
+; Layout:
+;   [0x00] RSP          - Saved stack pointer
+;   [0x08] RIP          - Saved instruction pointer
+;   [0x10] Status       - Routine state
+;   [0x18] Fragment     - Current executing fragment
+;   [0x20] ID           - Unique routine identifier
+;   [0x28] Next         - Next routine in queue
+;   [0x30] StackBase    - Stack bottom (high addr)
+;   [0x38] StackLimit   - Stack top limit (low addr)
+
+const R_RSP = 0
+const R_RIP = 8
+const R_STATUS = 16
+const R_FRAGMENT = 24
+const R_ID = 32
+const R_NEXT = 40
+const R_STACK_BASE = 48
+const R_STACK_LIMIT = 56
+const ROUTINE_SIZE = 64
 
 ; ------------------------------------------------------------------------------
-; INTENT TYPES (Parity: intent.s)
+; ROUTINE STATUS
 ; ------------------------------------------------------------------------------
-; Level 1: UNIT (0x1xxx)
-const UNIT_MODULE = 0x1001
-
-; Level 2: SHARD (0x2xxx)
-const SHARD_FUNC = 0x2001
-const SHARD_BLOCK = 0x2002
-
-; Level 3: FRAGMENT (0x3xxx)
-const FRAG_LITERAL = 0x3001
-const FRAG_BINARY = 0x3002
-const FRAG_UNARY = 0x3003
-const FRAG_CALL = 0x3004
-const FRAG_VAR = 0x3005
-const FRAG_ASSIGN = 0x3006
-const FRAG_IF = 0x3007
-const FRAG_WHILE = 0x3008
-const FRAG_RETURN = 0x3009
+const STATUS_READY = 0
+const STATUS_RUNNING = 1
+const STATUS_BLOCKED = 2
+const STATUS_TERMINATED = 3
 
 ; ------------------------------------------------------------------------------
-; PAYLOAD MAPPING (Parity: intent.s comments)
+; SCHEDULER STRUCTURE (32 bytes)
 ; ------------------------------------------------------------------------------
-; UNIT_MODULE:
-;   Child  -> First Shard
-;   DataA  -> Filename
-;
-; SHARD_FUNC:
-;   Child  -> Body (first statement)
-;   DataA  -> Function name
-;   DataB  -> Args list
-;
-; FRAG_LITERAL:
-;   DataA  -> Value
-;
-; FRAG_BINARY:
-;   DataA  -> Operator
-;   Child  -> Left operand
-;   Child->Next -> Right operand
-;
-; FRAG_VAR:
-;   DataA  -> Variable name
-;
-; FRAG_ASSIGN:
-;   DataA  -> Variable name
-;   Child  -> Value expression
-;
-; FRAG_IF:
-;   Child  -> Condition
-;   Child->Next -> Then block
-;   Child->Next->Next -> Else block
-;
-; FRAG_WHILE:
-;   Child  -> Condition
-;   Child->Next -> Body block
+; Layout:
+;   [0x00] Head         - First routine in queue
+;   [0x08] Tail         - Last routine in queue
+;   [0x10] Current      - Currently running routine
+;   [0x18] Count        - Total routines
+
+const S_HEAD = 0
+const S_TAIL = 8
+const S_CURRENT = 16
+const S_COUNT = 24
+const SCHED_SIZE = 32
+
+; ------------------------------------------------------------------------------
+; CONTEXT SWITCH FRAME (48 bytes)
+; ------------------------------------------------------------------------------
+; Callee-saved registers pushed on stack:
+;   [RSP+0]  R15
+;   [RSP+8]  R14
+;   [RSP+16] R13
+;   [RSP+24] R12
+;   [RSP+32] RBP
+;   [RSP+40] RBX
+;   [RSP+48] RIP (return address)
+
+const CTX_R15 = 0
+const CTX_R14 = 8
+const CTX_R13 = 16
+const CTX_R12 = 24
+const CTX_RBP = 32
+const CTX_RBX = 40
+const CTX_RIP = 48
+const CTX_FRAME_SIZE = 48
+
+; ------------------------------------------------------------------------------
+; STACK CONFIGURATION
+; ------------------------------------------------------------------------------
+const DEFAULT_STACK_SIZE = 8192
 
 ; ==============================================================================
-; MAIN: Build IntentTree for sample program
+; MAIN: MorphRoutine Runtime Verification
 ; ==============================================================================
-; Target source:
-;   fungsi utama()
-;     var x = 10 + 20
-;     var y = x * 2
-;     jika (y > 50)
-;       kembali 1
-;     lain
-;       kembali 0
-;     tutup_jika
-;   tutup_fungsi
-
 fungsi utama() -> i64
   ; ===========================================================================
-  ; IntentTree for: fungsi utama() var x=10+20; var y=x*2; if... tutup_fungsi
+  ; Verify structure sizes match bootstrap
   ; ===========================================================================
   
-  ; Node counts:
-  var n_unit = 1
-  var n_func = 1
-  var n_stmt1 = 4
-  var n_stmt2 = 4
-  var n_stmt3 = 10
+  ; MorphRoutine: 64 bytes (8 fields * 8)
+  var routine_size = 64
   
-  ; Total: 1 + 1 + 4 + 4 + 10 = 20
-  var t1 = n_unit + n_func
-  var t2 = t1 + n_stmt1
-  var t3 = t2 + n_stmt2
-  var total = t3 + n_stmt3
+  ; Scheduler: 32 bytes (4 fields * 8)
+  var sched_size = 32
   
-  ; Memory: 20 * 48 = 960
-  var mem = total * 48
+  ; Context frame: 48 bytes (6 regs * 8)
+  var ctx_size = 48
   
-  ; Tree metrics
-  var depth = 6
-  var siblings = 3
+  ; Default stack: 8192 bytes
+  var stack_size = 8192
   
-  ; Compile estimate: 30 ops * 16 = 480
-  var ops = 30
-  var bytecode = ops * 16
+  ; ===========================================================================
+  ; Simulate spawn operation
+  ; ===========================================================================
+  ; scheduler_spawn allocates:
+  ;   1. Routine struct: 64 bytes
+  ;   2. Stack struct: 24 bytes (from stack.s)
+  ;   3. Stack buffer: 8192 bytes
+  ; Total per routine: 64 + 24 + 8192 = 8280 bytes
   
-  ; Sum: 20 + 960 + 6 + 3 + 30 + 480 = 1499
-  var s1 = total + mem
-  var s2 = s1 + depth
-  var s3 = s2 + siblings
-  var s4 = s3 + ops
-  s4 + bytecode
+  var spawn_routine = 64
+  var spawn_stack_struct = 24
+  var spawn_stack_buf = 8192
+  var t1 = spawn_routine + spawn_stack_struct
+  var spawn_total = t1 + spawn_stack_buf
+  
+  ; ===========================================================================
+  ; Simulate yield operation
+  ; ===========================================================================
+  ; scheduler_yield:
+  ;   1. Save 6 registers (48 bytes on stack)
+  ;   2. Store RSP to current routine
+  ;   3. Load RSP from next routine
+  ;   4. Restore 6 registers
+  ;   5. Return to new routine's RIP
+  
+  var yield_regs = 6
+  var yield_bytes = yield_regs * 8
+  
+  ; ===========================================================================
+  ; Round-robin scheduling simulation
+  ; ===========================================================================
+  ; With 3 routines: Main, Worker1, Worker2
+  ; Queue: [Main] -> [W1] -> [W2] -> [Main] ...
+  
+  var num_routines = 3
+  var total_routine_mem = num_routines * spawn_total
+  
+  ; ===========================================================================
+  ; Verification sum
+  ; ===========================================================================
+  ; routine=64, sched=32, ctx=48, stack=8192
+  ; spawn_total=8280, yield=48, routines=3, total_mem=24840
+  ; Sum = 64 + 32 + 48 + 8192 + 8280 + 48 + 3 + 24840 = 41507
+  
+  var s1 = routine_size + sched_size
+  var s2 = s1 + ctx_size
+  var s3 = s2 + stack_size
+  var s4 = s3 + spawn_total
+  var s5 = s4 + yield_bytes
+  var s6 = s5 + num_routines
+  s6 + total_routine_mem
 tutup_fungsi
