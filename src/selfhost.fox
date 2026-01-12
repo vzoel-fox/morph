@@ -22,6 +22,21 @@ const TOKEN_DELIMITER = 6
 const TOKEN_COLON = 7
 
 ; ==============================================================================
+; KONSTANTA KEYWORD ID
+; ==============================================================================
+const KW_FUNGSI = 1
+const KW_TUTUP_FUNGSI = 2
+const KW_JIKA = 3
+const KW_TUTUP_JIKA = 4
+const KW_LAIN = 5
+const KW_SELAMA = 6
+const KW_TUTUP_SELAMA = 7
+const KW_VAR = 8
+const KW_CONST = 9
+const KW_KEMBALI = 10
+const KW_AMBIL = 11
+
+; ==============================================================================
 ; KONSTANTA INTENT NODE
 ; ==============================================================================
 const INTENT_UNIT = 0x1001
@@ -34,6 +49,77 @@ const INTENT_ASSIGN = 0x3006
 const INTENT_IF = 0x3007
 const INTENT_WHILE = 0x3008
 const INTENT_RETURN = 0x3009
+const INTENT_CALL = 0x3004
+
+; ==============================================================================
+; SCOPE STACK: [parent, vars_head, depth]
+; ==============================================================================
+
+fungsi scope_buat(parent: ptr) -> ptr
+  var s = __mf_mem_alloc(24)
+  __mf_poke_i64(s, parent)
+  __mf_poke_i64(s + 8, 0)
+  jika (parent == 0)
+    __mf_poke_i64(s + 16, 0)
+  lain
+    var pd = __mf_load_i64(parent + 16)
+    __mf_poke_i64(s + 16, pd + 1)
+  tutup_jika
+  s
+tutup_fungsi
+
+; VAR ENTRY: [name_ptr, name_len, slot, next]
+fungsi scope_add_var(scope: ptr, name: ptr, len: i64) -> i64
+  var entry = __mf_mem_alloc(32)
+  var head = __mf_load_i64(scope + 8)
+  var slot = 0
+  
+  var p = head
+  selama (p != 0)
+    slot = slot + 1
+    p = __mf_load_i64(p + 24)
+  tutup_selama
+  
+  __mf_poke_i64(entry, name)
+  __mf_poke_i64(entry + 8, len)
+  __mf_poke_i64(entry + 16, slot)
+  __mf_poke_i64(entry + 24, head)
+  __mf_poke_i64(scope + 8, entry)
+  
+  slot
+tutup_fungsi
+
+fungsi scope_find_var(scope: ptr, name: ptr, len: i64) -> i64
+  var s = scope
+  selama (s != 0)
+    var entry = __mf_load_i64(s + 8)
+    selama (entry != 0)
+      var ename = __mf_load_i64(entry)
+      var elen = __mf_load_i64(entry + 8)
+      jika (elen == len)
+        jika (str_eq(ename, name, len))
+          kembali __mf_load_i64(entry + 16)
+        tutup_jika
+      tutup_jika
+      entry = __mf_load_i64(entry + 24)
+    tutup_selama
+    s = __mf_load_i64(s)
+  tutup_selama
+  0 - 1
+tutup_fungsi
+
+fungsi str_eq(a: ptr, b: ptr, len: i64) -> i64
+  var i = 0
+  selama (i < len)
+    var ca = __mf_load_byte(a + i)
+    var cb = __mf_load_byte(b + i)
+    jika (ca != cb)
+      kembali 0
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  1
+tutup_fungsi
 
 ; ==============================================================================
 ; STRUKTUR LEXER
@@ -76,6 +162,78 @@ fungsi lexer_maju(lex: ptr) -> void
     var kolom = __mf_load_i64(lex + 32)
     __mf_poke_i64(lex + 32, kolom + 1)
   tutup_jika
+tutup_fungsi
+
+; Keyword strings (stored as globals for comparison)
+var kw_str_fungsi = "fungsi"
+var kw_str_tutup_fungsi = "tutup_fungsi"
+var kw_str_jika = "jika"
+var kw_str_tutup_jika = "tutup_jika"
+var kw_str_lain = "lain"
+var kw_str_selama = "selama"
+var kw_str_tutup_selama = "tutup_selama"
+var kw_str_var = "var"
+var kw_str_const = "const"
+var kw_str_kembali = "kembali"
+var kw_str_ambil = "ambil"
+
+fungsi cek_keyword(ptr: ptr, len: i64) -> i64
+  ; Check each keyword
+  jika (len == 6)
+    jika (str_eq(ptr, kw_str_fungsi, 6))
+      kembali KW_FUNGSI
+    tutup_jika
+    jika (str_eq(ptr, kw_str_selama, 6))
+      kembali KW_SELAMA
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 12)
+    jika (str_eq(ptr, kw_str_tutup_fungsi, 12))
+      kembali KW_TUTUP_FUNGSI
+    tutup_jika
+    jika (str_eq(ptr, kw_str_tutup_selama, 12))
+      kembali KW_TUTUP_SELAMA
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 4)
+    jika (str_eq(ptr, kw_str_jika, 4))
+      kembali KW_JIKA
+    tutup_jika
+    jika (str_eq(ptr, kw_str_lain, 4))
+      kembali KW_LAIN
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 10)
+    jika (str_eq(ptr, kw_str_tutup_jika, 10))
+      kembali KW_TUTUP_JIKA
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 3)
+    jika (str_eq(ptr, kw_str_var, 3))
+      kembali KW_VAR
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 5)
+    jika (str_eq(ptr, kw_str_const, 5))
+      kembali KW_CONST
+    tutup_jika
+    jika (str_eq(ptr, kw_str_ambil, 5))
+      kembali KW_AMBIL
+    tutup_jika
+  tutup_jika
+  
+  jika (len == 7)
+    jika (str_eq(ptr, kw_str_kembali, 7))
+      kembali KW_KEMBALI
+    tutup_jika
+  tutup_jika
+  
+  kembali 0
 tutup_fungsi
 
 fungsi lexer_skip_ws(lex: ptr) -> void
@@ -184,45 +342,152 @@ fungsi lexer_next(lex: ptr) -> ptr
       var start = __mf_load_i64(lex + 16)
       var base = __mf_load_i64(lex)
       
-      selama (1)
+      ; Loop untuk identifier chars
+      var done = 0
+      selama (done == 0)
         c = lexer_char(lex)
-        jika (c >= 48)
-          jika (c <= 57)
+        ; alphanumeric atau underscore
+        jika (c >= 97)
+          jika (c <= 122)
             lexer_maju(lex)
           lain
-            jika (c >= 65)
-              jika (c <= 122)
+            done = 1
+          tutup_jika
+        lain
+          jika (c >= 65)
+            jika (c <= 90)
+              lexer_maju(lex)
+            lain
+              jika (c >= 48)
+                jika (c <= 57)
+                  lexer_maju(lex)
+                lain
+                  jika (c == 95)
+                    lexer_maju(lex)
+                  lain
+                    done = 1
+                  tutup_jika
+                tutup_jika
+              lain
+                jika (c == 95)
+                  lexer_maju(lex)
+                lain
+                  done = 1
+                tutup_jika
+              tutup_jika
+            tutup_jika
+          lain
+            jika (c >= 48)
+              jika (c <= 57)
                 lexer_maju(lex)
               lain
                 jika (c == 95)
                   lexer_maju(lex)
                 lain
-                  kembali 0
+                  done = 1
                 tutup_jika
               tutup_jika
             lain
               jika (c == 95)
                 lexer_maju(lex)
               lain
-                kembali 0
+                done = 1
               tutup_jika
             tutup_jika
-          tutup_jika
-        lain
-          jika (c == 95)
-            lexer_maju(lex)
-          lain
-            kembali 0
           tutup_jika
         tutup_jika
       tutup_selama
       
       var end = __mf_load_i64(lex + 16)
-      var str = __mf_mem_alloc(16)
-      __mf_poke_i64(str, end - start)
-      __mf_poke_i64(str + 8, base + start)
+      var len = end - start
+      var ptr = base + start
       
-      ; TODO: cek keyword
+      ; Cek apakah keyword
+      var kw = cek_keyword(ptr, len)
+      jika (kw > 0)
+        kembali token_buat(TOKEN_KEYWORD, kw)
+      tutup_jika
+      
+      ; Bukan keyword, buat string struct untuk identifier
+      var str = __mf_mem_alloc(16)
+      __mf_poke_i64(str, len)
+      __mf_poke_i64(str + 8, ptr)
+      kembali token_buat(TOKEN_IDENTIFIER, str)
+    tutup_jika
+  tutup_jika
+  
+  ; Juga cek lowercase start (a-z)
+  jika (c >= 97)
+    jika (c <= 122)
+      var start = __mf_load_i64(lex + 16)
+      var base = __mf_load_i64(lex)
+      
+      var done = 0
+      selama (done == 0)
+        c = lexer_char(lex)
+        jika (c >= 97)
+          jika (c <= 122)
+            lexer_maju(lex)
+          lain
+            done = 1
+          tutup_jika
+        lain
+          jika (c >= 65)
+            jika (c <= 90)
+              lexer_maju(lex)
+            lain
+              jika (c >= 48)
+                jika (c <= 57)
+                  lexer_maju(lex)
+                lain
+                  jika (c == 95)
+                    lexer_maju(lex)
+                  lain
+                    done = 1
+                  tutup_jika
+                tutup_jika
+              lain
+                jika (c == 95)
+                  lexer_maju(lex)
+                lain
+                  done = 1
+                tutup_jika
+              tutup_jika
+            tutup_jika
+          lain
+            jika (c >= 48)
+              jika (c <= 57)
+                lexer_maju(lex)
+              lain
+                jika (c == 95)
+                  lexer_maju(lex)
+                lain
+                  done = 1
+                tutup_jika
+              tutup_jika
+            lain
+              jika (c == 95)
+                lexer_maju(lex)
+              lain
+                done = 1
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_selama
+      
+      var end = __mf_load_i64(lex + 16)
+      var len = end - start
+      var ptr = base + start
+      
+      var kw = cek_keyword(ptr, len)
+      jika (kw > 0)
+        kembali token_buat(TOKEN_KEYWORD, kw)
+      tutup_jika
+      
+      var str = __mf_mem_alloc(16)
+      __mf_poke_i64(str, len)
+      __mf_poke_i64(str + 8, ptr)
       kembali token_buat(TOKEN_IDENTIFIER, str)
     tutup_jika
   tutup_jika
@@ -264,24 +529,223 @@ tutup_fungsi
 ; ==============================================================================
 ; PARSER
 ; ==============================================================================
+
+; Lexer state untuk parser
+var parser_lex = 0
+var parser_tok = 0
+
+fungsi parser_init(lex: ptr) -> void
+  parser_lex = lex
+  parser_tok = lexer_next(lex)
+tutup_fungsi
+
+fungsi parser_advance() -> ptr
+  parser_tok = lexer_next(parser_lex)
+  kembali parser_tok
+tutup_fungsi
+
+fungsi parser_expect(tipe: i64) -> i64
+  var t = __mf_load_i64(parser_tok)
+  jika (t != tipe)
+    kembali 0
+  tutup_jika
+  parser_advance()
+  kembali 1
+tutup_fungsi
+
+fungsi parser_expect_kw(kw: i64) -> i64
+  var t = __mf_load_i64(parser_tok)
+  jika (t != TOKEN_KEYWORD)
+    kembali 0
+  tutup_jika
+  var v = __mf_load_i64(parser_tok + 8)
+  jika (v != kw)
+    kembali 0
+  tutup_jika
+  parser_advance()
+  kembali 1
+tutup_fungsi
+
 fungsi parse_expr(lex: ptr) -> ptr
-  var tok = lexer_next(lex)
+  var tok = parser_tok
   var tipe = __mf_load_i64(tok)
   var nilai = __mf_load_i64(tok + 8)
   
   jika (tipe == TOKEN_INTEGER)
+    parser_advance()
     var node = node_buat(INTENT_LITERAL)
     __mf_poke_i64(node + 32, nilai)
     kembali node
   tutup_jika
   
   jika (tipe == TOKEN_IDENTIFIER)
+    parser_advance()
     var node = node_buat(INTENT_VAR)
     __mf_poke_i64(node + 32, nilai)
     kembali node
   tutup_jika
   
   kembali 0
+tutup_fungsi
+
+fungsi parse_statement() -> ptr
+  var tipe = __mf_load_i64(parser_tok)
+  var nilai = __mf_load_i64(parser_tok + 8)
+  
+  ; var declaration
+  jika (tipe == TOKEN_KEYWORD)
+    jika (nilai == KW_VAR)
+      parser_advance()
+      ; expect identifier
+      var name = __mf_load_i64(parser_tok + 8)
+      parser_advance()
+      ; expect =
+      parser_advance()
+      ; parse expr
+      var expr = parse_expr(parser_lex)
+      
+      ; Add to scope
+      var name_ptr = __mf_load_i64(name + 8)
+      var name_len = __mf_load_i64(name)
+      var slot = scope_add_var(name_ptr, name_len)
+      
+      var node = node_buat(INTENT_ASSIGN)
+      __mf_poke_i64(node + 32, slot)
+      __mf_poke_i64(node + 16, expr)
+      kembali node
+    tutup_jika
+    
+    jika (nilai == KW_KEMBALI)
+      parser_advance()
+      var expr = parse_expr(parser_lex)
+      var node = node_buat(INTENT_RETURN)
+      __mf_poke_i64(node + 16, expr)
+      kembali node
+    tutup_jika
+  tutup_jika
+  
+  ; expression statement
+  kembali parse_expr(parser_lex)
+tutup_fungsi
+
+fungsi parse_block() -> ptr
+  var head = 0
+  var tail = 0
+  
+  selama (1)
+    var tipe = __mf_load_i64(parser_tok)
+    jika (tipe == TOKEN_EOF)
+      kembali head
+    tutup_jika
+    
+    ; Check closing keywords
+    jika (tipe == TOKEN_KEYWORD)
+      var kw = __mf_load_i64(parser_tok + 8)
+      jika (kw == KW_TUTUP_FUNGSI)
+        kembali head
+      tutup_jika
+      jika (kw == KW_TUTUP_JIKA)
+        kembali head
+      tutup_jika
+      jika (kw == KW_TUTUP_SELAMA)
+        kembali head
+      tutup_jika
+      jika (kw == KW_LAIN)
+        kembali head
+      tutup_jika
+    tutup_jika
+    
+    var stmt = parse_statement()
+    jika (stmt == 0)
+      kembali head
+    tutup_jika
+    
+    jika (head == 0)
+      head = stmt
+      tail = stmt
+    lain
+      __mf_poke_i64(tail + 8, stmt)
+      tail = stmt
+    tutup_jika
+  tutup_selama
+  
+  kembali head
+tutup_fungsi
+
+fungsi parse_function() -> ptr
+  ; Consume 'fungsi'
+  parser_advance()
+  
+  ; Get name
+  var name = __mf_load_i64(parser_tok + 8)
+  parser_advance()
+  
+  ; Skip ()
+  parser_advance()
+  parser_advance()
+  
+  ; Optional -> type
+  var tipe = __mf_load_i64(parser_tok)
+  jika (tipe == TOKEN_OPERATOR)
+    parser_advance()
+    parser_advance()
+  tutup_jika
+  
+  ; New scope for function
+  scope_push()
+  
+  ; Parse body
+  var body = parse_block()
+  
+  ; Expect tutup_fungsi
+  parser_expect_kw(KW_TUTUP_FUNGSI)
+  
+  ; Pop scope
+  scope_pop()
+  
+  ; Create func node
+  var node = node_buat(INTENT_FUNC)
+  __mf_poke_i64(node + 32, name)
+  __mf_poke_i64(node + 16, body)
+  
+  kembali node
+tutup_fungsi
+
+fungsi parse_unit() -> ptr
+  var unit = node_buat(INTENT_UNIT)
+  var head = 0
+  var tail = 0
+  
+  selama (1)
+    var tipe = __mf_load_i64(parser_tok)
+    jika (tipe == TOKEN_EOF)
+      kembali unit
+    tutup_jika
+    
+    var child = 0
+    
+    jika (tipe == TOKEN_KEYWORD)
+      var kw = __mf_load_i64(parser_tok + 8)
+      jika (kw == KW_FUNGSI)
+        child = parse_function()
+      tutup_jika
+    tutup_jika
+    
+    jika (child == 0)
+      parser_advance()
+    lain
+      jika (head == 0)
+        head = child
+        tail = child
+      lain
+        __mf_poke_i64(tail + 8, child)
+        tail = child
+      tutup_jika
+    tutup_jika
+  tutup_selama
+  
+  __mf_poke_i64(unit + 16, head)
+  kembali unit
 tutup_fungsi
 
 ; ==============================================================================
@@ -344,29 +808,15 @@ fungsi compile_node(node: ptr, buf: ptr, pos: ptr) -> void
 tutup_fungsi
 
 ; ==============================================================================
-; MAIN
+; MAIN - Test Scope & Keyword
 ; ==============================================================================
 fungsi utama() -> i64
-  print_str("MorphFox Self-Host Compiler v0.1\n")
+  ; Test scope
+  var scope = scope_buat(0)
+  var slot1 = scope_add_var(scope, 0, 1)
+  var slot2 = scope_add_var(scope, 0, 2)
+  var slot3 = scope_add_var(scope, 0, 3)
   
-  ; Test lexer
-  var kode = "var x = 42"
-  var lex = lexer_buat(kode, 10)
-  
-  var tok = lexer_next(lex)
-  var tipe = __mf_load_i64(tok)
-  
-  print_str("Token type: ")
-  print_num(tipe)
-  print_str("\n")
-  
-  kembali 0
-tutup_fungsi
-
-fungsi print_str(s: ptr) -> void
-  sistem 1, 1, s, 32
-tutup_fungsi
-
-fungsi print_num(n: i64) -> void
-  __mf_print_int(n)
+  ; Should be 0 + 1 + 2 = 3
+  slot1 + slot2 + slot3
 tutup_fungsi
