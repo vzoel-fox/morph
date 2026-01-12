@@ -356,3 +356,81 @@ __mf_print_int_raw:
 
     leave
     ret
+
+; ==============================================================================
+; MEMORY BUILTINS - Intent Tree Support (Windows x86-64)
+; ==============================================================================
+; These functions expose memory operations to MorphFox for Intent Tree building.
+; ==============================================================================
+
+extern mem_alloc
+extern mem_free
+
+; ------------------------------------------------------------------------------
+; func __mf_mem_alloc(size: i64) -> ptr
+; Wrapper around mem_alloc for MorphFox
+; Input: RCX = size
+; Output: RAX = pointer
+; ------------------------------------------------------------------------------
+global __mf_mem_alloc
+__mf_mem_alloc:
+    ; Windows fastcall: arg1 in RCX (already correct)
+    ; mem_alloc expects RDI (Linux convention)
+    ; But mem_alloc is also Windows, so RCX is correct
+    jmp mem_alloc
+
+; ------------------------------------------------------------------------------
+; func __mf_mem_free(ptr: ptr, size: i64) -> void
+; Wrapper around mem_free for MorphFox
+; Input: RCX = ptr, RDX = size
+; Output: None
+; ------------------------------------------------------------------------------
+global __mf_mem_free
+__mf_mem_free:
+    ; Direct call to mem_free (already in correct registers)
+    jmp mem_free
+
+; ------------------------------------------------------------------------------
+; func __mf_load_i64(addr: ptr) -> i64
+; Load 64-bit integer from memory address
+; Input: RCX = address
+; Output: RAX = value
+; ------------------------------------------------------------------------------
+global __mf_load_i64
+__mf_load_i64:
+    mov rax, [rcx]
+    ret
+
+; ------------------------------------------------------------------------------
+; func __mf_poke_i64(addr: ptr, value: i64) -> void
+; Store 64-bit integer to memory address
+; Input: RCX = address, RDX = value
+; Output: None
+; ------------------------------------------------------------------------------
+global __mf_poke_i64
+__mf_poke_i64:
+    mov [rcx], rdx
+    ret
+
+; ------------------------------------------------------------------------------
+; func __mf_load_byte(addr: ptr) -> i64
+; Load single byte from memory address (zero-extended to i64)
+; Input: RCX = address
+; Output: RAX = value (0-255)
+; ------------------------------------------------------------------------------
+global __mf_load_byte
+__mf_load_byte:
+    xor rax, rax            ; Clear RAX
+    mov al, [rcx]           ; Load byte to AL (lowest 8 bits)
+    ret
+
+; ------------------------------------------------------------------------------
+; func __mf_poke_byte(addr: ptr, value: i64) -> void
+; Store single byte to memory address
+; Input: RCX = address, RDX = value (only lowest 8 bits used)
+; Output: None
+; ------------------------------------------------------------------------------
+global __mf_poke_byte
+__mf_poke_byte:
+    mov [rcx], dl           ; Store lowest byte of RDX to address
+    ret

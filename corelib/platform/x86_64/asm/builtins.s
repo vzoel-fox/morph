@@ -308,3 +308,79 @@ __mf_pow:
 .pow_done:
     xorq %rdx, %rdx
     ret
+
+# ==============================================================================
+# MEMORY BUILTINS - Intent Tree Support
+# ==============================================================================
+# These functions expose memory operations to MorphFox for Intent Tree building.
+# ==============================================================================
+
+.extern mem_alloc
+.extern mem_free
+
+# ------------------------------------------------------------------------------
+# func __mf_mem_alloc(size: i64) -> ptr
+# Wrapper around mem_alloc for MorphFox
+# Input: %rdi = size
+# Output: %rax = pointer
+# ------------------------------------------------------------------------------
+.global __mf_mem_alloc
+__mf_mem_alloc:
+    # Direct call to mem_alloc (already in correct register)
+    jmp mem_alloc
+
+# ------------------------------------------------------------------------------
+# func __mf_mem_free(ptr: ptr, size: i64) -> void
+# Wrapper around mem_free for MorphFox
+# Input: %rdi = ptr, %rsi = size
+# Output: None
+# ------------------------------------------------------------------------------
+.global __mf_mem_free
+__mf_mem_free:
+    # Direct call to mem_free (already in correct registers)
+    jmp mem_free
+
+# ------------------------------------------------------------------------------
+# func __mf_load_i64(addr: ptr) -> i64
+# Load 64-bit integer from memory address
+# Input: %rdi = address
+# Output: %rax = value
+# ------------------------------------------------------------------------------
+.global __mf_load_i64
+__mf_load_i64:
+    movq (%rdi), %rax
+    ret
+
+# ------------------------------------------------------------------------------
+# func __mf_poke_i64(addr: ptr, value: i64) -> void
+# Store 64-bit integer to memory address
+# Input: %rdi = address, %rsi = value
+# Output: None
+# ------------------------------------------------------------------------------
+.global __mf_poke_i64
+__mf_poke_i64:
+    movq %rsi, (%rdi)
+    ret
+
+# ------------------------------------------------------------------------------
+# func __mf_load_byte(addr: ptr) -> i64
+# Load single byte from memory address (zero-extended to i64)
+# Input: %rdi = address
+# Output: %rax = value (0-255)
+# ------------------------------------------------------------------------------
+.global __mf_load_byte
+__mf_load_byte:
+    xorq %rax, %rax         # Clear RAX
+    movb (%rdi), %al        # Load byte to AL (lowest 8 bits)
+    ret
+
+# ------------------------------------------------------------------------------
+# func __mf_poke_byte(addr: ptr, value: i64) -> void
+# Store single byte to memory address
+# Input: %rdi = address, %rsi = value (only lowest 8 bits used)
+# Output: None
+# ------------------------------------------------------------------------------
+.global __mf_poke_byte
+__mf_poke_byte:
+    movb %sil, (%rdi)       # Store lowest byte of RSI to address
+    ret
