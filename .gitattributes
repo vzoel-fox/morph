@@ -1,6 +1,8 @@
 # Morph Language Definition for GitHub Linguist
-*.fox linguist-language=Morph
-*.morph linguist-language=Morph-Bytecode linguist-generated=true
+# Note: Using linguist-detectable to ensure .fox files are counted in stats
+*.fox linguist-detectable=true
+*.fox linguist-vendored=false
+*.fox linguist-generated=false
 
 # Elsa Interactive Documentation
 *.elsa linguist-language=Elsa
