@@ -24,10 +24,10 @@ echo "  - File extensions..."
 echo "  - Stripe protection..."
 ./bin/morph tests/test_stripe_protection.fox >/dev/null 2>&1 && echo "    ✅ Stripe protection OK" || echo "    ❌ Stripe protection failed"
 
-# Compile self-hosting compiler
-echo "🔨 Compiling self-hosting compiler..."
-./bin/morph src/main_simple.fox -o morph-self 2>&1 || {
-    echo "❌ Compilation failed"
+# Compile self-hosting compiler with parser integration
+echo "🔨 Compiling self-hosting compiler with parser integration..."
+./bin/morph src/main_parser_test.fox -o morph-self-parser 2>&1 || {
+    echo "❌ Parser integration compilation failed"
     exit 1
 }
 

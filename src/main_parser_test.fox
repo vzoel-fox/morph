@@ -1,0 +1,57 @@
+; Simple main with parser integration
+ambil "../corelib/lib/std.fox"
+ambil "file_extensions.fox"
+ambil "parser.fox"
+
+utama {
+    sistem 1, 1, "MorphFox Self-Hosting Compiler v1.4\n", 36
+    sistem 1, 1, "Parser Integration Test\n", 24
+    
+    ; Test file extension detection
+    var test_file = "test_input.fox"
+    var ext = get_file_extension(test_file)
+    
+    sistem 1, 1, "File: ", 6
+    sistem 1, 1, test_file, string_length(test_file)
+    sistem 1, 1, " -> Extension: ", 15
+    print_extension_name(ext)
+    
+    ; Test output generation
+    var output = generate_output_filename(test_file)
+    jika output != 0
+        sistem 1, 1, "Output: ", 8
+        sistem 1, 1, output, string_length(output)
+        sistem 1, 1, "\n", 1
+    tutup_jika
+    
+    ; Test parser creation
+    var test_source = "var x = 42"
+    var parser = parser_new_with_file(test_source, 10, test_file)
+    jika parser != 0
+        sistem 1, 1, "Parser created successfully\n", 28
+        
+        jika parser_validate_extensions(parser)
+            sistem 1, 1, "Extension validation passed\n", 28
+        tutup_jika
+    tutup_jika
+    
+    sistem 1, 1, "Parser integration successful!\n", 31
+    kembali 0
+}
+
+fungsi print_extension_name(ext: i64) -> i64
+    jika ext == 1
+        sistem 1, 1, "FOX\n", 4
+    lain
+        jika ext == 2
+            sistem 1, 1, "ELSA\n", 5
+        lain
+            jika ext == 3
+                sistem 1, 1, "MORPH\n", 6
+            lain
+                sistem 1, 1, "UNKNOWN\n", 8
+            tutup_jika
+        tutup_jika
+    tutup_jika
+    kembali ext
+tutup_fungsi

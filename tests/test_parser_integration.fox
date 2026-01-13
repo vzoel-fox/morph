@@ -1,0 +1,67 @@
+ambil "../src/parser.fox"
+
+utama {
+    sistem 1, 1, "Testing Parser Integration\n", 26
+    
+    ; Test parser with .fox extension
+    var fox_source = "var x = 42"
+    var fox_filename = "test.fox"
+    
+    var parser = parser_new_with_file(fox_source, 10, fox_filename)
+    jika parser != 0
+        sistem 1, 1, "Parser created for .fox file\n", 29
+        
+        var ext = parser_get_extension(parser)
+        sistem 1, 1, "Extension detected: ", 20
+        print_extension(ext)
+        
+        jika parser_validate_extensions(parser)
+            sistem 1, 1, "Extension validation passed\n", 28
+        tutup_jika
+    tutup_jika
+    
+    ; Test parser with .elsa extension
+    var elsa_source = "fungsi test() { kembali 0 }"
+    var elsa_filename = "test.elsa"
+    
+    var parser2 = parser_new_with_file(elsa_source, 27, elsa_filename)
+    jika parser2 != 0
+        sistem 1, 1, "Parser created for .elsa file\n", 30
+        
+        var ext2 = parser_get_extension(parser2)
+        sistem 1, 1, "Extension detected: ", 20
+        print_extension(ext2)
+        
+        jika parser_validate_extensions(parser2)
+            sistem 1, 1, "Extension validation passed\n", 28
+        tutup_jika
+    tutup_jika
+    
+    ; Test output filename generation
+    var output = parser_get_output_filename(parser)
+    jika output != 0
+        sistem 1, 1, "Generated output: ", 18
+        sistem 1, 1, output, string_length(output)
+        sistem 1, 1, "\n", 1
+    tutup_jika
+    
+    sistem 1, 1, "Parser integration tests completed!\n", 36
+    kembali 0
+}
+
+fungsi print_extension(ext: i64) -> i64
+    jika ext == 1
+        sistem 1, 1, "FOX\n", 4
+    lain
+        jika ext == 2
+            sistem 1, 1, "ELSA\n", 5
+        lain
+            jika ext == 3
+                sistem 1, 1, "MORPH\n", 6
+            lain
+                sistem 1, 1, "UNKNOWN\n", 8
+            tutup_jika
+        tutup_jika
+    tutup_jika
+    kembali ext
+tutup_fungsi

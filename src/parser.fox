@@ -2,8 +2,11 @@
 ; PARSER - MorphFox Self-Hosting Compiler
 ; ==============================================================================
 ; Recursive descent parser: token stream -> AST
+; Supports .fox and .elsa source formats
 
 ambil "corelib/core/lexer.fox"
+ambil "file_extensions.fox"
+ambil "stripe_protection.fox"
 
 const AST_PROGRAM = 1
 const AST_FUNCTION = 2
@@ -29,14 +32,52 @@ const AST_CHILDREN = 32
 const PARSER_LEX = 0
 const PARSER_TOK = 8
 const PARSER_ERR = 16
+const PARSER_FILE = 24
+const PARSER_EXT = 32
+const PARSER_SIZE = 40
 
 fungsi parser_new(source: ptr, length: i64) -> ptr
-  var p = __mf_mem_alloc(24)
+  var p = __mf_mem_alloc(PARSER_SIZE)
   var lex = lexer_new(source, length)
   __mf_poke_i64(p + PARSER_LEX, lex)
   __mf_poke_i64(p + PARSER_TOK, lexer_next(lex))
   __mf_poke_i64(p + PARSER_ERR, 0)
+  __mf_poke_i64(p + PARSER_FILE, 0)  ; Will be set by parser_set_file
+  __mf_poke_i64(p + PARSER_EXT, EXT_UNKNOWN)
   kembali p
+tutup_fungsi
+
+fungsi parser_new_with_file(source: ptr, length: i64, filename: ptr) -> ptr
+  var p = parser_new(source, length)
+  jika p != 0
+    parser_set_file(p, filename)
+  tutup_jika
+  kembali p
+tutup_fungsi
+
+fungsi parser_set_file(p: ptr, filename: ptr) -> i64
+  jika p == 0 || filename == 0
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(p + PARSER_FILE, filename)
+  var ext = get_file_extension(filename)
+  __mf_poke_i64(p + PARSER_EXT, ext)
+  
+  ; Validate source file
+  jika is_source_file(filename) == 0
+    __mf_poke_i64(p + PARSER_ERR, 1)
+    kembali 0
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+fungsi parser_get_extension(p: ptr) -> i64
+  jika p == 0
+    kembali EXT_UNKNOWN
+  tutup_jika
+  kembali __mf_load_i64(p + PARSER_EXT)
 tutup_fungsi
 
 fungsi parser_current(p: ptr) -> ptr
@@ -374,9 +415,44 @@ tutup_fungsi
 fungsi parse_import(p: ptr) -> ptr
   parser_expect_kw(p, KW_AMBIL)
   var path_tok = parser_expect(p, TOKEN_STRING)
+  var import_path = token_value(path_tok)
+  
+  ; Create import node
   var node = ast_new(AST_IMPORT)
-  __mf_poke_i64(node + AST_DATA1, token_value(path_tok))
+  __mf_poke_i64(node + AST_DATA1, import_path)
+  
+  ; Detect and validate import file extension
+  var import_ext = get_file_extension(import_path)
+  __mf_poke_i64(node + AST_DATA2, import_ext)
+  
+  ; Check if import is valid source file
+  jika is_source_file(import_path) == 0
+    ; Allow .fox imports even if not source (for corelib)
+    jika import_ext != EXT_FOX
+      __mf_poke_i64(p + PARSER_ERR, 1)
+    tutup_jika
+  tutup_jika
+  
   kembali node
+tutup_fungsi
+
+fungsi parse_import_with_protection(p: ptr) -> ptr
+  var import_node = parse_import(p)
+  jika import_node == 0
+    kembali 0
+  tutup_jika
+  
+  ; Get import path and extension
+  var import_path = __mf_load_i64(import_node + AST_DATA1)
+  var import_ext = __mf_load_i64(import_node + AST_DATA2)
+  
+  ; Apply stripe protection to import metadata
+  var protected_path = stripe_protect_assembly(import_path, string_length(import_path))
+  jika protected_path != 0
+    __mf_poke_i64(import_node + AST_DATA3, protected_path)
+  tutup_jika
+  
+  kembali import_node
 tutup_fungsi
 
 fungsi parse_function(p: ptr) -> ptr
@@ -405,8 +481,78 @@ tutup_fungsi
 
 fungsi parse_program(p: ptr) -> ptr
   var program = ast_new(AST_PROGRAM)
+  
+  ; Add file extension info to program node
+  var ext = parser_get_extension(p)
+  __mf_poke_i64(program + AST_DATA1, ext)
+  
+  ; Initialize children vector
+  var children = vector_new()
+  __mf_poke_i64(program + AST_CHILDREN, children)
+  
   selama 1 == 1
     parser_skip_newlines(p)
+    var tok = parser_current(p)
+    jika token_type(tok) == TOKEN_EOF
+      kembali program
+    tutup_jika
+    
+    ; Parse top-level statements
+    var stmt = 0
+    jika token_type(tok) == TOKEN_KEYWORD
+      var kw = token_value(tok)
+      jika kw == KW_AMBIL
+        stmt = parse_import_with_protection(p)
+      lain
+        jika kw == KW_FUNGSI
+          stmt = parse_function(p)
+        lain
+          jika kw == KW_VAR
+            stmt = parse_var_decl(p)
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+    
+    jika stmt != 0
+      vector_push(children, stmt)
+    lain
+      ; Skip unknown tokens
+      parser_advance(p)
+    tutup_jika
+  tutup_selama
+  
+  kembali program
+tutup_fungsi
+
+fungsi parser_validate_extensions(p: ptr) -> i64
+  jika p == 0
+    kembali 0
+  tutup_jika
+  
+  var ext = parser_get_extension(p)
+  
+  ; Validate supported extensions
+  jika ext == EXT_FOX
+    kembali 1  ; Standard MorphFox
+  tutup_jika
+  jika ext == EXT_ELSA
+    kembali 1  ; Enhanced Language Syntax Alternative
+  tutup_jika
+  
+  ; Unknown or unsupported extension
+  __mf_poke_i64(p + PARSER_ERR, 1)
+  kembali 0
+tutup_fungsi
+
+fungsi parser_get_output_filename(p: ptr) -> ptr
+  var filename = __mf_load_i64(p + PARSER_FILE)
+  jika filename == 0
+    kembali 0
+  tutup_jika
+  
+  kembali generate_output_filename(filename)
+tutup_fungsi
     var tok = parser_current(p)
     jika token_type(tok) == TOKEN_EOF
       kembali program

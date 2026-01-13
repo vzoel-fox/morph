@@ -63,11 +63,17 @@ utama {
         kembali 1
     tutup_jika
     
-    ; Parsing
+    ; Parsing with file extension support
     sistem 1, 1, "Parsing...\n", 11
-    var parser = parser_new(source_content, source_length)
+    var parser = parser_new_with_file(source_content, source_length, source_file)
     jika parser == 0
         sistem 1, 2, "Error: Parser initialization failed\n", 37
+        kembali 1
+    tutup_jika
+    
+    ; Validate file extensions
+    jika parser_validate_extensions(parser) == 0
+        sistem 1, 2, "Error: Unsupported file extension\n", 34
         kembali 1
     tutup_jika
     
