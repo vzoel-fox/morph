@@ -14,14 +14,15 @@ const RPN_OPCODE = 0
 const RPN_OPERAND = 8
 const RPN_SIZE = 16
 
-; Intent Tree Node Structure (48 bytes)
+; Intent Tree Node Structure (56 bytes with type info)
 const INTENT_TYPE = 0
 const INTENT_NEXT = 8
 const INTENT_CHILD = 16
 const INTENT_HINT = 24
 const INTENT_DATA_A = 32
 const INTENT_DATA_B = 40
-const INTENT_SIZE = 48
+const INTENT_TYPE_INFO = 48
+const INTENT_SIZE = 56
 
 ; RPN + Intent Integration Context
 const RPN_INTENT_INSTRUCTIONS = 0
@@ -505,4 +506,50 @@ fungsi print_number_simple(n: i64) -> i64
   tutup_selama
   
   kembali pos
+tutup_fungsi
+; Create Intent node with type info
+fungsi intent_new_typed(type: i64, type_info: i64) -> ptr
+    var intent = __mf_mem_alloc(INTENT_SIZE)
+    __mf_poke_i64(intent + INTENT_TYPE, type)
+    __mf_poke_i64(intent + INTENT_NEXT, 0)
+    __mf_poke_i64(intent + INTENT_CHILD, 0)
+    __mf_poke_i64(intent + INTENT_HINT, 0)
+    __mf_poke_i64(intent + INTENT_DATA_A, 0)
+    __mf_poke_i64(intent + INTENT_DATA_B, 0)
+    __mf_poke_i64(intent + INTENT_TYPE_INFO, type_info)
+    kembali intent
+tutup_fungsi
+
+; Type-aware AST to Intent conversion
+fungsi ast_to_intent_typed(ast: ptr, tc: ptr) -> ptr
+    var ast_type = __mf_load_i64(ast + AST_TYPE)
+    var type_info = tc_infer_type(tc, ast)
+    
+    jika ast_type == AST_LITERAL
+        var intent = intent_new_typed(INTENT_LITERAL, type_info)
+        var value = __mf_load_i64(ast + AST_DATA1)
+        __mf_poke_i64(intent + INTENT_DATA_A, value)
+        kembali intent
+    tutup_jika
+    
+    jika ast_type == AST_BINARY
+        var intent = intent_new_typed(INTENT_BINARY, type_info)
+        var op = __mf_load_i64(ast + AST_DATA1)
+        __mf_poke_i64(intent + INTENT_DATA_A, op)
+        
+        var children = __mf_load_i64(ast + AST_CHILDREN)
+        var left_ast = vector_get(children, 0)
+        var right_ast = vector_get(children, 1)
+        
+        var left_intent = ast_to_intent_typed(left_ast, tc)
+        var right_intent = ast_to_intent_typed(right_ast, tc)
+        
+        __mf_poke_i64(intent + INTENT_CHILD, left_intent)
+        __mf_poke_i64(left_intent + INTENT_NEXT, right_intent)
+        
+        kembali intent
+    tutup_jika
+    
+    ; Default fallback
+    kembali intent_new_typed(INTENT_UNKNOWN, 0)
 tutup_fungsi

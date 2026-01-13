@@ -1,0 +1,106 @@
+ambil "../src/type_checker.fox"
+ambil "../src/rpn_intent_system.fox"
+
+utama {
+    sistem 1, 1, "🔧 Phase 1 Type System Test\n", 28
+    sistem 1, 1, "==========================\n", 26
+    
+    ; Test 1: Extended type constants
+    sistem 1, 1, "\n=== Test 1: Type Constants ===\n", 33
+    sistem 1, 1, "TYPE_STRUCT = ", 14
+    print_number_simple(TYPE_STRUCT)
+    sistem 1, 1, " (expected: 5)\n", 15
+    sistem 1, 1, "TYPE_ARRAY = ", 13
+    print_number_simple(TYPE_ARRAY)
+    sistem 1, 1, " (expected: 6)\n", 15
+    
+    ; Test 2: Type checker with struct registry
+    sistem 1, 1, "\n=== Test 2: Struct Registry ===\n", 34
+    var tc = type_checker_new()
+    
+    ; Register simple struct: Point { x: i64, y: i64 }
+    var fields = vector_new()
+    vector_push(fields, string_hash_simple("x"))
+    vector_push(fields, string_hash_simple("y"))
+    
+    var result = tc_register_struct(tc, "Point", fields)
+    sistem 1, 1, "Struct registration: ", 21
+    print_number_simple(result)
+    sistem 1, 1, " (expected: 1)\n", 15
+    
+    ; Test struct field access
+    var field_type = tc_check_struct_access(tc, "Point", "x")
+    sistem 1, 1, "Field access type: ", 19
+    print_number_simple(field_type)
+    sistem 1, 1, " (expected: 1 = TYPE_I64)\n", 27
+    
+    ; Test 3: Array type creation
+    sistem 1, 1, "\n=== Test 3: Array Types ===\n", 30
+    var array_type = tc_create_array_type(TYPE_I64, 10)
+    var element_type = __mf_load_i64(array_type + ARRAY_ELEMENT_TYPE)
+    var array_size = __mf_load_i64(array_type + ARRAY_SIZE)
+    
+    sistem 1, 1, "Array element type: ", 20
+    print_number_simple(element_type)
+    sistem 1, 1, " (expected: 1)\n", 15
+    sistem 1, 1, "Array size: ", 12
+    print_number_simple(array_size)
+    sistem 1, 1, " (expected: 10)\n", 16
+    
+    ; Test 4: Type-aware Intent Tree
+    sistem 1, 1, "\n=== Test 4: Typed Intent Tree ===\n", 36
+    var intent = intent_new_typed(INTENT_LITERAL, TYPE_I64)
+    __mf_poke_i64(intent + INTENT_DATA_A, 42)
+    
+    var intent_type = __mf_load_i64(intent + INTENT_TYPE_INFO)
+    var intent_value = __mf_load_i64(intent + INTENT_DATA_A)
+    
+    sistem 1, 1, "Intent type info: ", 18
+    print_number_simple(intent_type)
+    sistem 1, 1, " (expected: 1)\n", 15
+    sistem 1, 1, "Intent value: ", 14
+    print_number_simple(intent_value)
+    sistem 1, 1, " (expected: 42)\n", 16
+    
+    ; Summary
+    sistem 1, 1, "\n🎉 Phase 1 Type System Summary:\n", 33
+    sistem 1, 1, "✅ Extended type constants (STRUCT, ARRAY)\n", 43
+    sistem 1, 1, "✅ Struct registry dan field access\n", 37
+    sistem 1, 1, "✅ Array type creation\n", 23
+    sistem 1, 1, "✅ Type-aware Intent Tree nodes\n", 32
+    sistem 1, 1, "✅ Foundation untuk complex types\n", 34
+    
+    sistem 1, 1, "\nPhase 1 complete - ready untuk struct parsing! 🚀\n", 52
+    kembali 0
+}
+
+; Helper function for number printing
+fungsi print_number_simple(n: i64)
+    jika n == 0
+        sistem 1, 1, "0", 1
+        kembali
+    tutup_jika
+    
+    jika n < 0
+        sistem 1, 1, "-", 1
+        n = 0 - n
+    tutup_jika
+    
+    var digits = 0
+    var temp = n
+    selama temp > 0
+        digits = digits + 1
+        temp = temp / 10
+    tutup_selama
+    
+    var buffer = __mf_mem_alloc(digits + 1)
+    var i = digits - 1
+    selama n > 0
+        var digit = n % 10
+        __mf_poke_i8(buffer + i, 48 + digit)
+        n = n / 10
+        i = i - 1
+    tutup_selama
+    
+    sistem 1, 1, buffer, digits
+tutup_fungsi

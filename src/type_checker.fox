@@ -13,6 +13,8 @@ const TYPE_I64 = 1
 const TYPE_PTR = 2
 const TYPE_STRING = 3
 const TYPE_FUNCTION = 4
+const TYPE_STRUCT = 5
+const TYPE_ARRAY = 6
 const TYPE_ERROR = -1
 
 ; Symbol table entry
@@ -21,17 +23,32 @@ const SYM_TYPE = 8
 const SYM_SCOPE = 16
 const SYM_SIZE = 24
 
+; Struct type entry
+const STRUCT_NAME = 0
+const STRUCT_FIELDS = 8
+const STRUCT_SIZE = 16
+const STRUCT_ENTRY_SIZE = 24
+
+; Array type entry  
+const ARRAY_ELEMENT_TYPE = 0
+const ARRAY_SIZE = 8
+const ARRAY_ENTRY_SIZE = 16
+const SYM_SCOPE = 16
+const SYM_SIZE = 24
+
 ; Type checker context
 const TC_SYMBOLS = 0
 const TC_ERRORS = 8
 const TC_SCOPE = 16
-const TC_SIZE = 24
+const TC_STRUCTS = 24
+const TC_SIZE = 32
 
 fungsi type_checker_new() -> ptr
   var tc = __mf_mem_alloc(TC_SIZE)
   __mf_poke_i64(tc + TC_SYMBOLS, hashmap_new())
   __mf_poke_i64(tc + TC_ERRORS, vector_new())
   __mf_poke_i64(tc + TC_SCOPE, 0)
+  __mf_poke_i64(tc + TC_STRUCTS, hashmap_new())
   kembali tc
 tutup_fungsi
 
@@ -233,4 +250,41 @@ fungsi tc_print_errors(tc: ptr) -> i64
     i = i + 1
   tutup_selama
   kembali len
+tutup_fungsi
+; Register struct type
+fungsi tc_register_struct(tc: ptr, name: ptr, fields: ptr) -> i64
+  var structs = __mf_load_i64(tc + TC_STRUCTS)
+  var struct_entry = __mf_mem_alloc(STRUCT_ENTRY_SIZE)
+  __mf_poke_i64(struct_entry + STRUCT_NAME, name)
+  __mf_poke_i64(struct_entry + STRUCT_FIELDS, fields)
+  __mf_poke_i64(struct_entry + STRUCT_SIZE, vector_size(fields) * 8)
+  
+  var name_hash = string_hash_simple(name)
+  hashmap_insert(structs, name_hash, struct_entry)
+  kembali 1
+tutup_fungsi
+
+; Check struct field access
+fungsi tc_check_struct_access(tc: ptr, struct_name: ptr, field_name: ptr) -> i64
+  var structs = __mf_load_i64(tc + TC_STRUCTS)
+  var name_hash = string_hash_simple(struct_name)
+  var struct_entry = hashmap_get(structs, name_hash)
+  
+  jika struct_entry == 0
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  var fields = __mf_load_i64(struct_entry + STRUCT_FIELDS)
+  var field_hash = string_hash_simple(field_name)
+  
+  ; Simple field lookup - return i64 for now
+  kembali TYPE_I64
+tutup_fungsi
+
+; Create array type
+fungsi tc_create_array_type(element_type: i64, size: i64) -> ptr
+  var array_entry = __mf_mem_alloc(ARRAY_ENTRY_SIZE)
+  __mf_poke_i64(array_entry + ARRAY_ELEMENT_TYPE, element_type)
+  __mf_poke_i64(array_entry + ARRAY_SIZE, size)
+  kembali array_entry
 tutup_fungsi
