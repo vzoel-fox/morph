@@ -1,0 +1,135 @@
+ambil "../src/type_checker.fox"
+
+; ==============================================================================
+; TYPE CHECKER TEST
+; ==============================================================================
+
+fungsi test_basic_types() -> i64
+  var tc = type_checker_new()
+  
+  ; Test literal types
+  var int_node = ast_new(AST_LITERAL)
+  __mf_poke_i64(int_node + AST_DATA1, 42)
+  __mf_poke_i64(int_node + AST_DATA2, 0)  ; Not string
+  
+  var type = tc_check_literal(tc, int_node)
+  jika type != TYPE_I64
+    sistem 1, 2, "FAIL: Integer literal type\n", 27
+    kembali -1
+  tutup_jika
+  
+  var str_node = ast_new(AST_LITERAL)
+  __mf_poke_i64(str_node + AST_DATA1, "hello")
+  __mf_poke_i64(str_node + AST_DATA2, 1)  ; Is string
+  
+  type = tc_check_literal(tc, str_node)
+  jika type != TYPE_STRING
+    sistem 1, 2, "FAIL: String literal type\n", 27
+    kembali -1
+  tutup_jika
+  
+  sistem 1, 1, "PASS: Basic types\n", 18
+  kembali 0
+tutup_fungsi
+
+fungsi test_symbol_table() -> i64
+  var tc = type_checker_new()
+  
+  ; Add symbol
+  tc_add_symbol(tc, "x", TYPE_I64)
+  
+  ; Lookup symbol
+  var sym = tc_lookup_symbol(tc, "x")
+  jika sym == 0
+    sistem 1, 2, "FAIL: Symbol lookup\n", 20
+    kembali -1
+  tutup_jika
+  
+  var sym_type = __mf_load_i64(sym + SYM_TYPE)
+  jika sym_type != TYPE_I64
+    sistem 1, 2, "FAIL: Symbol type\n", 18
+    kembali -1
+  tutup_jika
+  
+  ; Test undefined symbol
+  var undef = tc_lookup_symbol(tc, "undefined")
+  jika undef != 0
+    sistem 1, 2, "FAIL: Undefined symbol should be null\n", 38
+    kembali -1
+  tutup_jika
+  
+  sistem 1, 1, "PASS: Symbol table\n", 19
+  kembali 0
+tutup_fungsi
+
+fungsi test_type_errors() -> i64
+  var tc = type_checker_new()
+  
+  ; Test undefined variable error
+  var id_node = ast_new(AST_IDENT)
+  __mf_poke_i64(id_node + AST_DATA1, "undefined_var")
+  
+  var type = tc_check_identifier(tc, id_node)
+  jika type != TYPE_ERROR
+    sistem 1, 2, "FAIL: Should error on undefined var\n", 36
+    kembali -1
+  tutup_jika
+  
+  var error_count = tc_has_errors(tc)
+  jika error_count != 1
+    sistem 1, 2, "FAIL: Error count mismatch\n", 27
+    kembali -1
+  tutup_jika
+  
+  sistem 1, 1, "PASS: Type errors\n", 18
+  kembali 0
+tutup_fungsi
+
+fungsi test_variable_declaration() -> i64
+  var tc = type_checker_new()
+  
+  ; Create var declaration node
+  var var_node = ast_new(AST_VAR_DECL)
+  __mf_poke_i64(var_node + AST_DATA1, "x")
+  __mf_poke_i64(var_node + AST_DATA2, TYPE_I64)
+  
+  ; Check declaration
+  var result = tc_check_var_decl(tc, var_node)
+  jika result == TYPE_ERROR
+    sistem 1, 2, "FAIL: Var declaration failed\n", 29
+    kembali -1
+  tutup_jika
+  
+  ; Verify symbol was added
+  var sym = tc_lookup_symbol(tc, "x")
+  jika sym == 0
+    sistem 1, 2, "FAIL: Symbol not added\n", 23
+    kembali -1
+  tutup_jika
+  
+  sistem 1, 1, "PASS: Variable declaration\n", 27
+  kembali 0
+tutup_fungsi
+
+utama {
+  sistem 1, 1, "Running Type Checker Tests...\n", 30
+  
+  jika test_basic_types() != 0
+    kembali 1
+  tutup_jika
+  
+  jika test_symbol_table() != 0
+    kembali 1
+  tutup_jika
+  
+  jika test_type_errors() != 0
+    kembali 1
+  tutup_jika
+  
+  jika test_variable_declaration() != 0
+    kembali 1
+  tutup_jika
+  
+  sistem 1, 1, "All Type Checker Tests PASSED!\n", 32
+  kembali 0
+}

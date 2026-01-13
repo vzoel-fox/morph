@@ -56,7 +56,7 @@ morph/
 
 ## 🚀 Quick Start
 
-### Menggunakan Bootstrap Compiler
+### Menggunakan Bootstrap Compiler v1.4
 
 ```bash
 # Compile file .fox
@@ -65,6 +65,8 @@ morph/
 # Atau jalankan langsung
 ./bin/morph star.fox
 ```
+
+**New in v1.4:** Advanced networking support (HTTP/HTTPS, WebSocket, SSH, TLS)
 
 ### Contoh Program MorphFox
 
@@ -103,6 +105,7 @@ Rencana:
 | **Platforms** | ✅ | Linux, Windows, WASM |
 | **Bytecode Format** | ✅ | .morph (RPN-based) |
 | **Standard Library** | ⚠️ | Minimal (needs expansion) |
+| **Networking** | ✅ | HTTP/HTTPS, WebSocket, SSH, TLS (v1.4) |
 | **Garbage Collection** | ❌ | Manual memory management only |
 
 ## 🔗 Links

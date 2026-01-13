@@ -1,0 +1,236 @@
+; ==============================================================================
+; TYPE CHECKER - MorphFox Self-Hosting Compiler
+; ==============================================================================
+; Type checking: AST -> Typed AST with error reporting
+
+ambil "../corelib/core/parser.fox"
+ambil "../corelib/lib/hashmap.fox"
+ambil "../corelib/lib/vector.fox"
+
+; Type constants
+const TYPE_VOID = 0
+const TYPE_I64 = 1
+const TYPE_PTR = 2
+const TYPE_STRING = 3
+const TYPE_FUNCTION = 4
+const TYPE_ERROR = -1
+
+; Symbol table entry
+const SYM_NAME = 0
+const SYM_TYPE = 8
+const SYM_SCOPE = 16
+const SYM_SIZE = 24
+
+; Type checker context
+const TC_SYMBOLS = 0
+const TC_ERRORS = 8
+const TC_SCOPE = 16
+const TC_SIZE = 24
+
+fungsi type_checker_new() -> ptr
+  var tc = __mf_mem_alloc(TC_SIZE)
+  __mf_poke_i64(tc + TC_SYMBOLS, hashmap_new())
+  __mf_poke_i64(tc + TC_ERRORS, vector_new())
+  __mf_poke_i64(tc + TC_SCOPE, 0)
+  kembali tc
+tutup_fungsi
+
+fungsi tc_add_symbol(tc: ptr, name: ptr, type: i64) -> i64
+  var symbols = __mf_load_i64(tc + TC_SYMBOLS)
+  var sym = __mf_mem_alloc(SYM_SIZE)
+  __mf_poke_i64(sym + SYM_NAME, name)
+  __mf_poke_i64(sym + SYM_TYPE, type)
+  __mf_poke_i64(sym + SYM_SCOPE, __mf_load_i64(tc + TC_SCOPE))
+  hashmap_insert(symbols, name, sym)
+  kembali 1
+tutup_fungsi
+
+fungsi tc_lookup_symbol(tc: ptr, name: ptr) -> ptr
+  var symbols = __mf_load_i64(tc + TC_SYMBOLS)
+  kembali hashmap_get(symbols, name)
+tutup_fungsi
+
+fungsi tc_error(tc: ptr, msg: ptr) -> i64
+  var errors = __mf_load_i64(tc + TC_ERRORS)
+  vector_push(errors, msg)
+  kembali TYPE_ERROR
+tutup_fungsi
+
+fungsi tc_check_literal(tc: ptr, node: ptr) -> i64
+  var data2 = __mf_load_i64(node + AST_DATA2)
+  jika data2 == 1  ; String literal
+    kembali TYPE_STRING
+  tutup_jika
+  kembali TYPE_I64  ; Integer literal
+tutup_fungsi
+
+fungsi tc_check_identifier(tc: ptr, node: ptr) -> i64
+  var name = __mf_load_i64(node + AST_DATA1)
+  var sym = tc_lookup_symbol(tc, name)
+  jika sym == 0
+    kembali tc_error(tc, "Undefined variable")
+  tutup_jika
+  kembali __mf_load_i64(sym + SYM_TYPE)
+tutup_fungsi
+
+fungsi tc_check_binary(tc: ptr, node: ptr) -> i64
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children == 0
+    kembali tc_error(tc, "Binary op missing operands")
+  tutup_jika
+  
+  var left = vector_get(children, 0)
+  var right = vector_get(children, 1)
+  
+  var left_type = tc_check_node(tc, left)
+  var right_type = tc_check_node(tc, right)
+  
+  jika left_type == TYPE_ERROR
+    kembali TYPE_ERROR
+  tutup_jika
+  jika right_type == TYPE_ERROR
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  ; Arithmetic ops require i64
+  jika left_type != TYPE_I64
+    kembali tc_error(tc, "Left operand must be i64")
+  tutup_jika
+  jika right_type != TYPE_I64
+    kembali tc_error(tc, "Right operand must be i64")
+  tutup_jika
+  
+  kembali TYPE_I64
+tutup_fungsi
+
+fungsi tc_check_assign(tc: ptr, node: ptr) -> i64
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  var target = vector_get(children, 0)
+  var value = vector_get(children, 1)
+  
+  var target_type = tc_check_node(tc, target)
+  var value_type = tc_check_node(tc, value)
+  
+  jika target_type != value_type
+    kembali tc_error(tc, "Type mismatch in assignment")
+  tutup_jika
+  
+  kembali target_type
+tutup_fungsi
+
+fungsi tc_check_var_decl(tc: ptr, node: ptr) -> i64
+  var name = __mf_load_i64(node + AST_DATA1)
+  var type = __mf_load_i64(node + AST_DATA2)
+  
+  ; Add to symbol table
+  tc_add_symbol(tc, name, type)
+  
+  ; Check initializer if present
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children != 0
+    var init = vector_get(children, 0)
+    var init_type = tc_check_node(tc, init)
+    jika init_type != type
+      kembali tc_error(tc, "Initializer type mismatch")
+    tutup_jika
+  tutup_jika
+  
+  kembali TYPE_VOID
+tutup_fungsi
+
+fungsi tc_check_function(tc: ptr, node: ptr) -> i64
+  var name = __mf_load_i64(node + AST_DATA1)
+  var return_type = __mf_load_i64(node + AST_DATA2)
+  
+  ; Add function to symbol table
+  tc_add_symbol(tc, name, TYPE_FUNCTION)
+  
+  ; Enter new scope
+  var old_scope = __mf_load_i64(tc + TC_SCOPE)
+  __mf_poke_i64(tc + TC_SCOPE, old_scope + 1)
+  
+  ; Check function body
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children != 0
+    var body = vector_get(children, 0)
+    tc_check_node(tc, body)
+  tutup_jika
+  
+  ; Restore scope
+  __mf_poke_i64(tc + TC_SCOPE, old_scope)
+  
+  kembali TYPE_VOID
+tutup_fungsi
+
+fungsi tc_check_node(tc: ptr, node: ptr) -> i64
+  jika node == 0
+    kembali TYPE_VOID
+  tutup_jika
+  
+  var type = __mf_load_i64(node + AST_TYPE)
+  
+  jika type == AST_LITERAL
+    kembali tc_check_literal(tc, node)
+  tutup_jika
+  jika type == AST_IDENT
+    kembali tc_check_identifier(tc, node)
+  tutup_jika
+  jika type == AST_BINARY
+    kembali tc_check_binary(tc, node)
+  tutup_jika
+  jika type == AST_ASSIGN
+    kembali tc_check_assign(tc, node)
+  tutup_jika
+  jika type == AST_VAR_DECL
+    kembali tc_check_var_decl(tc, node)
+  tutup_jika
+  jika type == AST_FUNCTION
+    kembali tc_check_function(tc, node)
+  tutup_jika
+  
+  ; Default: check children
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children != 0
+    var len = vector_length(children)
+    var i = 0
+    selama i < len
+      var child = vector_get(children, i)
+      tc_check_node(tc, child)
+      i = i + 1
+    tutup_selama
+  tutup_jika
+  
+  kembali TYPE_VOID
+tutup_fungsi
+
+fungsi type_check_ast(ast: ptr) -> ptr
+  var tc = type_checker_new()
+  
+  ; Add built-in functions
+  tc_add_symbol(tc, "sistem", TYPE_FUNCTION)
+  tc_add_symbol(tc, "__mf_mem_alloc", TYPE_FUNCTION)
+  tc_add_symbol(tc, "__mf_load_i64", TYPE_FUNCTION)
+  tc_add_symbol(tc, "__mf_poke_i64", TYPE_FUNCTION)
+  
+  tc_check_node(tc, ast)
+  kembali tc
+tutup_fungsi
+
+fungsi tc_has_errors(tc: ptr) -> i64
+  var errors = __mf_load_i64(tc + TC_ERRORS)
+  kembali vector_length(errors)
+tutup_fungsi
+
+fungsi tc_print_errors(tc: ptr) -> i64
+  var errors = __mf_load_i64(tc + TC_ERRORS)
+  var len = vector_length(errors)
+  var i = 0
+  selama i < len
+    var msg = vector_get(errors, i)
+    sistem 1, 2, "Type Error: ", 12
+    sistem 1, 2, msg, string_length(msg)
+    sistem 1, 2, "\n", 1
+    i = i + 1
+  tutup_selama
+  kembali len
+tutup_fungsi
