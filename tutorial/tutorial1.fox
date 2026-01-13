@@ -1,0 +1,99 @@
+; ==============================================================================
+; TUTORIAL 1: GETTING STARTED WITH MORPHFOX
+; ==============================================================================
+; Belajar dasar-dasar MorphFox: variabel, fungsi, dan operasi sederhana
+
+utama {
+    sistem 1, 1, "🦊 Welcome to MorphFox Tutorial 1!\n", 36
+    sistem 1, 1, "==================================\n", 34
+    
+    ; Lesson 1: Variables and Basic Types
+    sistem 1, 1, "\n📚 Lesson 1: Variables & Types\n", 32
+    
+    var age = 25
+    var year = 2026
+    
+    sistem 1, 1, "Age: ", 5
+    print_number(age)
+    sistem 1, 1, "\nYear: ", 7
+    print_number(year)
+    sistem 1, 1, "\n", 1
+    
+    ; Lesson 2: Basic Arithmetic
+    sistem 1, 1, "\n📚 Lesson 2: Arithmetic Operations\n", 36
+    
+    var a = 10
+    var b = 5
+    
+    sistem 1, 1, "10 + 5 = ", 9
+    print_number(a + b)
+    sistem 1, 1, "\n10 - 5 = ", 10
+    print_number(a - b)
+    sistem 1, 1, "\n10 * 5 = ", 10
+    print_number(a * b)
+    sistem 1, 1, "\n10 / 5 = ", 10
+    print_number(a / b)
+    sistem 1, 1, "\n", 1
+    
+    ; Lesson 3: Functions
+    sistem 1, 1, "\n📚 Lesson 3: Functions\n", 24
+    
+    var result = add_numbers(15, 25)
+    sistem 1, 1, "add_numbers(15, 25) = ", 22
+    print_number(result)
+    sistem 1, 1, "\n", 1
+    
+    ; Lesson 4: Control Flow
+    sistem 1, 1, "\n📚 Lesson 4: Control Flow\n", 27
+    
+    var number = 42
+    jika number > 40
+        sistem 1, 1, "Number is greater than 40\n", 27
+    tutup_jika
+    
+    sistem 1, 1, "Counting 1 to 5: ", 18
+    var i = 1
+    selama i <= 5
+        print_number(i)
+        sistem 1, 1, " ", 1
+        i = i + 1
+    tutup_selama
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "\n🎉 Tutorial 1 Complete!\n", 26
+    kembali 0
+}
+
+fungsi add_numbers(x: i64, y: i64) -> i64
+    kembali x + y
+tutup_fungsi
+
+fungsi print_number(n: i64)
+    jika n == 0
+        sistem 1, 1, "0", 1
+        kembali
+    tutup_jika
+    
+    jika n < 0
+        sistem 1, 1, "-", 1
+        n = 0 - n
+    tutup_jika
+    
+    var digits = 0
+    var temp = n
+    selama temp > 0
+        digits = digits + 1
+        temp = temp / 10
+    tutup_selama
+    
+    var buffer = __mf_mem_alloc(digits + 1)
+    var i = digits - 1
+    selama n > 0
+        var digit = n % 10
+        __mf_poke_i8(buffer + i, 48 + digit)
+        n = n / 10
+        i = i - 1
+    tutup_selama
+    
+    sistem 1, 1, buffer, digits
+tutup_fungsi

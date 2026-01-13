@@ -1,0 +1,137 @@
+; ==============================================================================
+; TUTORIAL 2: ADVANCED FEATURES
+; ==============================================================================
+; Memory management, structs, dan MorphRoutines
+
+ambil "../corelib/lib/morphroutine.fox"
+
+utama {
+    sistem 1, 1, "🦊 MorphFox Tutorial 2: Advanced Features\n", 42
+    sistem 1, 1, "=========================================\n", 41
+    
+    ; Lesson 1: Memory Management
+    sistem 1, 1, "\n📚 Lesson 1: Memory Management\n", 32
+    
+    var arena = __mf_arena_create(4096)
+    sistem 1, 1, "Arena created: 4KB\n", 19
+    
+    var ptr1 = __mf_arena_alloc(arena, 64)
+    var ptr2 = __mf_arena_alloc(arena, 128)
+    
+    sistem 1, 1, "Allocated 64 + 128 bytes\n", 26
+    
+    var usage = __mf_arena_usage(arena)
+    sistem 1, 1, "Arena usage: ", 13
+    print_number(usage)
+    sistem 1, 1, " bytes\n", 7
+    
+    __mf_arena_reset(arena)
+    sistem 1, 1, "Arena reset - instant cleanup!\n", 32
+    
+    ; Lesson 2: Structs (conceptual)
+    sistem 1, 1, "\n📚 Lesson 2: Data Structures\n", 30
+    
+    ; Simulate struct Point { x: i64, y: i64 }
+    var point = __mf_mem_alloc(16)  ; 2 * 8 bytes
+    __mf_poke_i64(point + 0, 10)   ; x = 10
+    __mf_poke_i64(point + 8, 20)   ; y = 20
+    
+    var x = __mf_load_i64(point + 0)
+    var y = __mf_load_i64(point + 8)
+    
+    sistem 1, 1, "Point: (", 8
+    print_number(x)
+    sistem 1, 1, ", ", 2
+    print_number(y)
+    sistem 1, 1, ")\n", 2
+    
+    __mf_mem_free(point)
+    
+    ; Lesson 3: MorphRoutines
+    sistem 1, 1, "\n📚 Lesson 3: MorphRoutines\n", 28
+    
+    var routine = mr_spawn(worker_function, 8192)
+    jika routine != 0
+        sistem 1, 1, "✓ MorphRoutine created\n", 23
+        
+        ; Let routine run
+        mr_sleep(100)
+        
+        sistem 1, 1, "✓ MorphRoutine completed\n", 25
+        mr_destroy(routine)
+    lain
+        sistem 1, 1, "✗ Failed to create routine\n", 28
+    tutup_jika
+    
+    ; Lesson 4: Performance
+    sistem 1, 1, "\n📚 Lesson 4: Performance Test\n", 31
+    
+    var start = mr_now()
+    
+    ; Simulate work
+    var result = 0
+    var i = 0
+    selama i < 10000
+        result = result + (i * i)
+        i = i + 1
+    tutup_selama
+    
+    var end = mr_now()
+    var duration = end - start
+    
+    sistem 1, 1, "Computed sum of squares: ", 25
+    print_number(result)
+    sistem 1, 1, "\nTime taken: ", 12
+    print_number(duration)
+    sistem 1, 1, " ms\n", 4
+    
+    sistem 1, 1, "\n🎉 Tutorial 2 Complete!\n", 26
+    sistem 1, 1, "Next: tutorial3.fox (Type System)\n", 35
+    
+    kembali 0
+}
+
+fungsi worker_function() -> i64
+    sistem 1, 1, "  Worker: Starting task...\n", 28
+    
+    ; Simulate some work
+    var work_result = 0
+    var i = 0
+    selama i < 1000
+        work_result = work_result + i
+        i = i + 1
+    tutup_selama
+    
+    sistem 1, 1, "  Worker: Task completed\n", 26
+    kembali work_result
+tutup_fungsi
+
+fungsi print_number(n: i64)
+    jika n == 0
+        sistem 1, 1, "0", 1
+        kembali
+    tutup_jika
+    
+    jika n < 0
+        sistem 1, 1, "-", 1
+        n = 0 - n
+    tutup_jika
+    
+    var digits = 0
+    var temp = n
+    selama temp > 0
+        digits = digits + 1
+        temp = temp / 10
+    tutup_selama
+    
+    var buffer = __mf_mem_alloc(digits + 1)
+    var i = digits - 1
+    selama n > 0
+        var digit = n % 10
+        __mf_poke_i8(buffer + i, 48 + digit)
+        n = n / 10
+        i = i - 1
+    tutup_selama
+    
+    sistem 1, 1, buffer, digits
+tutup_fungsi
