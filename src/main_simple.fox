@@ -1,0 +1,24 @@
+; Simplified main for testing
+ambil "../corelib/lib/std.fox"
+ambil "lexer.fox"
+ambil "type_checker.fox"
+
+utama {
+    sistem 1, 1, "MorphFox Self-Hosting Compiler v1.4\n", 36
+    
+    ; Test lexer
+    var test_source = "var x = 42"
+    var lexer = lexer_new(test_source, 10)
+    jika lexer != 0
+        sistem 1, 1, "Lexer initialized\n", 18
+    tutup_jika
+    
+    ; Test type checker
+    var tc = type_checker_new()
+    jika tc != 0
+        sistem 1, 1, "Type checker initialized\n", 25
+    tutup_jika
+    
+    sistem 1, 1, "Initialization successful!\n", 27
+    kembali 0
+}

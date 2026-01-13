@@ -1,0 +1,36 @@
+; Simple test without complex dependencies
+utama {
+    sistem 1, 1, "Testing basic functionality\n", 27
+    
+    ; Test basic constants
+    var ext_fox = 1
+    var ext_elsa = 2
+    var ext_morph = 3
+    
+    sistem 1, 1, "Extension constants: ", 20
+    sistem 1, 1, "FOX=", 4
+    print_number(ext_fox)
+    sistem 1, 1, " ELSA=", 6
+    print_number(ext_elsa)
+    sistem 1, 1, " MORPH=", 7
+    print_number(ext_morph)
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "Basic test completed!\n", 22
+    kembali 0
+}
+
+fungsi print_number(n: i64) -> i64
+    jika n == 1
+        sistem 1, 1, "1", 1
+    lain
+        jika n == 2
+            sistem 1, 1, "2", 1
+        lain
+            jika n == 3
+                sistem 1, 1, "3", 1
+            tutup_jika
+        tutup_jika
+    tutup_jika
+    kembali n
+tutup_fungsi

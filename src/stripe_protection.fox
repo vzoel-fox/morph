@@ -1,0 +1,74 @@
+; ==============================================================================
+; STRIPE PROTECTION - Assembly Code Obfuscation
+; ==============================================================================
+; Prevents bootstrap assembly codegen from leaking
+
+const STRIPE_KEY = 0x4D4F5250484658  ; "MORPHFX"
+const STRIPE_MASK = 0xA5A5A5A5A5A5A5A5
+
+fungsi stripe_encode(data: ptr, length: i64) -> i64
+  var i = 0
+  selama i < length
+    var byte_val = __mf_load_byte(data + i)
+    var encoded = byte_val ^ ((STRIPE_KEY >> (i % 8)) & 0xFF)
+    encoded = encoded ^ ((STRIPE_MASK >> (i % 8)) & 0xFF)
+    __mf_poke_byte(data + i, encoded)
+    i = i + 1
+  tutup_selama
+  kembali length
+tutup_fungsi
+
+fungsi stripe_decode(data: ptr, length: i64) -> i64
+  var i = 0
+  selama i < length
+    var encoded = __mf_load_byte(data + i)
+    var decoded = encoded ^ ((STRIPE_MASK >> (i % 8)) & 0xFF)
+    decoded = decoded ^ ((STRIPE_KEY >> (i % 8)) & 0xFF)
+    __mf_poke_byte(data + i, decoded)
+    i = i + 1
+  tutup_selama
+  kembali length
+tutup_fungsi
+
+fungsi stripe_protect_assembly(asm_code: ptr, length: i64) -> ptr
+  ; Create protected copy
+  var protected = __mf_mem_alloc(length + 16)
+  jika protected == 0
+    kembali 0
+  tutup_jika
+  
+  ; Copy original
+  var i = 0
+  selama i < length
+    __mf_poke_byte(protected + i, __mf_load_byte(asm_code + i))
+    i = i + 1
+  tutup_selama
+  
+  ; Apply stripe encoding
+  stripe_encode(protected, length)
+  
+  ; Add protection header
+  __mf_poke_i64(protected + length, STRIPE_KEY)
+  __mf_poke_i64(protected + length + 8, length)
+  
+  kembali protected
+tutup_fungsi
+
+fungsi stripe_unprotect_assembly(protected: ptr) -> ptr
+  jika protected == 0
+    kembali 0
+  tutup_jika
+  
+  ; Get length from footer
+  var length = __mf_load_i64(protected + (__mf_load_i64(protected + 8)))
+  
+  ; Verify key
+  var key = __mf_load_i64(protected + length)
+  jika key != STRIPE_KEY
+    kembali 0
+  tutup_jika
+  
+  ; Decode
+  stripe_decode(protected, length)
+  kembali protected
+tutup_fungsi

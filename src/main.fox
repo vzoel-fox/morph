@@ -1,0 +1,186 @@
+; ==============================================================================
+; MAIN - MorphFox Self-Hosting Compiler v1.4
+; ==============================================================================
+; Entry point: source.fox/.elsa -> compiled.morph
+
+ambil "../corelib/lib/std.fox"
+ambil "lexer.fox"
+ambil "parser.fox"
+ambil "codegen.fox"
+ambil "type_checker.fox"
+ambil "file_extensions.fox"
+
+utama {
+    sistem 1, 1, "MorphFox Self-Hosting Compiler v1.4\n", 36
+    sistem 1, 1, "With Stripe Protection & Multi-Extension Support\n", 49
+    
+    ; Get command line arguments (simplified)
+    var source_file = "test_input.fox"  ; Hardcoded for now
+    
+    ; Validate input file extension
+    jika is_source_file(source_file) == 0
+        sistem 1, 2, "Error: Input must be .fox or .elsa file\n", 39
+        kembali 1
+    tutup_jika
+    
+    ; Generate output filename
+    var output_file = generate_output_filename(source_file)
+    jika output_file == 0
+        sistem 1, 2, "Error: Cannot generate output filename\n", 39
+        kembali 1
+    tutup_jika
+    
+    ; Show file info
+    var ext_type = get_file_extension(source_file)
+    sistem 1, 1, "Input: ", 7
+    sistem 1, 1, source_file, string_length(source_file)
+    sistem 1, 1, " (", 2
+    sistem 1, 1, get_extension_name(ext_type), string_length(get_extension_name(ext_type))
+    sistem 1, 1, ")\n", 2
+    
+    sistem 1, 1, "Output: ", 8
+    sistem 1, 1, output_file, string_length(output_file)
+    sistem 1, 1, " (stripe-protected)\n", 20
+    
+    ; Read source file
+    sistem 1, 1, "Reading source file...\n", 23
+    var source_content = file_read_all(source_file)
+    jika source_content == 0
+        sistem 1, 2, "Error: Cannot read source file\n", 31
+        kembali 1
+    tutup_jika
+    
+    var source_length = string_length(source_content)
+    sistem 1, 1, "Source length: ", 15
+    print_number(source_length)
+    sistem 1, 1, " bytes\n", 7
+    
+    ; Lexical analysis
+    sistem 1, 1, "Lexical analysis...\n", 20
+    var lexer = lexer_new(source_content, source_length)
+    jika lexer == 0
+        sistem 1, 2, "Error: Lexer initialization failed\n", 36
+        kembali 1
+    tutup_jika
+    
+    ; Parsing
+    sistem 1, 1, "Parsing...\n", 11
+    var parser = parser_new(source_content, source_length)
+    jika parser == 0
+        sistem 1, 2, "Error: Parser initialization failed\n", 37
+        kembali 1
+    tutup_jika
+    
+    var ast = parse_program(parser)
+    jika ast == 0
+        sistem 1, 2, "Error: Parsing failed\n", 22
+        kembali 1
+    tutup_jika
+    
+    ; Type checking
+    sistem 1, 1, "Type checking...\n", 17
+    var tc = type_check_ast(ast)
+    jika tc_has_errors(tc) > 0
+        sistem 1, 2, "Type checking failed:\n", 22
+        tc_print_errors(tc)
+        kembali 1
+    tutup_jika
+    
+    ; Code generation with stripe protection
+    sistem 1, 1, "Code generation (stripe-protected)...\n", 38
+    var codegen = codegen_new()
+    jika codegen == 0
+        sistem 1, 2, "Error: Codegen initialization failed\n", 38
+        kembali 1
+    tutup_jika
+    
+    codegen_generate(codegen, ast)
+    
+    ; Write stripe-protected output
+    sistem 1, 1, "Writing stripe-protected binary...\n", 35
+    var result = codegen_write_morph_file(codegen, output_file)
+    jika result == 0
+        sistem 1, 2, "Error: Failed to write output file\n", 36
+        kembali 1
+    tutup_jika
+    
+    sistem 1, 1, "Compilation successful!\n", 24
+    sistem 1, 1, "Protected output: ", 18
+    sistem 1, 1, output_file, string_length(output_file)
+    sistem 1, 1, "\n", 1
+    sistem 1, 1, "Assembly codegen protected with stripe encoding.\n", 49
+    
+    kembali 0
+}
+
+; Helper functions
+fungsi file_read_all(filename: ptr) -> ptr
+    ; Open file
+    var fd = sistem 2, filename, 0, 0  ; open(filename, O_RDONLY)
+    jika fd < 0
+        kembali 0
+    tutup_jika
+    
+    ; Get file size (simplified - allocate 64KB buffer)
+    var buffer = __mf_mem_alloc(65536)
+    jika buffer == 0
+        sistem 3, fd  ; close
+        kembali 0
+    tutup_jika
+    
+    ; Read file
+    var bytes_read = sistem 0, fd, buffer, 65536  ; read
+    sistem 3, fd  ; close
+    
+    jika bytes_read <= 0
+        kembali 0
+    tutup_jika
+    
+    ; Null terminate
+    __mf_poke_byte(buffer + bytes_read, 0)
+    
+    kembali buffer
+tutup_fungsi
+
+fungsi print_number(n: i64) -> i64
+    ; Simple number printing (placeholder)
+    jika n == 0
+        sistem 1, 1, "0", 1
+        kembali 0
+    tutup_jika
+    
+    ; Convert to string (simplified)
+    var str_buf = __mf_mem_alloc(32)
+    var result = i64_to_string_simple(n, str_buf)
+    sistem 1, 1, str_buf, result
+    kembali result
+tutup_fungsi
+
+fungsi i64_to_string_simple(n: i64, buffer: ptr) -> i64
+    jika n == 0
+        __mf_poke_byte(buffer, 48)  ; '0'
+        __mf_poke_byte(buffer + 1, 0)
+        kembali 1
+    tutup_jika
+    
+    var len = 0
+    var temp = n
+    
+    ; Count digits
+    selama temp > 0
+        temp = temp / 10
+        len = len + 1
+    tutup_selama
+    
+    ; Fill buffer backwards
+    var pos = len - 1
+    selama n > 0
+        var digit = n % 10
+        __mf_poke_byte(buffer + pos, 48 + digit)  ; '0' + digit
+        n = n / 10
+        pos = pos - 1
+    tutup_selama
+    
+    __mf_poke_byte(buffer + len, 0)  ; null terminate
+    kembali len
+tutup_fungsi

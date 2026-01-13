@@ -1,0 +1,136 @@
+; ==============================================================================
+; FILE EXTENSION HELPER - MorphFox File Type Management
+; ==============================================================================
+; Handles .fox, .elsa, .morph extensions
+
+const EXT_UNKNOWN = 0
+const EXT_FOX = 1      ; MorphFox source code
+const EXT_ELSA = 2     ; Enhanced Language Syntax Alternative
+const EXT_MORPH = 3    ; Compiled binary output
+
+fungsi get_file_extension(filename: ptr) -> i64
+  jika filename == 0
+    kembali EXT_UNKNOWN
+  tutup_jika
+  
+  var len = string_length(filename)
+  jika len < 4
+    kembali EXT_UNKNOWN
+  tutup_jika
+  
+  ; Check for .fox
+  jika __mf_load_byte(filename + len - 4) == 46  ; '.'
+    jika __mf_load_byte(filename + len - 3) == 102  ; 'f'
+      jika __mf_load_byte(filename + len - 2) == 111  ; 'o'
+        jika __mf_load_byte(filename + len - 1) == 120  ; 'x'
+          kembali EXT_FOX
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  ; Check for .elsa (5 chars)
+  jika len >= 5
+    jika __mf_load_byte(filename + len - 5) == 46  ; '.'
+      jika __mf_load_byte(filename + len - 4) == 101  ; 'e'
+        jika __mf_load_byte(filename + len - 3) == 108  ; 'l'
+          jika __mf_load_byte(filename + len - 2) == 115  ; 's'
+            jika __mf_load_byte(filename + len - 1) == 97  ; 'a'
+              kembali EXT_ELSA
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  ; Check for .morph (6 chars)
+  jika len >= 6
+    jika __mf_load_byte(filename + len - 6) == 46  ; '.'
+      jika __mf_load_byte(filename + len - 5) == 109  ; 'm'
+        jika __mf_load_byte(filename + len - 4) == 111  ; 'o'
+          jika __mf_load_byte(filename + len - 3) == 114  ; 'r'
+            jika __mf_load_byte(filename + len - 2) == 112  ; 'p'
+              jika __mf_load_byte(filename + len - 1) == 104  ; 'h'
+                kembali EXT_MORPH
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  kembali EXT_UNKNOWN
+tutup_fungsi
+
+fungsi get_extension_name(ext_type: i64) -> ptr
+  jika ext_type == EXT_FOX
+    kembali ".fox"
+  tutup_jika
+  jika ext_type == EXT_ELSA
+    kembali ".elsa"
+  tutup_jika
+  jika ext_type == EXT_MORPH
+    kembali ".morph"
+  tutup_jika
+  kembali ".unknown"
+tutup_fungsi
+
+fungsi is_source_file(filename: ptr) -> i64
+  var ext = get_file_extension(filename)
+  kembali (ext == EXT_FOX) || (ext == EXT_ELSA)
+tutup_fungsi
+
+fungsi is_binary_file(filename: ptr) -> i64
+  var ext = get_file_extension(filename)
+  kembali ext == EXT_MORPH
+tutup_fungsi
+
+fungsi generate_output_filename(input_filename: ptr) -> ptr
+  jika input_filename == 0
+    kembali 0
+  tutup_jika
+  
+  var len = string_length(input_filename)
+  var ext = get_file_extension(input_filename)
+  
+  ; Calculate base name length (without extension)
+  var base_len = len
+  jika ext == EXT_FOX
+    base_len = len - 4
+  lain
+    jika ext == EXT_ELSA
+      base_len = len - 5
+    tutup_jika
+  tutup_jika
+  
+  ; Allocate new filename: base + ".morph" + null
+  var output = __mf_mem_alloc(base_len + 7)
+  jika output == 0
+    kembali 0
+  tutup_jika
+  
+  ; Copy base name
+  var i = 0
+  selama i < base_len
+    __mf_poke_byte(output + i, __mf_load_byte(input_filename + i))
+    i = i + 1
+  tutup_selama
+  
+  ; Add .morph extension
+  __mf_poke_byte(output + base_len, 46)      ; '.'
+  __mf_poke_byte(output + base_len + 1, 109) ; 'm'
+  __mf_poke_byte(output + base_len + 2, 111) ; 'o'
+  __mf_poke_byte(output + base_len + 3, 114) ; 'r'
+  __mf_poke_byte(output + base_len + 4, 112) ; 'p'
+  __mf_poke_byte(output + base_len + 5, 104) ; 'h'
+  __mf_poke_byte(output + base_len + 6, 0)   ; null
+  
+  kembali output
+tutup_fungsi
+
+fungsi validate_file_type(filename: ptr, expected_type: i64) -> i64
+  var actual_type = get_file_extension(filename)
+  kembali actual_type == expected_type
+tutup_fungsi

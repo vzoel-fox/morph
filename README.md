@@ -66,7 +66,11 @@ morph/
 ./bin/morph star.fox
 ```
 
-**New in v1.4:** Advanced networking support (HTTP/HTTPS, WebSocket, SSH, TLS)
+**New in v1.4:** 
+- Advanced networking support (HTTP/HTTPS, WebSocket, SSH, TLS)
+- 🔒 Stripe protection for assembly codegen
+- 📁 Multi-extension support (.fox, .elsa → .morph)
+- 🛡️ Protected binary output format
 
 ### Contoh Program MorphFox
 

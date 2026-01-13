@@ -1,0 +1,7 @@
+; Enhanced Language Syntax Alternative (ELSA) test file
+utama {
+    var message = "Hello from ELSA syntax!"
+    var number = 123
+    var result = number * 2
+    kembali result
+}

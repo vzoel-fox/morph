@@ -1,0 +1,49 @@
+ambil "../src/stripe_protection.fox"
+
+utama {
+    sistem 1, 1, "Testing Stripe Protection\n", 25
+    
+    ; Test data
+    var test_data = "Hello, World! This is assembly code."
+    var data_len = 36
+    
+    sistem 1, 1, "Original: ", 10
+    sistem 1, 1, test_data, data_len
+    sistem 1, 1, "\n", 1
+    
+    ; Create copy for testing
+    var test_copy = __mf_mem_alloc(data_len)
+    var i = 0
+    selama i < data_len
+        __mf_poke_byte(test_copy + i, __mf_load_byte(test_data + i))
+        i = i + 1
+    tutup_selama
+    
+    ; Apply stripe encoding
+    stripe_encode(test_copy, data_len)
+    sistem 1, 1, "Encoded: ", 9
+    sistem 1, 1, test_copy, data_len
+    sistem 1, 1, "\n", 1
+    
+    ; Decode back
+    stripe_decode(test_copy, data_len)
+    sistem 1, 1, "Decoded: ", 9
+    sistem 1, 1, test_copy, data_len
+    sistem 1, 1, "\n", 1
+    
+    ; Test protection/unprotection
+    var protected = stripe_protect_assembly(test_data, data_len)
+    jika protected != 0
+        sistem 1, 1, "Protection applied successfully\n", 32
+        
+        var unprotected = stripe_unprotect_assembly(protected)
+        jika unprotected != 0
+            sistem 1, 1, "Unprotected: ", 13
+            sistem 1, 1, unprotected, data_len
+            sistem 1, 1, "\n", 1
+        tutup_jika
+    tutup_jika
+    
+    sistem 1, 1, "Stripe protection tests completed!\n", 35
+    kembali 0
+}

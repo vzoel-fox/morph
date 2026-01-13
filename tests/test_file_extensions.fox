@@ -1,0 +1,58 @@
+ambil "../src/file_extensions.fox"
+
+utama {
+    sistem 1, 1, "Testing File Extension Helper\n", 30
+    
+    ; Test .fox extension
+    var fox_file = "program.fox"
+    var ext = get_file_extension(fox_file)
+    sistem 1, 1, "program.fox -> ", 15
+    print_extension(ext)
+    
+    ; Test .elsa extension
+    var elsa_file = "program.elsa"
+    ext = get_file_extension(elsa_file)
+    sistem 1, 1, "program.elsa -> ", 16
+    print_extension(ext)
+    
+    ; Test .morph extension
+    var morph_file = "program.morph"
+    ext = get_file_extension(morph_file)
+    sistem 1, 1, "program.morph -> ", 17
+    print_extension(ext)
+    
+    ; Test output generation
+    var output = generate_output_filename(fox_file)
+    sistem 1, 1, "Generated output: ", 18
+    sistem 1, 1, output, string_length(output)
+    sistem 1, 1, "\n", 1
+    
+    ; Test source file validation
+    jika is_source_file(fox_file)
+        sistem 1, 1, "program.fox is source file\n", 27
+    tutup_jika
+    
+    jika is_binary_file(morph_file)
+        sistem 1, 1, "program.morph is binary file\n", 29
+    tutup_jika
+    
+    sistem 1, 1, "Extension tests completed!\n", 27
+    kembali 0
+}
+
+fungsi print_extension(ext: i64) -> i64
+    jika ext == 1
+        sistem 1, 1, "FOX\n", 4
+    lain
+        jika ext == 2
+            sistem 1, 1, "ELSA\n", 5
+        lain
+            jika ext == 3
+                sistem 1, 1, "MORPH\n", 6
+            lain
+                sistem 1, 1, "UNKNOWN\n", 8
+            tutup_jika
+        tutup_jika
+    tutup_jika
+    kembali ext
+tutup_fungsi
