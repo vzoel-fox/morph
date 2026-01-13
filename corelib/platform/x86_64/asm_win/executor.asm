@@ -9,6 +9,7 @@
 section .text
 global executor_run_with_stack
 global executor_exec_label
+executor_exec_label equ executor_run_with_stack.trampoline_entry
 
 extern __mf_print_int
 extern stack_push
@@ -28,6 +29,11 @@ extern sym_table_put_by_hash
 extern scheduler_get_current
 extern scheduler_spawn
 extern scheduler_yield
+
+; Math Safety (Externs)
+extern __mf_add_checked
+extern __mf_sub_checked
+extern __mf_mul_checked
 
 ; Network Externs (Windows)
 extern __mf_net_socket
@@ -1190,7 +1196,7 @@ executor_run_with_stack:
     pop rbp
     ret
 
-executor_exec_label:
+.trampoline_entry:
     pop r15
     sub rsp, 32
     call scheduler_get_current

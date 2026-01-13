@@ -1,0 +1,146 @@
+; ==============================================================================
+; HASHMAP LIBRARY - MorphFox Standard Library
+; ==============================================================================
+; Hash table with separate chaining, DJB2 hash
+
+const HASHMAP_SIZE = 0
+const HASHMAP_CAP = 8
+const HASHMAP_BUCKETS = 16
+const NODE_NEXT = 0
+const NODE_KEY = 8
+const NODE_VALUE = 16
+const NODE_SIZE = 24
+
+fungsi hashmap_new() -> ptr
+  var cap = 16
+  var map = __mf_mem_alloc(24)
+  var buckets = __mf_mem_alloc(cap * 8)
+  var i = 0
+  selama i < cap
+    __mf_poke_i64(buckets + i * 8, 0)
+    i = i + 1
+  tutup_selama
+  __mf_poke_i64(map + HASHMAP_SIZE, 0)
+  __mf_poke_i64(map + HASHMAP_CAP, cap)
+  __mf_poke_i64(map + HASHMAP_BUCKETS, buckets)
+  kembali map
+tutup_fungsi
+
+fungsi hashmap_hash(key: i64) -> i64
+  var hash = 5381
+  var i = 0
+  selama i < 8
+    hash = ((hash * 33) ^ (key & 255)) & 0x7FFFFFFFFFFFFFFF
+    key = key / 256
+    i = i + 1
+  tutup_selama
+  kembali hash
+tutup_fungsi
+
+fungsi hashmap_size(map: ptr) -> i64
+  jika map == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(map + HASHMAP_SIZE)
+tutup_fungsi
+
+fungsi hashmap_insert(map: ptr, key: i64, value: i64) -> i64
+  var cap = __mf_load_i64(map + HASHMAP_CAP)
+  var index = hashmap_hash(key) % cap
+  var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
+  var node = __mf_load_i64(buckets + index * 8)
+  selama node != 0
+    jika __mf_load_i64(node + NODE_KEY) == key
+      __mf_poke_i64(node + NODE_VALUE, value)
+      kembali 0
+    tutup_jika
+    node = __mf_load_i64(node + NODE_NEXT)
+  tutup_selama
+  var new_node = __mf_mem_alloc(NODE_SIZE)
+  __mf_poke_i64(new_node + NODE_NEXT, __mf_load_i64(buckets + index * 8))
+  __mf_poke_i64(new_node + NODE_KEY, key)
+  __mf_poke_i64(new_node + NODE_VALUE, value)
+  __mf_poke_i64(buckets + index * 8, new_node)
+  __mf_poke_i64(map + HASHMAP_SIZE, __mf_load_i64(map + HASHMAP_SIZE) + 1)
+  kembali 1
+tutup_fungsi
+
+fungsi hashmap_get(map: ptr, key: i64) -> i64
+  var cap = __mf_load_i64(map + HASHMAP_CAP)
+  var index = hashmap_hash(key) % cap
+  var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
+  var node = __mf_load_i64(buckets + index * 8)
+  selama node != 0
+    jika __mf_load_i64(node + NODE_KEY) == key
+      kembali __mf_load_i64(node + NODE_VALUE)
+    tutup_jika
+    node = __mf_load_i64(node + NODE_NEXT)
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+fungsi hashmap_has(map: ptr, key: i64) -> i64
+  var cap = __mf_load_i64(map + HASHMAP_CAP)
+  var index = hashmap_hash(key) % cap
+  var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
+  var node = __mf_load_i64(buckets + index * 8)
+  selama node != 0
+    jika __mf_load_i64(node + NODE_KEY) == key
+      kembali 1
+    tutup_jika
+    node = __mf_load_i64(node + NODE_NEXT)
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+fungsi hashmap_remove(map: ptr, key: i64) -> i64
+  var cap = __mf_load_i64(map + HASHMAP_CAP)
+  var index = hashmap_hash(key) % cap
+  var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
+  var prev = 0
+  var node = __mf_load_i64(buckets + index * 8)
+  selama node != 0
+    jika __mf_load_i64(node + NODE_KEY) == key
+      var next = __mf_load_i64(node + NODE_NEXT)
+      jika prev == 0
+        __mf_poke_i64(buckets + index * 8, next)
+      lain
+        __mf_poke_i64(prev + NODE_NEXT, next)
+      tutup_jika
+      __mf_mem_free(node)
+      __mf_poke_i64(map + HASHMAP_SIZE, __mf_load_i64(map + HASHMAP_SIZE) - 1)
+      kembali 1
+    tutup_jika
+    prev = node
+    node = __mf_load_i64(node + NODE_NEXT)
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+fungsi hashmap_clear(map: ptr) -> i64
+  var cap = __mf_load_i64(map + HASHMAP_CAP)
+  var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
+  var i = 0
+  selama i < cap
+    var node = __mf_load_i64(buckets + i * 8)
+    selama node != 0
+      var next = __mf_load_i64(node + NODE_NEXT)
+      __mf_mem_free(node)
+      node = next
+    tutup_selama
+    __mf_poke_i64(buckets + i * 8, 0)
+    i = i + 1
+  tutup_selama
+  __mf_poke_i64(map + HASHMAP_SIZE, 0)
+  kembali 1
+tutup_fungsi
+
+fungsi hashmap_free(map: ptr) -> i64
+  jika map == 0
+    kembali 0
+  tutup_jika
+  hashmap_clear(map)
+  __mf_mem_free(__mf_load_i64(map + HASHMAP_BUCKETS))
+  __mf_mem_free(map)
+  kembali 1
+tutup_fungsi

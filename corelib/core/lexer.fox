@@ -1,0 +1,431 @@
+; ==============================================================================
+; LEXER - MorphFox Self-Hosting Compiler
+; ==============================================================================
+; Tokenizer: source code -> token stream
+
+const TOKEN_EOF = 0
+const TOKEN_INTEGER = 1
+const TOKEN_IDENTIFIER = 2
+const TOKEN_OPERATOR = 3
+const TOKEN_KEYWORD = 4
+const TOKEN_STRING = 5
+const TOKEN_DELIMITER = 6
+const TOKEN_NEWLINE = 7
+
+const TOK_TYPE = 0
+const TOK_VALUE = 8
+const TOK_LINE = 16
+const TOK_COL = 24
+
+const LEX_SRC = 0
+const LEX_LEN = 8
+const LEX_POS = 16
+const LEX_LINE = 24
+const LEX_COL = 32
+
+const KW_FUNGSI = 1
+const KW_TUTUP_FUNGSI = 2
+const KW_VAR = 3
+const KW_JIKA = 4
+const KW_LAIN = 5
+const KW_TUTUP_JIKA = 6
+const KW_SELAMA = 7
+const KW_TUTUP_SELAMA = 8
+const KW_KEMBALI = 9
+const KW_AMBIL = 10
+const KW_CONST = 11
+
+fungsi lexer_new(source: ptr, length: i64) -> ptr
+  var lex = __mf_mem_alloc(40)
+  __mf_poke_i64(lex + LEX_SRC, source)
+  __mf_poke_i64(lex + LEX_LEN, length)
+  __mf_poke_i64(lex + LEX_POS, 0)
+  __mf_poke_i64(lex + LEX_LINE, 1)
+  __mf_poke_i64(lex + LEX_COL, 1)
+  kembali lex
+tutup_fungsi
+
+fungsi lexer_peek(lex: ptr) -> i64
+  var pos = __mf_load_i64(lex + LEX_POS)
+  jika pos >= __mf_load_i64(lex + LEX_LEN)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_byte(__mf_load_i64(lex + LEX_SRC) + pos)
+tutup_fungsi
+
+fungsi lexer_advance(lex: ptr) -> i64
+  var ch = lexer_peek(lex)
+  jika ch == 0
+    kembali 0
+  tutup_jika
+  __mf_poke_i64(lex + LEX_POS, __mf_load_i64(lex + LEX_POS) + 1)
+  jika ch == 10
+    __mf_poke_i64(lex + LEX_LINE, __mf_load_i64(lex + LEX_LINE) + 1)
+    __mf_poke_i64(lex + LEX_COL, 1)
+  lain
+    __mf_poke_i64(lex + LEX_COL, __mf_load_i64(lex + LEX_COL) + 1)
+  tutup_jika
+  kembali ch
+tutup_fungsi
+
+fungsi lexer_skip_ws(lex: ptr) -> i64
+  selama 1 == 1
+    var ch = lexer_peek(lex)
+    jika ch == 32
+      lexer_advance(lex)
+    lain
+      jika ch == 9
+        lexer_advance(lex)
+      lain
+        kembali 1
+      tutup_jika
+    tutup_jika
+  tutup_selama
+  kembali 1
+tutup_fungsi
+
+fungsi lexer_skip_comment(lex: ptr) -> i64
+  jika lexer_peek(lex) != 59
+    kembali 0
+  tutup_jika
+  selama 1 == 1
+    var ch = lexer_peek(lex)
+    jika ch == 0
+      kembali 1
+    tutup_jika
+    jika ch == 10
+      kembali 1
+    tutup_jika
+    lexer_advance(lex)
+  tutup_selama
+  kembali 1
+tutup_fungsi
+
+fungsi is_digit(ch: i64) -> i64
+  jika ch >= 48
+    jika ch <= 57
+      kembali 1
+    tutup_jika
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi is_alpha(ch: i64) -> i64
+  jika ch == 95
+    kembali 1
+  tutup_jika
+  jika ch >= 65
+    jika ch <= 90
+      kembali 1
+    tutup_jika
+  tutup_jika
+  jika ch >= 97
+    jika ch <= 122
+      kembali 1
+    tutup_jika
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi is_alnum(ch: i64) -> i64
+  jika is_alpha(ch) == 1
+    kembali 1
+  tutup_jika
+  kembali is_digit(ch)
+tutup_fungsi
+
+fungsi lexer_make_token(type: i64, value: i64, line: i64, col: i64) -> ptr
+  var tok = __mf_mem_alloc(32)
+  __mf_poke_i64(tok + TOK_TYPE, type)
+  __mf_poke_i64(tok + TOK_VALUE, value)
+  __mf_poke_i64(tok + TOK_LINE, line)
+  __mf_poke_i64(tok + TOK_COL, col)
+  kembali tok
+tutup_fungsi
+
+fungsi lexer_read_number(lex: ptr) -> i64
+  var value = 0
+  selama is_digit(lexer_peek(lex)) == 1
+    value = value * 10 + (lexer_advance(lex) - 48)
+  tutup_selama
+  kembali value
+tutup_fungsi
+
+fungsi lexer_read_ident(lex: ptr) -> ptr
+  var src = __mf_load_i64(lex + LEX_SRC)
+  var start = __mf_load_i64(lex + LEX_POS)
+  selama is_alnum(lexer_peek(lex)) == 1
+    lexer_advance(lex)
+  tutup_selama
+  var len = __mf_load_i64(lex + LEX_POS) - start
+  var buf = __mf_mem_alloc(len + 1)
+  __mf_memcpy(buf, src + start, len)
+  __mf_poke_byte(buf + len, 0)
+  kembali buf
+tutup_fungsi
+
+fungsi lexer_read_string(lex: ptr) -> ptr
+  lexer_advance(lex)
+  var src = __mf_load_i64(lex + LEX_SRC)
+  var start = __mf_load_i64(lex + LEX_POS)
+  selama 1 == 1
+    var ch = lexer_peek(lex)
+    jika ch == 0
+      kembali 0
+    tutup_jika
+    jika ch == 34
+      var len = __mf_load_i64(lex + LEX_POS) - start
+      lexer_advance(lex)
+      var buf = __mf_mem_alloc(len + 1)
+      __mf_memcpy(buf, src + start, len)
+      __mf_poke_byte(buf + len, 0)
+      kembali buf
+    tutup_jika
+    lexer_advance(lex)
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+fungsi lexer_match_kw(buf: ptr, kw: ptr, len: i64) -> i64
+  var i = 0
+  selama i < len
+    jika __mf_load_byte(buf + i) != __mf_load_byte(kw + i)
+      kembali 0
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  jika __mf_load_byte(buf + len) == 0
+    kembali 1
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi lexer_check_keyword(buf: ptr) -> i64
+  jika __mf_load_byte(buf) == 118
+    jika __mf_load_byte(buf+1) == 97
+      jika __mf_load_byte(buf+2) == 114
+        jika __mf_load_byte(buf+3) == 0
+          kembali KW_VAR
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 106
+    jika __mf_load_byte(buf+1) == 105
+      jika __mf_load_byte(buf+2) == 107
+        jika __mf_load_byte(buf+3) == 97
+          jika __mf_load_byte(buf+4) == 0
+            kembali KW_JIKA
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 108
+    jika __mf_load_byte(buf+1) == 97
+      jika __mf_load_byte(buf+2) == 105
+        jika __mf_load_byte(buf+3) == 110
+          jika __mf_load_byte(buf+4) == 0
+            kembali KW_LAIN
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 102
+    jika __mf_load_byte(buf+1) == 117
+      jika __mf_load_byte(buf+2) == 110
+        jika __mf_load_byte(buf+3) == 103
+          jika __mf_load_byte(buf+4) == 115
+            jika __mf_load_byte(buf+5) == 105
+              jika __mf_load_byte(buf+6) == 0
+                kembali KW_FUNGSI
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 115
+    jika __mf_load_byte(buf+1) == 101
+      jika __mf_load_byte(buf+2) == 108
+        jika __mf_load_byte(buf+3) == 97
+          jika __mf_load_byte(buf+4) == 109
+            jika __mf_load_byte(buf+5) == 97
+              jika __mf_load_byte(buf+6) == 0
+                kembali KW_SELAMA
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 107
+    jika __mf_load_byte(buf+1) == 101
+      jika __mf_load_byte(buf+2) == 109
+        jika __mf_load_byte(buf+3) == 98
+          jika __mf_load_byte(buf+4) == 97
+            jika __mf_load_byte(buf+5) == 108
+              jika __mf_load_byte(buf+6) == 105
+                jika __mf_load_byte(buf+7) == 0
+                  kembali KW_KEMBALI
+                tutup_jika
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 97
+    jika __mf_load_byte(buf+1) == 109
+      jika __mf_load_byte(buf+2) == 98
+        jika __mf_load_byte(buf+3) == 105
+          jika __mf_load_byte(buf+4) == 108
+            jika __mf_load_byte(buf+5) == 0
+              kembali KW_AMBIL
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  jika __mf_load_byte(buf) == 99
+    jika __mf_load_byte(buf+1) == 111
+      jika __mf_load_byte(buf+2) == 110
+        jika __mf_load_byte(buf+3) == 115
+          jika __mf_load_byte(buf+4) == 116
+            jika __mf_load_byte(buf+5) == 0
+              kembali KW_CONST
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi lexer_next(lex: ptr) -> ptr
+  lexer_skip_ws(lex)
+  var line = __mf_load_i64(lex + LEX_LINE)
+  var col = __mf_load_i64(lex + LEX_COL)
+  var ch = lexer_peek(lex)
+  jika ch == 0
+    kembali lexer_make_token(TOKEN_EOF, 0, line, col)
+  tutup_jika
+  jika ch == 59
+    lexer_skip_comment(lex)
+    kembali lexer_next(lex)
+  tutup_jika
+  jika ch == 10
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_NEWLINE, 10, line, col)
+  tutup_jika
+  jika is_digit(ch) == 1
+    kembali lexer_make_token(TOKEN_INTEGER, lexer_read_number(lex), line, col)
+  tutup_jika
+  jika is_alpha(ch) == 1
+    var ident = lexer_read_ident(lex)
+    var kw = lexer_check_keyword(ident)
+    jika kw > 0
+      kembali lexer_make_token(TOKEN_KEYWORD, kw, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_IDENTIFIER, ident, line, col)
+  tutup_jika
+  jika ch == 34
+    kembali lexer_make_token(TOKEN_STRING, lexer_read_string(lex), line, col)
+  tutup_jika
+  jika ch == 40
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_DELIMITER, 40, line, col)
+  tutup_jika
+  jika ch == 41
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_DELIMITER, 41, line, col)
+  tutup_jika
+  jika ch == 44
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_DELIMITER, 44, line, col)
+  tutup_jika
+  jika ch == 58
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_DELIMITER, 58, line, col)
+  tutup_jika
+  jika ch == 61
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 61
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 256, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 61, line, col)
+  tutup_jika
+  jika ch == 33
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 61
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 257, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 33, line, col)
+  tutup_jika
+  jika ch == 60
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 61
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 258, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 60, line, col)
+  tutup_jika
+  jika ch == 62
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 61
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 259, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 62, line, col)
+  tutup_jika
+  jika ch == 43
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_OPERATOR, 43, line, col)
+  tutup_jika
+  jika ch == 45
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 62
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 260, line, col)
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 45, line, col)
+  tutup_jika
+  jika ch == 42
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_OPERATOR, 42, line, col)
+  tutup_jika
+  jika ch == 47
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_OPERATOR, 47, line, col)
+  tutup_jika
+  jika ch == 37
+    lexer_advance(lex)
+    kembali lexer_make_token(TOKEN_OPERATOR, 37, line, col)
+  tutup_jika
+  lexer_advance(lex)
+  kembali lexer_make_token(TOKEN_OPERATOR, ch, line, col)
+tutup_fungsi
+
+fungsi token_type(tok: ptr) -> i64
+  kembali __mf_load_i64(tok + TOK_TYPE)
+tutup_fungsi
+
+fungsi token_value(tok: ptr) -> i64
+  kembali __mf_load_i64(tok + TOK_VALUE)
+tutup_fungsi
+
+fungsi token_line(tok: ptr) -> i64
+  kembali __mf_load_i64(tok + TOK_LINE)
+tutup_fungsi
+
+fungsi token_col(tok: ptr) -> i64
+  kembali __mf_load_i64(tok + TOK_COL)
+tutup_fungsi

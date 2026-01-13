@@ -1,39 +1,112 @@
 ; ==============================================================================
-; MORPHROUTINE RUNTIME (SSOT)
+; MORPHROUTINE RUNTIME ARCHITECTURE (SSOT)
 ; ==============================================================================
-; Lightweight threading system - builtins for cooperative multitasking
+; Dokumen ini mendefinisikan struktur data inti untuk eksekusi program MorphFox.
+; Visi: "INTERPRETED FOR HUMAN, READABLE FOR AI"
+;
+; Filosofi Hirarki Eksekusi:
+; 1. Process  : Wadah isolasi sumber daya (OS Process).
+; 2. Unit     : Tugas logis tingkat tinggi (Fungsi/Prosedur). Manusia berpikir di sini.
+; 3. Shard    : Jalur eksekusi paralel/cabang. Memungkinkan AI menelusuri logika flow.
+; 4. Fragment : Blok instruksi atomik (berisi RPN). Mesin bekerja di sini.
+;
+; ==============================================================================
 
-; MorphRoutine State (64 bytes)
-const MR_STATE_SIZE = 64
-const MR_STATE_SP = 0      ; Stack pointer
-const MR_STATE_STATUS = 8  ; Status (READY/RUNNING/BLOCKED/DEAD)
-const MR_STATE_ID = 16     ; Routine ID
-const MR_STATE_STACK = 24  ; Stack base pointer
-const MR_STATE_STACK_SIZE = 32 ; Stack size
-const MR_STATE_YIELD_VAL = 40  ; Yielded value
-const MR_STATE_RESERVED = 48   ; Reserved (16 bytes)
+; ------------------------------------------------------------------------------
+; 1. FRAGMENT (Atomic Instruction Block)
+; ------------------------------------------------------------------------------
+; Fragment adalah unit terkecil yang dijadwalkan.
+; Berisi bytecode RPN linear tanpa percabangan kompleks (Basic Block).
+;
+; [Struktur Memori] - Ukuran: 32 Byte
+;
+; [Offset 0x00] ID (i64)
+;   - Identifikasi unik fragment untuk debugging/AI tracing.
+;
+; [Offset 0x08] Code Ptr (ptr)
+;   - Pointer ke array instruksi RPN (Bytecode).
+;
+; [Offset 0x10] Code Size (i64)
+;   - Jumlah byte instruksi dalam fragment ini.
+;
+; [Offset 0x18] Next Fragment Hint (i64/ptr)
+;   - Petunjuk fragment berikutnya (untuk optimasi AI pre-fetch).
+;   - 0 jika akhir dari Shard/Dynamic jump.
 
-; Status constants
-const MR_READY = 0
-const MR_RUNNING = 1
-const MR_BLOCKED = 2
-const MR_DEAD = 3
+; ------------------------------------------------------------------------------
+; 2. SHARD (Execution Path)
+; ------------------------------------------------------------------------------
+; Shard merepresentasikan satu "timeline" eksekusi.
+; Digunakan untuk mengelola percabangan (Branching) atau Async Flow.
+;
+; [Struktur Memori] - Ukuran: 32 Byte
+;
+; [Offset 0x00] Parent Unit Ptr (ptr)
+;   - Pointer ke Unit pemilik shard ini.
+;
+; [Offset 0x08] Entry Fragment Ptr (ptr)
+;   - Fragment pertama yang dieksekusi saat Shard ini aktif.
+;
+; [Offset 0x10] Priority (i64)
+;   - Tingkat prioritas eksekusi (0 = Normal, 1 = High, 2 = Critical).
+;
+; [Offset 0x18] Metadata Ptr (ptr)
+;   - Pointer ke string nama/deskripsi Shard (untuk keterbacaan manusia).
 
-; Runtime builtins (implemented in Assembly)
-fungsi __mf_mr_create(func_ptr: ptr, stack_size: i64) -> ptr
-fungsi __mf_mr_yield(value: i64) -> i64
-fungsi __mf_mr_resume(routine: ptr) -> i64
-fungsi __mf_mr_current() -> ptr
-fungsi __mf_mr_schedule() -> void
-fungsi __mf_mr_destroy(routine: ptr) -> void
+; ------------------------------------------------------------------------------
+; 3. UNIT (Logical Task / Function)
+; ------------------------------------------------------------------------------
+; Unit setara dengan Fungsi atau Objek yang memiliki state.
+;
+; [Struktur Memori] - Ukuran: 48 Byte
+;
+; [Offset 0x00] Name Ptr (ptr)
+;   - Nama Unit (String Struct) untuk debugging/stack trace.
+;
+; [Offset 0x08] Shard List Head (ptr)
+;   - Linked List dari Shard yang dimiliki unit ini.
+;
+; [Offset 0x10] Local Variables Size (i64)
+;   - Ukuran memori yang dibutuhkan untuk variabel lokal (Stack Frame size).
+;
+; [Offset 0x18] Input Signature (i64)
+;   - Deskripsi tipe input (untuk validasi kontrak).
+;
+; [Offset 0x20] Output Signature (i64)
+;   - Deskripsi tipe output.
 
-; I/O builtins (non-blocking)
-fungsi __mf_io_read(fd: i64, buf: ptr, count: i64) -> i64
-fungsi __mf_io_write(fd: i64, buf: ptr, count: i64) -> i64
-fungsi __mf_io_open(path: ptr, flags: i64) -> i64
-fungsi __mf_io_close(fd: i64) -> i64
-fungsi __mf_io_poll(fds: ptr, nfds: i64, timeout: i64) -> i64
+; ------------------------------------------------------------------------------
+; 4. MORPH ROUTINE (The Green Thread)
+; ------------------------------------------------------------------------------
+; Entitas yang sebenarnya "berjalan" di atas CPU (via Scheduler).
+;
+; [Struktur Memori] - Ukuran: 64 Byte (Cache Line Aligned)
+;
+; [Offset 0x00] Stack Pointer (ptr)
+;   - Menyimpan RSP saat routine ini di-pause (Context Switch).
+;
+; [Offset 0x08] Instruction Pointer (ptr)
+;   - Menyimpan alamat instruksi berikutnya (di dalam Fragment Code).
+;
+; [Offset 0x10] Status (i64)
+;   - 0: READY (Siap jalan)
+;   - 1: RUNNING (Sedang jalan)
+;   - 2: WAITING (Menunggu I/O atau Signal)
+;   - 3: TERMINATED (Selesai)
+;
+; [Offset 0x18] Current Fragment Ptr (ptr)
+;   - Fragment yang sedang dieksekusi.
+;
+; [Offset 0x20] ID (i64)
+;   - Unique Routine ID.
+;
+; [Offset 0x28] Next Routine Ptr (ptr)
+;   - Untuk Linked List di Scheduler Queue.
+;
+; [Offset 0x30] Stack Base (ptr)
+;   - Batas bawah stack (untuk proteksi overflow).
+;
+; [Offset 0x38] Stack Limit (ptr)
+;   - Batas atas stack.
 
-; Timer builtins
-fungsi __mf_timer_sleep(ms: i64) -> void
-fungsi __mf_timer_now() -> i64
+; ==============================================================================

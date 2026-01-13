@@ -4,8 +4,8 @@
 
 %include "corelib/platform/x86_64/asm_win/macros.inc"
 
-section .data
-    wsa_initialized db 0
+section .bss
+    wsa_initialized resb 1
     wsa_data resb 408 ; WSADATA struct
 
 section .text
@@ -103,13 +103,13 @@ __mf_net_send:
 
     ; SAFETY: Validate buffer pointer is not NULL
     test rdx, rdx
-    jz .net_null_buffer
+    jz L_net_null_buffer
 
     ; SAFETY: Validate length is reasonable (not negative, not too large)
     test r8, r8
-    js .net_invalid_length
+    js L_net_invalid_length
     cmp r8, MAX_NET_BUFFER_SIZE
-    jg .net_buffer_too_large
+    jg L_net_buffer_too_large
 
     ; send(s, buf, len, flags)
     xor r9, r9
@@ -130,13 +130,13 @@ __mf_net_recv:
 
     ; SAFETY: Validate buffer pointer is not NULL
     test rdx, rdx
-    jz .net_null_buffer
+    jz L_net_null_buffer
 
     ; SAFETY: Validate length is reasonable (not negative, not too large)
     test r8, r8
-    js .net_invalid_length
+    js L_net_invalid_length
     cmp r8, MAX_NET_BUFFER_SIZE
-    jg .net_buffer_too_large
+    jg L_net_buffer_too_large
 
     ; recv(s, buf, len, flags)
     xor r9, r9
@@ -207,19 +207,19 @@ __mf_net_close:
     ret
 
 ; ------------------------------------------------------------------------------
-; Error Handlers
+; Error Handlers (Global Labels for Scoping)
 ; ------------------------------------------------------------------------------
-.net_null_buffer:
+L_net_null_buffer:
     ; NULL buffer pointer provided
     mov rcx, 115
     call __sys_exit
 
-.net_invalid_length:
+L_net_invalid_length:
     ; Negative length provided
     mov rcx, 116
     call __sys_exit
 
-.net_buffer_too_large:
+L_net_buffer_too_large:
     ; Buffer size exceeds maximum
     mov rcx, 117
     call __sys_exit

@@ -13,7 +13,9 @@ section .data
     __parser_error_code: dq 0
     __parser_error_line: dq 0
     __parser_error_col: dq 0
-    __parser_error_msg: resb 256  ; Error message buffer
+
+section .bss
+    __parser_error_msg: resb 256  ; Error message buffer (Moved to BSS)
 
 section .rodata
     ; Error messages
@@ -1016,6 +1018,7 @@ get_keyword_id:
     je .k_sys
     xor rax, rax
     ret
+.k_ret_sistem: mov rax, 20; ret
 
 ; ------------------------------------------------------------------------------
 ; Parser Error Reporting Helper Functions

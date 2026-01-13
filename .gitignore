@@ -1,31 +1,16 @@
-# Build artifacts
-build/
+# Ignore build artifacts
 *.o
-*.out
-*.morph
-*.wat
-*.wasm
-
-# Binaries (except bootstrap)
-morph
-morph-self
-morph-self-*
-
-# But keep the bootstrap binary
-!bin/morph
-!bin/morph_merged.wat
-
-# Editor
-*.swp
-*.swo
-*~
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test outputs
-test_output/
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
 *.log
+*.out
+test_morph
+hello_morph
+hello_win.asm
+output.txt
+expected.txt

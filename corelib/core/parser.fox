@@ -1,0 +1,425 @@
+; ==============================================================================
+; PARSER - MorphFox Self-Hosting Compiler
+; ==============================================================================
+; Recursive descent parser: token stream -> AST
+
+ambil "corelib/core/lexer.fox"
+
+const AST_PROGRAM = 1
+const AST_FUNCTION = 2
+const AST_VAR_DECL = 3
+const AST_ASSIGN = 4
+const AST_IF = 5
+const AST_WHILE = 6
+const AST_RETURN = 7
+const AST_CALL = 8
+const AST_BINARY = 9
+const AST_UNARY = 10
+const AST_LITERAL = 11
+const AST_IDENT = 12
+const AST_BLOCK = 13
+const AST_IMPORT = 14
+
+const AST_TYPE = 0
+const AST_DATA1 = 8
+const AST_DATA2 = 16
+const AST_DATA3 = 24
+const AST_CHILDREN = 32
+
+const PARSER_LEX = 0
+const PARSER_TOK = 8
+const PARSER_ERR = 16
+
+fungsi parser_new(source: ptr, length: i64) -> ptr
+  var p = __mf_mem_alloc(24)
+  var lex = lexer_new(source, length)
+  __mf_poke_i64(p + PARSER_LEX, lex)
+  __mf_poke_i64(p + PARSER_TOK, lexer_next(lex))
+  __mf_poke_i64(p + PARSER_ERR, 0)
+  kembali p
+tutup_fungsi
+
+fungsi parser_current(p: ptr) -> ptr
+  kembali __mf_load_i64(p + PARSER_TOK)
+tutup_fungsi
+
+fungsi parser_advance(p: ptr) -> ptr
+  var lex = __mf_load_i64(p + PARSER_LEX)
+  var tok = lexer_next(lex)
+  __mf_poke_i64(p + PARSER_TOK, tok)
+  kembali tok
+tutup_fungsi
+
+fungsi parser_skip_newlines(p: ptr) -> i64
+  var count = 0
+  selama token_type(parser_current(p)) == TOKEN_NEWLINE
+    parser_advance(p)
+    count = count + 1
+  tutup_selama
+  kembali count
+tutup_fungsi
+
+fungsi parser_expect(p: ptr, type: i64) -> ptr
+  var tok = parser_current(p)
+  jika token_type(tok) != type
+    __mf_poke_i64(p + PARSER_ERR, 1)
+    kembali 0
+  tutup_jika
+  parser_advance(p)
+  kembali tok
+tutup_fungsi
+
+fungsi parser_expect_kw(p: ptr, kw: i64) -> ptr
+  var tok = parser_current(p)
+  jika token_type(tok) != TOKEN_KEYWORD
+    __mf_poke_i64(p + PARSER_ERR, 1)
+    kembali 0
+  tutup_jika
+  jika token_value(tok) != kw
+    __mf_poke_i64(p + PARSER_ERR, 1)
+    kembali 0
+  tutup_jika
+  parser_advance(p)
+  kembali tok
+tutup_fungsi
+
+fungsi ast_new(type: i64) -> ptr
+  var node = __mf_mem_alloc(40)
+  __mf_poke_i64(node + AST_TYPE, type)
+  __mf_poke_i64(node + AST_DATA1, 0)
+  __mf_poke_i64(node + AST_DATA2, 0)
+  __mf_poke_i64(node + AST_DATA3, 0)
+  __mf_poke_i64(node + AST_CHILDREN, 0)
+  kembali node
+tutup_fungsi
+
+fungsi ast_type(node: ptr) -> i64
+  kembali __mf_load_i64(node + AST_TYPE)
+tutup_fungsi
+
+fungsi parse_primary(p: ptr) -> ptr
+  parser_skip_newlines(p)
+  var tok = parser_current(p)
+  var type = token_type(tok)
+  jika type == TOKEN_INTEGER
+    parser_advance(p)
+    var node = ast_new(AST_LITERAL)
+    __mf_poke_i64(node + AST_DATA1, token_value(tok))
+    kembali node
+  tutup_jika
+  jika type == TOKEN_STRING
+    parser_advance(p)
+    var node = ast_new(AST_LITERAL)
+    __mf_poke_i64(node + AST_DATA1, token_value(tok))
+    __mf_poke_i64(node + AST_DATA2, 1)
+    kembali node
+  tutup_jika
+  jika type == TOKEN_IDENTIFIER
+    parser_advance(p)
+    var name = token_value(tok)
+    jika token_type(parser_current(p)) == TOKEN_DELIMITER
+      jika token_value(parser_current(p)) == 40
+        parser_advance(p)
+        var node = ast_new(AST_CALL)
+        __mf_poke_i64(node + AST_DATA1, name)
+        parser_expect(p, TOKEN_DELIMITER)
+        kembali node
+      tutup_jika
+    tutup_jika
+    var node = ast_new(AST_IDENT)
+    __mf_poke_i64(node + AST_DATA1, name)
+    kembali node
+  tutup_jika
+  jika type == TOKEN_DELIMITER
+    jika token_value(tok) == 40
+      parser_advance(p)
+      var expr = parse_expr(p)
+      parser_expect(p, TOKEN_DELIMITER)
+      kembali expr
+    tutup_jika
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi parse_unary(p: ptr) -> ptr
+  var tok = parser_current(p)
+  jika token_type(tok) == TOKEN_OPERATOR
+    var op = token_value(tok)
+    jika op == 45
+      parser_advance(p)
+      var node = ast_new(AST_UNARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, parse_unary(p))
+      kembali node
+    tutup_jika
+    jika op == 33
+      parser_advance(p)
+      var node = ast_new(AST_UNARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, parse_unary(p))
+      kembali node
+    tutup_jika
+  tutup_jika
+  kembali parse_primary(p)
+tutup_fungsi
+
+fungsi parse_mul(p: ptr) -> ptr
+  var left = parse_unary(p)
+  selama 1 == 1
+    var tok = parser_current(p)
+    jika token_type(tok) != TOKEN_OPERATOR
+      kembali left
+    tutup_jika
+    var op = token_value(tok)
+    jika op == 42
+      parser_advance(p)
+      var node = ast_new(AST_BINARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, left)
+      __mf_poke_i64(node + AST_DATA3, parse_unary(p))
+      left = node
+    lain
+      jika op == 47
+        parser_advance(p)
+        var node = ast_new(AST_BINARY)
+        __mf_poke_i64(node + AST_DATA1, op)
+        __mf_poke_i64(node + AST_DATA2, left)
+        __mf_poke_i64(node + AST_DATA3, parse_unary(p))
+        left = node
+      lain
+        jika op == 37
+          parser_advance(p)
+          var node = ast_new(AST_BINARY)
+          __mf_poke_i64(node + AST_DATA1, op)
+          __mf_poke_i64(node + AST_DATA2, left)
+          __mf_poke_i64(node + AST_DATA3, parse_unary(p))
+          left = node
+        lain
+          kembali left
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_selama
+  kembali left
+tutup_fungsi
+
+fungsi parse_add(p: ptr) -> ptr
+  var left = parse_mul(p)
+  selama 1 == 1
+    var tok = parser_current(p)
+    jika token_type(tok) != TOKEN_OPERATOR
+      kembali left
+    tutup_jika
+    var op = token_value(tok)
+    jika op == 43
+      parser_advance(p)
+      var node = ast_new(AST_BINARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, left)
+      __mf_poke_i64(node + AST_DATA3, parse_mul(p))
+      left = node
+    lain
+      jika op == 45
+        parser_advance(p)
+        var node = ast_new(AST_BINARY)
+        __mf_poke_i64(node + AST_DATA1, op)
+        __mf_poke_i64(node + AST_DATA2, left)
+        __mf_poke_i64(node + AST_DATA3, parse_mul(p))
+        left = node
+      lain
+        kembali left
+      tutup_jika
+    tutup_jika
+  tutup_selama
+  kembali left
+tutup_fungsi
+
+fungsi parse_cmp(p: ptr) -> ptr
+  var left = parse_add(p)
+  var tok = parser_current(p)
+  jika token_type(tok) != TOKEN_OPERATOR
+    kembali left
+  tutup_jika
+  var op = token_value(tok)
+  jika op == 60
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  jika op == 62
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  jika op == 258
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  jika op == 259
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  jika op == 256
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  jika op == 257
+    parser_advance(p)
+    var node = ast_new(AST_BINARY)
+    __mf_poke_i64(node + AST_DATA1, op)
+    __mf_poke_i64(node + AST_DATA2, left)
+    __mf_poke_i64(node + AST_DATA3, parse_add(p))
+    kembali node
+  tutup_jika
+  kembali left
+tutup_fungsi
+
+fungsi parse_expr(p: ptr) -> ptr
+  kembali parse_cmp(p)
+tutup_fungsi
+
+fungsi parse_var_decl(p: ptr) -> ptr
+  parser_expect_kw(p, KW_VAR)
+  var name_tok = parser_expect(p, TOKEN_IDENTIFIER)
+  var name = token_value(name_tok)
+  parser_expect(p, TOKEN_OPERATOR)
+  var value = parse_expr(p)
+  var node = ast_new(AST_VAR_DECL)
+  __mf_poke_i64(node + AST_DATA1, name)
+  __mf_poke_i64(node + AST_DATA2, value)
+  kembali node
+tutup_fungsi
+
+fungsi parse_if(p: ptr) -> ptr
+  parser_expect_kw(p, KW_JIKA)
+  var cond = parse_expr(p)
+  parser_skip_newlines(p)
+  var then_block = ast_new(AST_BLOCK)
+  var else_block = 0
+  selama 1 == 1
+    parser_skip_newlines(p)
+    var tok = parser_current(p)
+    jika token_type(tok) == TOKEN_KEYWORD
+      var kw = token_value(tok)
+      jika kw == KW_TUTUP_JIKA
+        parser_advance(p)
+        kembali ast_new(AST_IF)
+      tutup_jika
+      jika kw == KW_LAIN
+        parser_advance(p)
+        else_block = ast_new(AST_BLOCK)
+      tutup_jika
+    tutup_jika
+    jika token_type(tok) == TOKEN_EOF
+      kembali ast_new(AST_IF)
+    tutup_jika
+  tutup_selama
+  var node = ast_new(AST_IF)
+  __mf_poke_i64(node + AST_DATA1, cond)
+  __mf_poke_i64(node + AST_DATA2, then_block)
+  __mf_poke_i64(node + AST_DATA3, else_block)
+  kembali node
+tutup_fungsi
+
+fungsi parse_while(p: ptr) -> ptr
+  parser_expect_kw(p, KW_SELAMA)
+  var cond = parse_expr(p)
+  parser_skip_newlines(p)
+  var body = ast_new(AST_BLOCK)
+  selama 1 == 1
+    parser_skip_newlines(p)
+    var tok = parser_current(p)
+    jika token_type(tok) == TOKEN_KEYWORD
+      jika token_value(tok) == KW_TUTUP_SELAMA
+        parser_advance(p)
+        var node = ast_new(AST_WHILE)
+        __mf_poke_i64(node + AST_DATA1, cond)
+        __mf_poke_i64(node + AST_DATA2, body)
+        kembali node
+      tutup_jika
+    tutup_jika
+    jika token_type(tok) == TOKEN_EOF
+      kembali ast_new(AST_WHILE)
+    tutup_jika
+  tutup_selama
+  kembali ast_new(AST_WHILE)
+tutup_fungsi
+
+fungsi parse_return(p: ptr) -> ptr
+  parser_expect_kw(p, KW_KEMBALI)
+  var value = parse_expr(p)
+  var node = ast_new(AST_RETURN)
+  __mf_poke_i64(node + AST_DATA1, value)
+  kembali node
+tutup_fungsi
+
+fungsi parse_import(p: ptr) -> ptr
+  parser_expect_kw(p, KW_AMBIL)
+  var path_tok = parser_expect(p, TOKEN_STRING)
+  var node = ast_new(AST_IMPORT)
+  __mf_poke_i64(node + AST_DATA1, token_value(path_tok))
+  kembali node
+tutup_fungsi
+
+fungsi parse_function(p: ptr) -> ptr
+  parser_expect_kw(p, KW_FUNGSI)
+  var name_tok = parser_expect(p, TOKEN_IDENTIFIER)
+  var name = token_value(name_tok)
+  parser_expect(p, TOKEN_DELIMITER)
+  parser_expect(p, TOKEN_DELIMITER)
+  var node = ast_new(AST_FUNCTION)
+  __mf_poke_i64(node + AST_DATA1, name)
+  selama 1 == 1
+    parser_skip_newlines(p)
+    var tok = parser_current(p)
+    jika token_type(tok) == TOKEN_KEYWORD
+      jika token_value(tok) == KW_TUTUP_FUNGSI
+        parser_advance(p)
+        kembali node
+      tutup_jika
+    tutup_jika
+    jika token_type(tok) == TOKEN_EOF
+      kembali node
+    tutup_jika
+  tutup_selama
+  kembali node
+tutup_fungsi
+
+fungsi parse_program(p: ptr) -> ptr
+  var program = ast_new(AST_PROGRAM)
+  selama 1 == 1
+    parser_skip_newlines(p)
+    var tok = parser_current(p)
+    jika token_type(tok) == TOKEN_EOF
+      kembali program
+    tutup_jika
+    jika token_type(tok) == TOKEN_KEYWORD
+      var kw = token_value(tok)
+      jika kw == KW_FUNGSI
+        parse_function(p)
+      tutup_jika
+      jika kw == KW_AMBIL
+        parse_import(p)
+      tutup_jika
+    tutup_jika
+  tutup_selama
+  kembali program
+tutup_fungsi
