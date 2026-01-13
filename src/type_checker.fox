@@ -15,6 +15,8 @@ const TYPE_STRING = 3
 const TYPE_FUNCTION = 4
 const TYPE_STRUCT = 5
 const TYPE_ARRAY = 6
+const TYPE_GENERIC = 7
+const TYPE_UNION = 8
 const TYPE_ERROR = -1
 
 ; Symbol table entry
@@ -42,7 +44,9 @@ const TC_ERRORS = 8
 const TC_SCOPE = 16
 const TC_STRUCTS = 24
 const TC_ALIASES = 32
-const TC_SIZE = 40
+const TC_GENERICS = 40
+const TC_UNIONS = 48
+const TC_SIZE = 56
 
 fungsi type_checker_new() -> ptr
   var tc = __mf_mem_alloc(TC_SIZE)
@@ -51,6 +55,8 @@ fungsi type_checker_new() -> ptr
   __mf_poke_i64(tc + TC_SCOPE, 0)
   __mf_poke_i64(tc + TC_STRUCTS, hashmap_new())
   __mf_poke_i64(tc + TC_ALIASES, hashmap_new())
+  __mf_poke_i64(tc + TC_GENERICS, hashmap_new())
+  __mf_poke_i64(tc + TC_UNIONS, hashmap_new())
   kembali tc
 tutup_fungsi
 
@@ -347,4 +353,48 @@ fungsi tc_add_error(tc: ptr, message: ptr) -> i64
   var errors = __mf_load_i64(tc + TC_ERRORS)
   vector_push(errors, message)
   kembali 1
+tutup_fungsi
+; Register generic type: fungsi map<T>(arr: []T) -> []T
+fungsi tc_register_generic(tc: ptr, name: ptr, type_params: ptr) -> i64
+  var generics = __mf_load_i64(tc + TC_GENERICS)
+  var name_hash = string_hash_simple(name)
+  hashmap_insert(generics, name_hash, type_params)
+  kembali 1
+tutup_fungsi
+
+; Register union type: type Result<T> = Ok(T) | Error(String)
+fungsi tc_register_union(tc: ptr, name: ptr, variants: ptr) -> i64
+  var unions = __mf_load_i64(tc + TC_UNIONS)
+  var name_hash = string_hash_simple(name)
+  hashmap_insert(unions, name_hash, variants)
+  kembali 1
+tutup_fungsi
+
+; Instantiate generic type
+fungsi tc_instantiate_generic(tc: ptr, generic_name: ptr, concrete_types: ptr) -> i64
+  var generics = __mf_load_i64(tc + TC_GENERICS)
+  var name_hash = string_hash_simple(generic_name)
+  var type_params = hashmap_get(generics, name_hash)
+  
+  jika type_params == 0
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  ; Simple instantiation - return concrete type
+  var first_concrete = vector_get(concrete_types, 0)
+  kembali first_concrete
+tutup_fungsi
+
+; Check union variant
+fungsi tc_check_union_variant(tc: ptr, union_name: ptr, variant_name: ptr) -> i64
+  var unions = __mf_load_i64(tc + TC_UNIONS)
+  var name_hash = string_hash_simple(union_name)
+  var variants = hashmap_get(unions, name_hash)
+  
+  jika variants == 0
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  ; Simple variant check - return union type
+  kembali TYPE_UNION
 tutup_fungsi

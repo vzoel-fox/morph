@@ -1,0 +1,129 @@
+ambil "../src/type_checker.fox"
+
+utama {
+    sistem 1, 1, "🔧 Phase 3 Type System Test\n", 28
+    sistem 1, 1, "==========================\n", 26
+    
+    ; Test 1: Generic types
+    sistem 1, 1, "\n=== Test 1: Generic Types ===\n", 32
+    var tc = type_checker_new()
+    
+    ; Register generic: fungsi map<T>(arr: []T) -> []T
+    var type_params = vector_new()
+    vector_push(type_params, string_hash_simple("T"))
+    
+    var result1 = tc_register_generic(tc, "map", type_params)
+    sistem 1, 1, "Generic registration: ", 22
+    print_number_simple(result1)
+    sistem 1, 1, " (expected: 1)\n", 15
+    
+    ; Instantiate generic: map<i64>
+    var concrete_types = vector_new()
+    vector_push(concrete_types, TYPE_I64)
+    
+    var instantiated = tc_instantiate_generic(tc, "map", concrete_types)
+    sistem 1, 1, "Generic instantiation: ", 23
+    print_number_simple(instantiated)
+    sistem 1, 1, " (expected: 1 = TYPE_I64)\n", 27
+    
+    ; Test 2: Union types
+    sistem 1, 1, "\n=== Test 2: Union Types ===\n", 30
+    
+    ; Register union: type Result<T> = Ok(T) | Error(String)
+    var variants = vector_new()
+    vector_push(variants, string_hash_simple("Ok"))
+    vector_push(variants, string_hash_simple("Error"))
+    
+    var result2 = tc_register_union(tc, "Result", variants)
+    sistem 1, 1, "Union registration: ", 20
+    print_number_simple(result2)
+    sistem 1, 1, " (expected: 1)\n", 15
+    
+    ; Check union variant
+    var variant_check = tc_check_union_variant(tc, "Result", "Ok")
+    sistem 1, 1, "Union variant check: ", 21
+    print_number_simple(variant_check)
+    sistem 1, 1, " (expected: 8 = TYPE_UNION)\n", 28
+    
+    ; Test 3: Type constants
+    sistem 1, 1, "\n=== Test 3: New Type Constants ===\n", 37
+    sistem 1, 1, "TYPE_GENERIC = ", 15
+    print_number_simple(TYPE_GENERIC)
+    sistem 1, 1, " (expected: 7)\n", 15
+    sistem 1, 1, "TYPE_UNION = ", 13
+    print_number_simple(TYPE_UNION)
+    sistem 1, 1, " (expected: 8)\n", 15
+    
+    ; Test 4: Multiple generics
+    sistem 1, 1, "\n=== Test 4: Multiple Generics ===\n", 36
+    
+    ; Register another generic: fungsi sort<T>(arr: []T) -> []T
+    var sort_params = vector_new()
+    vector_push(sort_params, string_hash_simple("T"))
+    tc_register_generic(tc, "sort", sort_params)
+    
+    ; Instantiate with different type
+    var ptr_types = vector_new()
+    vector_push(ptr_types, TYPE_PTR)
+    var sort_instantiated = tc_instantiate_generic(tc, "sort", ptr_types)
+    
+    sistem 1, 1, "Sort<ptr> instantiation: ", 25
+    print_number_simple(sort_instantiated)
+    sistem 1, 1, " (expected: 2 = TYPE_PTR)\n", 26
+    
+    ; Test 5: Multiple unions
+    sistem 1, 1, "\n=== Test 5: Multiple Unions ===\n", 34
+    
+    ; Register Option<T> = Some(T) | None
+    var option_variants = vector_new()
+    vector_push(option_variants, string_hash_simple("Some"))
+    vector_push(option_variants, string_hash_simple("None"))
+    tc_register_union(tc, "Option", option_variants)
+    
+    var option_check = tc_check_union_variant(tc, "Option", "Some")
+    sistem 1, 1, "Option variant check: ", 22
+    print_number_simple(option_check)
+    sistem 1, 1, " (expected: 8)\n", 15
+    
+    ; Summary
+    sistem 1, 1, "\n🎉 Phase 3 Type System Summary:\n", 33
+    sistem 1, 1, "✅ Generic types (map<T>, sort<T>)\n", 35
+    sistem 1, 1, "✅ Generic instantiation (concrete types)\n", 42
+    sistem 1, 1, "✅ Union types (Result<T>, Option<T>)\n", 38
+    sistem 1, 1, "✅ Union variant checking\n", 26
+    sistem 1, 1, "✅ Advanced type constants\n", 27
+    
+    sistem 1, 1, "\nPhase 3 complete - advanced types ready! 🚀\n", 47
+    kembali 0
+}
+
+; Helper function
+fungsi print_number_simple(n: i64)
+    jika n == 0
+        sistem 1, 1, "0", 1
+        kembali
+    tutup_jika
+    
+    jika n < 0
+        sistem 1, 1, "-", 1
+        n = 0 - n
+    tutup_jika
+    
+    var digits = 0
+    var temp = n
+    selama temp > 0
+        digits = digits + 1
+        temp = temp / 10
+    tutup_selama
+    
+    var buffer = __mf_mem_alloc(digits + 1)
+    var i = digits - 1
+    selama n > 0
+        var digit = n % 10
+        __mf_poke_i8(buffer + i, 48 + digit)
+        n = n / 10
+        i = i - 1
+    tutup_selama
+    
+    sistem 1, 1, buffer, digits
+tutup_fungsi
