@@ -130,7 +130,7 @@ fungsi intent_to_rpn(ctx: ptr, intent_node: ptr) -> i64
       intent_to_rpn(ctx, right)
     tutup_jika
     
-    ; Emit operation
+    ; Emit operation based on operator
     var op = __mf_load_i64(intent_node + INTENT_DATA_A)
     jika op == 43  ; '+'
       rpn_emit(ctx, 10, 0)  ; OP_ADD
@@ -143,10 +143,120 @@ fungsi intent_to_rpn(ctx: ptr, intent_node: ptr) -> i64
         lain
           jika op == 47  ; '/'
             rpn_emit(ctx, 13, 0)  ; OP_DIV
+          lain
+            jika op == 37  ; '%'
+              rpn_emit(ctx, 14, 0)  ; OP_MOD
+            lain
+              jika op == 61  ; '=' (comparison)
+                rpn_emit(ctx, 20, 0)  ; OP_EQ
+              lain
+                jika op == 60  ; '<'
+                  rpn_emit(ctx, 22, 0)  ; OP_LT
+                lain
+                  jika op == 62  ; '>'
+                    rpn_emit(ctx, 23, 0)  ; OP_GT
+                  tutup_jika
+                tutup_jika
+              tutup_jika
+            tutup_jika
           tutup_jika
         tutup_jika
       tutup_jika
     tutup_jika
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3007  ; INTENT_FRAG_IF
+    ; Compile condition
+    var condition = __mf_load_i64(intent_node + INTENT_CHILD)
+    jika condition != 0
+      intent_to_rpn(ctx, condition)
+    tutup_jika
+    
+    ; Generate labels
+    var else_label = generate_label()
+    var end_label = generate_label()
+    
+    ; Jump to else if condition is false
+    rpn_emit(ctx, 31, else_label)  ; OP_JZ
+    
+    ; Compile then branch
+    var then_branch = __mf_load_i64(condition + INTENT_NEXT)
+    jika then_branch != 0
+      intent_to_rpn(ctx, then_branch)
+    tutup_jika
+    
+    ; Jump to end
+    rpn_emit(ctx, 30, end_label)  ; OP_JMP
+    
+    ; Else label
+    rpn_emit(ctx, 33, else_label)  ; OP_LABEL
+    
+    ; Compile else branch (if exists)
+    var else_branch = __mf_load_i64(then_branch + INTENT_NEXT)
+    jika else_branch != 0
+      intent_to_rpn(ctx, else_branch)
+    tutup_jika
+    
+    ; End label
+    rpn_emit(ctx, 33, end_label)  ; OP_LABEL
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3008  ; INTENT_FRAG_WHILE
+    ; Generate labels
+    var loop_start = generate_label()
+    var loop_end = generate_label()
+    
+    ; Loop start label
+    rpn_emit(ctx, 33, loop_start)  ; OP_LABEL
+    
+    ; Compile condition
+    var condition = __mf_load_i64(intent_node + INTENT_CHILD)
+    jika condition != 0
+      intent_to_rpn(ctx, condition)
+    tutup_jika
+    
+    ; Jump to end if condition is false
+    rpn_emit(ctx, 31, loop_end)  ; OP_JZ
+    
+    ; Compile body
+    var body = __mf_load_i64(condition + INTENT_NEXT)
+    jika body != 0
+      intent_to_rpn(ctx, body)
+    tutup_jika
+    
+    ; Jump back to start
+    rpn_emit(ctx, 30, loop_start)  ; OP_JMP
+    
+    ; End label
+    rpn_emit(ctx, 33, loop_end)  ; OP_LABEL
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3004  ; INTENT_FRAG_CALL
+    ; Compile arguments first
+    var child = __mf_load_i64(intent_node + INTENT_CHILD)
+    selama child != 0
+      intent_to_rpn(ctx, child)
+      child = __mf_load_i64(child + INTENT_NEXT)
+    tutup_selama
+    
+    ; Call function
+    var func_hash = __mf_load_i64(intent_node + INTENT_DATA_A)
+    rpn_emit(ctx, 40, func_hash)  ; OP_CALL
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3009  ; INTENT_FRAG_RETURN
+    ; Compile return value (if any)
+    var value = __mf_load_i64(intent_node + INTENT_CHILD)
+    jika value != 0
+      intent_to_rpn(ctx, value)
+    tutup_jika
+    
+    ; Return instruction
+    rpn_emit(ctx, 41, 0)  ; OP_RET
     kembali 1
   tutup_jika
   
@@ -157,6 +267,15 @@ fungsi intent_to_rpn(ctx: ptr, intent_node: ptr) -> i64
   tutup_jika
   
   kembali 1
+tutup_fungsi
+
+; Global label counter
+var global_label_counter = 1000
+
+fungsi generate_label() -> i64
+  var label = global_label_counter
+  global_label_counter = global_label_counter + 1
+  kembali label
 tutup_fungsi
 
 ; Build Intent Tree from AST

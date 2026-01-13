@@ -167,14 +167,99 @@ fungsi vm_execute_instruction(vm: ptr) -> i64
                   vm_push(vm, 0)  ; Division by zero
                 tutup_jika
               lain
-                jika opcode == 4  ; OP_DUP
-                  var value = vm_peek(vm)
-                  vm_push(vm, value)
-                lain
-                  jika opcode == 5  ; OP_POP
-                    vm_pop(vm)
+                jika opcode == 14  ; OP_MOD
+                  var b = vm_pop(vm)
+                  var a = vm_pop(vm)
+                  jika b != 0
+                    vm_push(vm, a % b)
                   lain
-                    ; Unknown opcode - skip
+                    vm_push(vm, 0)
+                  tutup_jika
+                lain
+                  jika opcode == 15  ; OP_NEG
+                    var a = vm_pop(vm)
+                    vm_push(vm, 0 - a)
+                  lain
+                    jika opcode == 20  ; OP_EQ
+                      var b = vm_pop(vm)
+                      var a = vm_pop(vm)
+                      jika a == b
+                        vm_push(vm, 1)
+                      lain
+                        vm_push(vm, 0)
+                      tutup_jika
+                    lain
+                      jika opcode == 21  ; OP_NEQ
+                        var b = vm_pop(vm)
+                        var a = vm_pop(vm)
+                        jika a != b
+                          vm_push(vm, 1)
+                        lain
+                          vm_push(vm, 0)
+                        tutup_jika
+                      lain
+                        jika opcode == 22  ; OP_LT
+                          var b = vm_pop(vm)
+                          var a = vm_pop(vm)
+                          jika a < b
+                            vm_push(vm, 1)
+                          lain
+                            vm_push(vm, 0)
+                          tutup_jika
+                        lain
+                          jika opcode == 23  ; OP_GT
+                            var b = vm_pop(vm)
+                            var a = vm_pop(vm)
+                            jika a > b
+                              vm_push(vm, 1)
+                            lain
+                              vm_push(vm, 0)
+                            tutup_jika
+                          lain
+                            jika opcode == 30  ; OP_JMP
+                              __mf_poke_i64(vm + VM_PC, operand - 1)  ; -1 because PC will be incremented
+                            lain
+                              jika opcode == 31  ; OP_JZ
+                                var condition = vm_pop(vm)
+                                jika condition == 0
+                                  __mf_poke_i64(vm + VM_PC, operand - 1)
+                                tutup_jika
+                              lain
+                                jika opcode == 32  ; OP_JNZ
+                                  var condition = vm_pop(vm)
+                                  jika condition != 0
+                                    __mf_poke_i64(vm + VM_PC, operand - 1)
+                                  tutup_jika
+                                lain
+                                  jika opcode == 33  ; OP_LABEL
+                                    ; Labels are no-op during execution
+                                  lain
+                                    jika opcode == 4  ; OP_DUP
+                                      var value = vm_peek(vm)
+                                      vm_push(vm, value)
+                                    lain
+                                      jika opcode == 5  ; OP_POP
+                                        vm_pop(vm)
+                                      lain
+                                        jika opcode == 41  ; OP_RET
+                                          __mf_poke_i64(vm + VM_RUNNING, 0)
+                                        lain
+                                          jika opcode == 52  ; OP_EXIT
+                                            __mf_poke_i64(vm + VM_RUNNING, 0)
+                                          lain
+                                            ; Unknown opcode - skip
+                                          tutup_jika
+                                        tutup_jika
+                                      tutup_jika
+                                    tutup_jika
+                                  tutup_jika
+                                tutup_jika
+                              tutup_jika
+                            tutup_jika
+                          tutup_jika
+                        tutup_jika
+                      tutup_jika
+                    tutup_jika
                   tutup_jika
                 tutup_jika
               tutup_jika

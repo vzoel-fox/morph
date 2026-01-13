@@ -7,6 +7,7 @@ ambil "corelib/core/parser.fox"
 ambil "stripe_protection.fox"
 ambil "rpn_intent_system.fox"
 
+; Extended RPN Opcodes for complete compilation
 const OP_LIT = 1
 const OP_LOAD = 2
 const OP_STORE = 3
@@ -14,26 +15,38 @@ const OP_DUP = 4
 const OP_POP = 5
 const OP_PICK = 6
 const OP_POKE = 7
+
+; Arithmetic Operations
 const OP_ADD = 10
 const OP_SUB = 11
 const OP_MUL = 12
 const OP_DIV = 13
 const OP_MOD = 14
+const OP_NEG = 15
+
+; Comparison Operations
 const OP_EQ = 20
 const OP_NEQ = 21
 const OP_LT = 22
 const OP_GT = 23
 const OP_LTE = 24
 const OP_GTE = 25
+
+; Control Flow Operations
 const OP_JMP = 30
-const OP_JMP_IF = 31
-const OP_JMP_FALSE = 32
-const OP_CALL = 33
-const OP_RET = 34
-const OP_EXIT = 35
-const OP_LABEL = 36
-const OP_SYSCALL = 40
-const OP_PRINT = 90
+const OP_JZ = 31
+const OP_JNZ = 32
+const OP_LABEL = 33
+
+; Function Operations
+const OP_CALL = 40
+const OP_RET = 41
+const OP_FRAME = 42
+
+; System Operations
+const OP_SYSCALL = 50
+const OP_PRINT = 51
+const OP_EXIT = 52
 
 const INSTR_OP = 0
 const INSTR_ARG = 8
