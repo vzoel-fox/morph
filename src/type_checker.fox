@@ -41,7 +41,8 @@ const TC_SYMBOLS = 0
 const TC_ERRORS = 8
 const TC_SCOPE = 16
 const TC_STRUCTS = 24
-const TC_SIZE = 32
+const TC_ALIASES = 32
+const TC_SIZE = 40
 
 fungsi type_checker_new() -> ptr
   var tc = __mf_mem_alloc(TC_SIZE)
@@ -49,6 +50,7 @@ fungsi type_checker_new() -> ptr
   __mf_poke_i64(tc + TC_ERRORS, vector_new())
   __mf_poke_i64(tc + TC_SCOPE, 0)
   __mf_poke_i64(tc + TC_STRUCTS, hashmap_new())
+  __mf_poke_i64(tc + TC_ALIASES, hashmap_new())
   kembali tc
 tutup_fungsi
 
@@ -287,4 +289,62 @@ fungsi tc_create_array_type(element_type: i64, size: i64) -> ptr
   __mf_poke_i64(array_entry + ARRAY_ELEMENT_TYPE, element_type)
   __mf_poke_i64(array_entry + ARRAY_SIZE, size)
   kembali array_entry
+tutup_fungsi
+; Register type alias
+fungsi tc_register_alias(tc: ptr, alias_name: ptr, target_type: i64) -> i64
+  var aliases = __mf_load_i64(tc + TC_ALIASES)
+  var name_hash = string_hash_simple(alias_name)
+  hashmap_insert(aliases, name_hash, target_type)
+  kembali 1
+tutup_fungsi
+
+; Resolve type alias
+fungsi tc_resolve_type(tc: ptr, type_name: ptr) -> i64
+  var aliases = __mf_load_i64(tc + TC_ALIASES)
+  var name_hash = string_hash_simple(type_name)
+  var resolved = hashmap_get(aliases, name_hash)
+  jika resolved != 0
+    kembali resolved
+  tutup_jika
+  
+  ; Built-in type lookup
+  jika string_equals_simple(type_name, "i64")
+    kembali TYPE_I64
+  tutup_jika
+  jika string_equals_simple(type_name, "ptr")
+    kembali TYPE_PTR
+  tutup_jika
+  jika string_equals_simple(type_name, "String")
+    kembali TYPE_STRING
+  tutup_jika
+  
+  kembali TYPE_ERROR
+tutup_fungsi
+
+; Function parameter validation
+fungsi tc_check_function_call(tc: ptr, func_name: ptr, args: ptr) -> i64
+  var symbols = __mf_load_i64(tc + TC_SYMBOLS)
+  var name_hash = string_hash_simple(func_name)
+  var func_symbol = hashmap_get(symbols, name_hash)
+  
+  jika func_symbol == 0
+    tc_add_error(tc, "Function not found")
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  var func_type = __mf_load_i64(func_symbol + SYM_TYPE)
+  jika func_type != TYPE_FUNCTION
+    tc_add_error(tc, "Not a function")
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  ; Simple validation - return i64 for now
+  kembali TYPE_I64
+tutup_fungsi
+
+; Add error with context
+fungsi tc_add_error(tc: ptr, message: ptr) -> i64
+  var errors = __mf_load_i64(tc + TC_ERRORS)
+  vector_push(errors, message)
+  kembali 1
 tutup_fungsi

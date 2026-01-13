@@ -569,3 +569,29 @@ tutup_fungsi
   tutup_selama
   kembali program
 tutup_fungsi
+; Parse type alias: type UserId = i64
+fungsi parse_type_alias(parser: ptr) -> ptr
+  ; Skip 'type' keyword
+  parser_advance(parser)
+  
+  ; Get alias name
+  var alias_name = parser_current_token_text(parser)
+  parser_advance(parser)
+  
+  ; Expect '='
+  jika parser_current_token(parser) != 61  ; '='
+    kembali 0
+  tutup_jika
+  parser_advance(parser)
+  
+  ; Get target type
+  var target_type = parser_current_token_text(parser)
+  parser_advance(parser)
+  
+  ; Create AST node
+  var ast = ast_new(AST_TYPE_ALIAS)
+  __mf_poke_i64(ast + AST_DATA1, string_hash_simple(alias_name))
+  __mf_poke_i64(ast + AST_DATA2, string_hash_simple(target_type))
+  
+  kembali ast
+tutup_fungsi
