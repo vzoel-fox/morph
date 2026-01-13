@@ -192,7 +192,7 @@ create_app()</div>
             logDiv.scrollTop = logDiv.scrollHeight;
         };
 
-        const loader = new MorphWasmLoader();
+        const loader = createEnhancedMorphLoader();
         let isLoaded = false;
 
         // Initialize WASM (mock for demo)
