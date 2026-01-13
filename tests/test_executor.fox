@@ -1,0 +1,127 @@
+ambil "../src/executor.fox"
+ambil "../src/rpn_intent_system.fox"
+
+utama {
+    sistem 1, 1, "Testing RPN Stack VM Executor\n", 29
+    
+    ; Test 1: Basic VM operations
+    sistem 1, 1, "\n=== Test 1: Basic VM Operations ===\n", 37
+    var vm = vm_new()
+    jika vm != 0
+        sistem 1, 1, "VM created successfully\n", 24
+        
+        ; Test stack operations
+        vm_push(vm, 42)
+        vm_push(vm, 10)
+        
+        sistem 1, 1, "After pushing 42, 10:\n", 22
+        vm_print_stack(vm)
+        
+        var value = vm_pop(vm)
+        sistem 1, 1, "Popped value: ", 14
+        print_number_simple(value)
+        sistem 1, 1, "\n", 1
+        
+        vm_print_stack(vm)
+    tutup_jika
+    
+    ; Test 2: Manual instruction execution
+    sistem 1, 1, "\n=== Test 2: Manual Instruction Execution ===\n", 46
+    var vm2 = vm_new()
+    
+    ; Create simple program: 5 + 3
+    var instructions = __mf_mem_alloc(3 * RPN_SIZE)
+    
+    ; LIT 5
+    __mf_poke_i64(instructions + 0 * RPN_SIZE + RPN_OPCODE, 1)
+    __mf_poke_i64(instructions + 0 * RPN_SIZE + RPN_OPERAND, 5)
+    
+    ; LIT 3
+    __mf_poke_i64(instructions + 1 * RPN_SIZE + RPN_OPCODE, 1)
+    __mf_poke_i64(instructions + 1 * RPN_SIZE + RPN_OPERAND, 3)
+    
+    ; ADD
+    __mf_poke_i64(instructions + 2 * RPN_SIZE + RPN_OPCODE, 10)
+    __mf_poke_i64(instructions + 2 * RPN_SIZE + RPN_OPERAND, 0)
+    
+    ; Set up VM
+    __mf_poke_i64(vm2 + VM_INSTRUCTIONS, instructions)
+    __mf_poke_i64(vm2 + VM_INSTRUCTION_COUNT, 3)
+    
+    sistem 1, 1, "Executing: LIT 5, LIT 3, ADD\n", 29
+    
+    ; Execute step by step
+    sistem 1, 1, "Step 1 (LIT 5):\n", 16
+    vm_execute_instruction(vm2)
+    vm_print_state(vm2)
+    
+    sistem 1, 1, "Step 2 (LIT 3):\n", 16
+    vm_execute_instruction(vm2)
+    vm_print_state(vm2)
+    
+    sistem 1, 1, "Step 3 (ADD):\n", 14
+    vm_execute_instruction(vm2)
+    vm_print_state(vm2)
+    
+    var result = vm_get_result(vm2)
+    sistem 1, 1, "Final result: ", 14
+    print_number_simple(result)
+    sistem 1, 1, " (expected: 8)\n", 15
+    
+    ; Test 3: Complete program execution
+    sistem 1, 1, "\n=== Test 3: Complete Program Execution ===\n", 44
+    var vm3 = vm_new()
+    __mf_poke_i64(vm3 + VM_INSTRUCTIONS, instructions)
+    __mf_poke_i64(vm3 + VM_INSTRUCTION_COUNT, 3)
+    
+    var cycles = vm_run(vm3)
+    sistem 1, 1, "Executed in ", 12
+    print_number_simple(cycles)
+    sistem 1, 1, " cycles\n", 8
+    
+    var result3 = vm_get_result(vm3)
+    sistem 1, 1, "Result: ", 8
+    print_number_simple(result3)
+    sistem 1, 1, "\n", 1
+    
+    ; Test 4: Generate and execute .morph file
+    sistem 1, 1, "\n=== Test 4: .morph File Generation & Execution ===\n", 52
+    
+    ; Create simple AST: 7 * 2
+    var ast_binary = ast_new(AST_BINARY)
+    __mf_poke_i64(ast_binary + AST_DATA1, 42)  ; '*' operator
+    
+    var children = vector_new()
+    
+    var left_literal = ast_new(AST_LITERAL)
+    __mf_poke_i64(left_literal + AST_DATA1, 7)
+    vector_push(children, left_literal)
+    
+    var right_literal = ast_new(AST_LITERAL)
+    __mf_poke_i64(right_literal + AST_DATA1, 2)
+    vector_push(children, right_literal)
+    
+    __mf_poke_i64(ast_binary + AST_CHILDREN, children)
+    
+    ; Compile to RPN
+    var rpn_ctx = compile_ast_to_rpn(ast_binary)
+    jika rpn_ctx != 0
+        sistem 1, 1, "AST compiled to RPN\n", 20
+        
+        ; Write to .morph file
+        var morph_file = "test_executor.morph"
+        var write_result = rpn_write_morph_file(rpn_ctx, morph_file)
+        jika write_result == 1
+            sistem 1, 1, "Generated test_executor.morph\n", 30
+            
+            ; Execute the .morph file
+            var exec_result = execute_morph_file(morph_file)
+            sistem 1, 1, "Execution result: ", 18
+            print_number_simple(exec_result)
+            sistem 1, 1, " (expected: 14)\n", 16
+        tutup_jika
+    tutup_jika
+    
+    sistem 1, 1, "\nRPN Stack VM Executor tests completed!\n", 40
+    kembali 0
+}

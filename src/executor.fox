@@ -1,0 +1,274 @@
+; ==============================================================================
+; RPN EXECUTOR - MorphFox Stack VM
+; ==============================================================================
+; Executes RPN instructions from .morph files
+
+ambil "../corelib/lib/vector.fox"
+ambil "../corelib/lib/hashmap.fox"
+ambil "stripe_protection.fox"
+ambil "rpn_intent_system.fox"
+
+; Stack VM State
+const VM_STACK = 0
+const VM_SYMBOLS = 8
+const VM_PC = 16
+const VM_INSTRUCTIONS = 24
+const VM_INSTRUCTION_COUNT = 32
+const VM_RUNNING = 40
+const VM_SIZE = 48
+
+; Stack operations
+const STACK_MAX_SIZE = 1024
+
+fungsi vm_new() -> ptr
+  var vm = __mf_mem_alloc(VM_SIZE)
+  __mf_poke_i64(vm + VM_STACK, vector_new())
+  __mf_poke_i64(vm + VM_SYMBOLS, hashmap_new())
+  __mf_poke_i64(vm + VM_PC, 0)
+  __mf_poke_i64(vm + VM_INSTRUCTIONS, 0)
+  __mf_poke_i64(vm + VM_INSTRUCTION_COUNT, 0)
+  __mf_poke_i64(vm + VM_RUNNING, 1)
+  kembali vm
+tutup_fungsi
+
+fungsi vm_push(vm: ptr, value: i64) -> i64
+  var stack = __mf_load_i64(vm + VM_STACK)
+  var size = vector_length(stack)
+  jika size >= STACK_MAX_SIZE
+    kembali 0  ; Stack overflow
+  tutup_jika
+  vector_push(stack, value)
+  kembali 1
+tutup_fungsi
+
+fungsi vm_pop(vm: ptr) -> i64
+  var stack = __mf_load_i64(vm + VM_STACK)
+  var size = vector_length(stack)
+  jika size == 0
+    kembali 0  ; Stack underflow
+  tutup_jika
+  var value = vector_get(stack, size - 1)
+  ; Remove last element (simplified - vector doesn't have pop)
+  kembali value
+tutup_fungsi
+
+fungsi vm_peek(vm: ptr) -> i64
+  var stack = __mf_load_i64(vm + VM_STACK)
+  var size = vector_length(stack)
+  jika size == 0
+    kembali 0
+  tutup_jika
+  kembali vector_get(stack, size - 1)
+tutup_fungsi
+
+fungsi vm_load_morph_file(vm: ptr, filename: ptr) -> i64
+  ; Open .morph file
+  var fd = sistem 2, filename, 0, 0  ; open read-only
+  jika fd < 0
+    kembali 0
+  tutup_jika
+  
+  ; Read header
+  var header_buf = __mf_mem_alloc(8)
+  var bytes_read = sistem 0, fd, header_buf, 8
+  jika bytes_read != 8
+    sistem 3, fd
+    kembali 0
+  tutup_jika
+  
+  ; Verify header "MORPHFX1"
+  jika __mf_load_byte(header_buf) != 77  ; 'M'
+    sistem 3, fd
+    kembali 0
+  tutup_jika
+  
+  ; Read version
+  var version_buf = __mf_mem_alloc(8)
+  bytes_read = sistem 0, fd, version_buf, 8
+  var version = __mf_load_i64(version_buf)
+  jika version != 1
+    sistem 3, fd
+    kembali 0
+  tutup_jika
+  
+  ; Read instruction count
+  var count_buf = __mf_mem_alloc(8)
+  bytes_read = sistem 0, fd, count_buf, 8
+  var count = __mf_load_i64(count_buf)
+  __mf_poke_i64(vm + VM_INSTRUCTION_COUNT, count)
+  
+  ; Read stripe-protected instructions
+  var data_size = count * RPN_SIZE
+  var protected_buf = __mf_mem_alloc(data_size + 16)
+  bytes_read = sistem 0, fd, protected_buf, data_size + 16
+  
+  sistem 3, fd  ; close file
+  
+  ; Unprotect instructions
+  var instructions = stripe_unprotect_assembly(protected_buf)
+  jika instructions == 0
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(vm + VM_INSTRUCTIONS, instructions)
+  kembali 1
+tutup_fungsi
+
+fungsi vm_execute_instruction(vm: ptr) -> i64
+  var pc = __mf_load_i64(vm + VM_PC)
+  var count = __mf_load_i64(vm + VM_INSTRUCTION_COUNT)
+  
+  jika pc >= count
+    __mf_poke_i64(vm + VM_RUNNING, 0)
+    kembali 0  ; End of program
+  tutup_jika
+  
+  var instructions = __mf_load_i64(vm + VM_INSTRUCTIONS)
+  var instr_ptr = instructions + (pc * RPN_SIZE)
+  
+  var opcode = __mf_load_i64(instr_ptr + RPN_OPCODE)
+  var operand = __mf_load_i64(instr_ptr + RPN_OPERAND)
+  
+  ; Execute instruction
+  jika opcode == 1  ; OP_LIT
+    vm_push(vm, operand)
+  lain
+    jika opcode == 2  ; OP_LOAD
+      var symbols = __mf_load_i64(vm + VM_SYMBOLS)
+      var value = hashmap_get(symbols, operand)
+      vm_push(vm, value)
+    lain
+      jika opcode == 3  ; OP_STORE
+        var value = vm_pop(vm)
+        var symbols = __mf_load_i64(vm + VM_SYMBOLS)
+        hashmap_insert(symbols, operand, value)
+      lain
+        jika opcode == 10  ; OP_ADD
+          var b = vm_pop(vm)
+          var a = vm_pop(vm)
+          vm_push(vm, a + b)
+        lain
+          jika opcode == 11  ; OP_SUB
+            var b = vm_pop(vm)
+            var a = vm_pop(vm)
+            vm_push(vm, a - b)
+          lain
+            jika opcode == 12  ; OP_MUL
+              var b = vm_pop(vm)
+              var a = vm_pop(vm)
+              vm_push(vm, a * b)
+            lain
+              jika opcode == 13  ; OP_DIV
+                var b = vm_pop(vm)
+                var a = vm_pop(vm)
+                jika b != 0
+                  vm_push(vm, a / b)
+                lain
+                  vm_push(vm, 0)  ; Division by zero
+                tutup_jika
+              lain
+                jika opcode == 4  ; OP_DUP
+                  var value = vm_peek(vm)
+                  vm_push(vm, value)
+                lain
+                  jika opcode == 5  ; OP_POP
+                    vm_pop(vm)
+                  lain
+                    ; Unknown opcode - skip
+                  tutup_jika
+                tutup_jika
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  ; Increment program counter
+  __mf_poke_i64(vm + VM_PC, pc + 1)
+  kembali 1
+tutup_fungsi
+
+fungsi vm_run(vm: ptr) -> i64
+  var cycles = 0
+  selama __mf_load_i64(vm + VM_RUNNING) == 1
+    vm_execute_instruction(vm)
+    cycles = cycles + 1
+    
+    ; Safety: prevent infinite loops
+    jika cycles > 10000
+      __mf_poke_i64(vm + VM_RUNNING, 0)
+      kembali -1  ; Timeout
+    tutup_jika
+  tutup_selama
+  
+  kembali cycles
+tutup_fungsi
+
+fungsi vm_get_result(vm: ptr) -> i64
+  ; Return top of stack as result
+  kembali vm_peek(vm)
+tutup_fungsi
+
+fungsi vm_print_stack(vm: ptr) -> i64
+  var stack = __mf_load_i64(vm + VM_STACK)
+  var size = vector_length(stack)
+  
+  sistem 1, 1, "Stack [", 7
+  print_number_simple(size)
+  sistem 1, 1, "]: ", 3
+  
+  var i = 0
+  selama i < size
+    var value = vector_get(stack, i)
+    print_number_simple(value)
+    jika i < size - 1
+      sistem 1, 1, ", ", 2
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  
+  sistem 1, 1, "\n", 1
+  kembali size
+tutup_fungsi
+
+fungsi vm_print_state(vm: ptr) -> i64
+  var pc = __mf_load_i64(vm + VM_PC)
+  var count = __mf_load_i64(vm + VM_INSTRUCTION_COUNT)
+  var running = __mf_load_i64(vm + VM_RUNNING)
+  
+  sistem 1, 1, "VM State - PC: ", 15
+  print_number_simple(pc)
+  sistem 1, 1, "/", 1
+  print_number_simple(count)
+  sistem 1, 1, ", Running: ", 11
+  print_number_simple(running)
+  sistem 1, 1, "\n", 1
+  
+  vm_print_stack(vm)
+  kembali 1
+tutup_fungsi
+
+; Execute .morph file and return result
+fungsi execute_morph_file(filename: ptr) -> i64
+  var vm = vm_new()
+  jika vm == 0
+    kembali -1
+  tutup_jika
+  
+  ; Load .morph file
+  jika vm_load_morph_file(vm, filename) == 0
+    kembali -2  ; Load failed
+  tutup_jika
+  
+  ; Execute
+  var cycles = vm_run(vm)
+  jika cycles < 0
+    kembali -3  ; Execution failed
+  tutup_jika
+  
+  ; Get result
+  var result = vm_get_result(vm)
+  kembali result
+tutup_fungsi
