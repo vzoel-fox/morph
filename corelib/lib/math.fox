@@ -1,0 +1,199 @@
+; ==============================================================================
+; MATH - Advanced Mathematics Library
+; ==============================================================================
+
+; Constants
+const MATH_PI = 3141592653589793
+const MATH_E = 2718281828459045
+const MATH_SQRT2 = 1414213562373095
+
+; Basic arithmetic with overflow protection
+fungsi add_safe(a: i64, b: i64) -> i64
+    ; Check for overflow
+    jika (b > 0 dan a > (9223372036854775807 - b)) kembali 9223372036854775807 tutup_jika
+    jika (b < 0 dan a < (-9223372036854775808 - b)) kembali -9223372036854775808 tutup_jika
+    kembali a + b
+tutup_fungsi
+
+fungsi mul_safe(a: i64, b: i64) -> i64
+    jika (a == 0 atau b == 0) kembali 0 tutup_jika
+    jika (a > 0 dan b > 0 dan a > (9223372036854775807 / b)) kembali 9223372036854775807 tutup_jika
+    jika (a < 0 dan b < 0 dan a < (9223372036854775807 / b)) kembali 9223372036854775807 tutup_jika
+    jika ((a > 0 dan b < 0) atau (a < 0 dan b > 0))
+        jika (a > 0 dan b < (-9223372036854775808 / a)) kembali -9223372036854775808 tutup_jika
+        jika (a < 0 dan b > (-9223372036854775808 / a)) kembali -9223372036854775808 tutup_jika
+    tutup_jika
+    kembali a * b
+tutup_fungsi
+
+; Absolute value
+fungsi abs(x: i64) -> i64
+    jika (x < 0) kembali 0 - x tutup_jika
+    kembali x
+tutup_fungsi
+
+; Maximum of two values
+fungsi max(a: i64, b: i64) -> i64
+    jika (a > b) kembali a tutup_jika
+    kembali b
+tutup_fungsi
+
+; Minimum of two values
+fungsi min(a: i64, b: i64) -> i64
+    jika (a < b) kembali a tutup_jika
+    kembali b
+tutup_fungsi
+
+; Power function (integer exponent)
+fungsi pow(base: i64, exp: i64) -> i64
+    jika (exp == 0) kembali 1 tutup_jika
+    jika (exp < 0) kembali 0 tutup_jika  ; Integer division
+    
+    var result = 1
+    var b = base
+    var e = exp
+    
+    selama (e > 0)
+        jika ((e % 2) == 1)
+            result = mul_safe(result, b)
+        tutup_jika
+        b = mul_safe(b, b)
+        e = e / 2
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Square root (integer approximation)
+fungsi sqrt(x: i64) -> i64
+    jika (x < 0) kembali 0 tutup_jika
+    jika (x < 2) kembali x tutup_jika
+    
+    var left = 1
+    var right = x / 2 + 1
+    var result = 0
+    
+    selama (left <= right)
+        var mid = (left + right) / 2
+        var square = mul_safe(mid, mid)
+        
+        jika (square == x) kembali mid tutup_jika
+        jika (square < x)
+            left = mid + 1
+            result = mid
+        lain
+            right = mid - 1
+        tutup_jika
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Greatest Common Divisor
+fungsi gcd(a: i64, b: i64) -> i64
+    a = abs(a)
+    b = abs(b)
+    
+    selama (b != 0)
+        var temp = b
+        b = a % b
+        a = temp
+    tutup_selama
+    
+    kembali a
+tutup_fungsi
+
+; Least Common Multiple
+fungsi lcm(a: i64, b: i64) -> i64
+    jika (a == 0 atau b == 0) kembali 0 tutup_jika
+    var g = gcd(a, b)
+    kembali abs(mul_safe(a / g, b))
+tutup_fungsi
+
+; Factorial
+fungsi factorial(n: i64) -> i64
+    jika (n < 0) kembali 0 tutup_jika
+    jika (n <= 1) kembali 1 tutup_jika
+    
+    var result = 1
+    var i = 2
+    selama (i <= n)
+        result = mul_safe(result, i)
+        jika (result == 9223372036854775807) kembali result tutup_jika  ; Overflow
+        i = i + 1
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Fibonacci number
+fungsi fibonacci(n: i64) -> i64
+    jika (n < 0) kembali 0 tutup_jika
+    jika (n <= 1) kembali n tutup_jika
+    
+    var a = 0
+    var b = 1
+    var i = 2
+    
+    selama (i <= n)
+        var temp = add_safe(a, b)
+        a = b
+        b = temp
+        i = i + 1
+    tutup_selama
+    
+    kembali b
+tutup_fungsi
+
+; Check if number is prime
+fungsi is_prime(n: i64) -> i64
+    jika (n < 2) kembali 0 tutup_jika
+    jika (n == 2) kembali 1 tutup_jika
+    jika ((n % 2) == 0) kembali 0 tutup_jika
+    
+    var i = 3
+    var limit = sqrt(n)
+    
+    selama (i <= limit)
+        jika ((n % i) == 0) kembali 0 tutup_jika
+        i = i + 2
+    tutup_selama
+    
+    kembali 1
+tutup_fungsi
+
+; Modular exponentiation (for cryptography)
+fungsi mod_pow(base: i64, exp: i64, mod: i64) -> i64
+    jika (mod == 1) kembali 0 tutup_jika
+    
+    var result = 1
+    base = base % mod
+    
+    selama (exp > 0)
+        jika ((exp % 2) == 1)
+            result = (mul_safe(result, base)) % mod
+        tutup_jika
+        exp = exp / 2
+        base = (mul_safe(base, base)) % mod
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Linear interpolation
+fungsi lerp(a: i64, b: i64, t: i64) -> i64
+    ; t should be 0-1000 (representing 0.0-1.0)
+    jika (t <= 0) kembali a tutup_jika
+    jika (t >= 1000) kembali b tutup_jika
+    
+    var diff = b - a
+    var scaled = mul_safe(diff, t)
+    kembali a + (scaled / 1000)
+tutup_fungsi
+
+; Clamp value between min and max
+fungsi clamp(value: i64, min_val: i64, max_val: i64) -> i64
+    jika (value < min_val) kembali min_val tutup_jika
+    jika (value > max_val) kembali max_val tutup_jika
+    kembali value
+tutup_fungsi

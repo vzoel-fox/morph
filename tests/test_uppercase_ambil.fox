@@ -1,0 +1,7 @@
+; Test uppercase Ambil (ID-based)
+Ambil 1
+Ambil 2
+Ambil 3
+fungsi main()
+  var x = 10
+tutup_fungsi

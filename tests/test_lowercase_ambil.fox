@@ -1,0 +1,5 @@
+; Test lowercase ambil (path-based)
+ambil "test/path.fox"
+fungsi main()
+  var x = 10
+tutup_fungsi

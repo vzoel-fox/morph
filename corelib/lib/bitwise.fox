@@ -1,0 +1,188 @@
+; ==============================================================================
+; BITWISE - Bit Manipulation and Cryptographic Functions
+; ==============================================================================
+
+; Basic bitwise operations
+fungsi bit_and(a: i64, b: i64) -> i64
+    kembali a dan b
+tutup_fungsi
+
+fungsi bit_or(a: i64, b: i64) -> i64
+    kembali a atau b
+tutup_fungsi
+
+fungsi bit_xor(a: i64, b: i64) -> i64
+    kembali a xor b
+tutup_fungsi
+
+fungsi bit_not(a: i64) -> i64
+    kembali tidak a
+tutup_fungsi
+
+; Bit shifts
+fungsi bit_shl(a: i64, shift: i64) -> i64
+    jika (shift < 0 atau shift >= 64) kembali 0 tutup_jika
+    kembali a << shift
+tutup_fungsi
+
+fungsi bit_shr(a: i64, shift: i64) -> i64
+    jika (shift < 0 atau shift >= 64) kembali 0 tutup_jika
+    kembali a >> shift
+tutup_fungsi
+
+; Count set bits (population count)
+fungsi popcount(x: i64) -> i64
+    var count = 0
+    selama (x != 0)
+        count = count + 1
+        x = x dan (x - 1)  ; Clear lowest set bit
+    tutup_selama
+    kembali count
+tutup_fungsi
+
+; Count leading zeros
+fungsi clz(x: i64) -> i64
+    jika (x == 0) kembali 64 tutup_jika
+    
+    var count = 0
+    var mask = 9223372036854775808  ; 1 << 63
+    
+    selama ((x dan mask) == 0)
+        count = count + 1
+        mask = mask >> 1
+    tutup_selama
+    
+    kembali count
+tutup_fungsi
+
+; Count trailing zeros
+fungsi ctz(x: i64) -> i64
+    jika (x == 0) kembali 64 tutup_jika
+    
+    var count = 0
+    selama ((x dan 1) == 0)
+        count = count + 1
+        x = x >> 1
+    tutup_selama
+    
+    kembali count
+tutup_fungsi
+
+; Reverse bits
+fungsi bit_reverse(x: i64) -> i64
+    var result = 0
+    var i = 0
+    
+    selama (i < 64)
+        result = (result << 1) atau (x dan 1)
+        x = x >> 1
+        i = i + 1
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Check if power of 2
+fungsi is_power_of_2(x: i64) -> i64
+    jika (x <= 0) kembali 0 tutup_jika
+    kembali (x dan (x - 1)) == 0
+tutup_fungsi
+
+; Next power of 2
+fungsi next_power_of_2(x: i64) -> i64
+    jika (x <= 1) kembali 1 tutup_jika
+    
+    x = x - 1
+    x = x atau (x >> 1)
+    x = x atau (x >> 2)
+    x = x atau (x >> 4)
+    x = x atau (x >> 8)
+    x = x atau (x >> 16)
+    x = x atau (x >> 32)
+    
+    kembali x + 1
+tutup_fungsi
+
+; Simple hash functions
+fungsi hash_djb2(data: ptr, len: i64) -> i64
+    var hash = 5381
+    var i = 0
+    
+    selama (i < len)
+        var c = mem_load_byte_safe(data + i)
+        hash = ((hash << 5) + hash) + c
+        i = i + 1
+    tutup_selama
+    
+    kembali hash dan 0x7FFFFFFFFFFFFFFF  ; Keep positive
+tutup_fungsi
+
+fungsi hash_fnv1a(data: ptr, len: i64) -> i64
+    var hash = -3750763034362895579  ; FNV offset basis
+    var i = 0
+    
+    selama (i < len)
+        var c = mem_load_byte_safe(data + i)
+        hash = hash xor c
+        hash = hash * 1099511628211  ; FNV prime
+        i = i + 1
+    tutup_selama
+    
+    kembali hash dan 0x7FFFFFFFFFFFFFFF  ; Keep positive
+tutup_fungsi
+
+; Simple checksum
+fungsi checksum_simple(data: ptr, len: i64) -> i64
+    var sum = 0
+    var i = 0
+    
+    selama (i < len)
+        sum = sum + mem_load_byte_safe(data + i)
+        i = i + 1
+    tutup_selama
+    
+    kembali sum dan 0xFFFF  ; 16-bit checksum
+tutup_fungsi
+
+; CRC32 (simplified)
+fungsi crc32_simple(data: ptr, len: i64) -> i64
+    var crc = 0xFFFFFFFF
+    var i = 0
+    
+    selama (i < len)
+        var byte_val = mem_load_byte_safe(data + i)
+        crc = crc xor byte_val
+        
+        var j = 0
+        selama (j < 8)
+            jika ((crc dan 1) == 1)
+                crc = (crc >> 1) xor 0xEDB88320
+            lain
+                crc = crc >> 1
+            tutup_jika
+            j = j + 1
+        tutup_selama
+        
+        i = i + 1
+    tutup_selama
+    
+    kembali (tidak crc) dan 0xFFFFFFFF
+tutup_fungsi
+
+; Random number generator (Linear Congruential Generator)
+var rng_seed = 1
+
+fungsi random_seed(seed: i64) -> void
+    rng_seed = seed
+tutup_fungsi
+
+fungsi random() -> i64
+    rng_seed = (rng_seed * 1103515245 + 12345) dan 0x7FFFFFFF
+    kembali rng_seed
+tutup_fungsi
+
+fungsi random_range(min_val: i64, max_val: i64) -> i64
+    jika (min_val >= max_val) kembali min_val tutup_jika
+    var range = max_val - min_val
+    kembali min_val + (random() % range)
+tutup_fungsi

@@ -1,0 +1,30 @@
+###
+  AI-Readable Hint System Demo
+  Test structured hints untuk AI understanding
+###
+
+fungsi utama()
+  # Demo structured hint output
+  
+  # Simulate syntax error hint
+  sistem 1, 1, "HINT:1001|CAT:1|SEV:3|LOC:42:15|MSG:Missing semicolon|FIX:Add ';' at end\n", 75
+  
+  # Simulate memory safety hint  
+  sistem 1, 1, "HINT:4001|CAT:4|SEV:4|LOC:58:8|MSG:Potential memory leak|FIX:Call mem_free()\n", 79
+  
+  # Simulate performance hint
+  sistem 1, 1, "HINT:3001|CAT:3|SEV:1|LOC:73:12|MSG:Inefficient loop|FIX:Use iterator pattern\n", 80
+  
+  # Analysis summary
+  sistem 1, 1, "ANALYSIS|TOTAL:3|SYNTAX:1|MEMORY:1|PERFORMANCE:1|CRITICAL:1|ERRORS:1|WARNINGS:0\n", 87
+  
+  # Human-readable format
+  sistem 1, 1, "\n=== HUMAN-READABLE FORMAT ===\n", 32
+  sistem 1, 1, "\033[31m[ERROR]\033[0m Line 42, Column 15: Missing semicolon\n", 54
+  sistem 1, 1, "  \033[32mSuggestion:\033[0m Add ';' at end of line\n", 46
+  
+  sistem 1, 1, "\033[91m[CRITICAL]\033[0m Line 58, Column 8: Potential memory leak\n", 62
+  sistem 1, 1, "  \033[32mSuggestion:\033[0m Call mem_free() for every mem_alloc()\n", 60
+  
+  0
+tutup_fungsi

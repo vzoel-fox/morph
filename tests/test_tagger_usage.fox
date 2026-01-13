@@ -1,0 +1,95 @@
+; ==============================================================================
+; EXAMPLE: Using Tagger System
+; ==============================================================================
+; This file demonstrates the new import pattern:
+; 1. Include tagger.fox (paths already indexed)
+; 2. Use Ambil ID for specific symbols
+
+ambil "tagger.fox"
+
+; Import specific symbols by ID
+Ambil 1   ; string_length
+Ambil 9   ; vector_new
+Ambil 10  ; vector_push
+Ambil 11  ; vector_get
+Ambil 20  ; pow
+Ambil 42  ; popcount
+
+fungsi demo_tagger_usage() -> i64
+    sistem 1, 1, "=== TAGGER USAGE DEMO ===\n", 27
+    
+    ; Use imported symbols directly
+    var text = "Hello World"
+    var len = string_length(text)  ; From Ambil 1
+    
+    sistem 1, 1, "Text length: ", 13
+    var len_str = i64_to_string(len)
+    sistem 1, 1, len_str, string_length(len_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(len_str)
+    
+    ; Use vector operations
+    var v = vector_new()           ; From Ambil 9
+    vector_push(v, len)            ; From Ambil 10
+    vector_push(v, 42)
+    vector_push(v, 100)
+    
+    var first = vector_get(v, 0)   ; From Ambil 11
+    sistem 1, 1, "First vector element: ", 22
+    var first_str = i64_to_string(first)
+    sistem 1, 1, first_str, string_length(first_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(first_str)
+    
+    ; Use math operations
+    var power = pow(2, 8)          ; From Ambil 20
+    sistem 1, 1, "2^8 = ", 6
+    var power_str = i64_to_string(power)
+    sistem 1, 1, power_str, string_length(power_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(power_str)
+    
+    ; Use bitwise operations
+    var bits = popcount(255)       ; From Ambil 42
+    sistem 1, 1, "popcount(255) = ", 16
+    var bits_str = i64_to_string(bits)
+    sistem 1, 1, bits_str, string_length(bits_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(bits_str)
+    
+    vector_free(v)
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║      TAGGER SYSTEM EXAMPLE          ║\n"
+    sistem 1, 1, title, 40
+    var subtitle = "║    Clean Symbol-Based Imports       ║\n"
+    sistem 1, 1, subtitle, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    ; Show tagger info
+    var symbol_count = tagger_info()
+    
+    ; Run demo
+    var result = demo_tagger_usage()
+    jika (result != 0)
+        sistem 1, 1, "Demo failed\n", 12
+        kembali 1
+    tutup_jika
+    
+    var success = "\n✅ Tagger system working perfectly!\n"
+    sistem 1, 1, success, 37
+    
+    var benefits = "🎯 Benefits:\n"
+    sistem 1, 1, benefits, 13
+    sistem 1, 1, "   • Clean imports: Ambil 1, 2, 3\n", 34
+    sistem 1, 1, "   • No path management needed\n", 31
+    sistem 1, 1, "   • Fast symbol resolution\n", 28
+    sistem 1, 1, "   • Bootstrap compiler ready!\n", 31
+    
+    kembali 0
+tutup_fungsi

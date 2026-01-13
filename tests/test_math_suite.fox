@@ -1,0 +1,198 @@
+; ==============================================================================
+; MATH LIBRARY TEST SUITE
+; ==============================================================================
+
+fungsi test_basic_math() -> i64
+    sistem 1, 1, "Testing basic math...\n", 23
+    
+    ; Test abs
+    jika (abs(-42) != 42) kembali -1 tutup_jika
+    jika (abs(42) != 42) kembali -1 tutup_jika
+    
+    ; Test max/min
+    jika (max(10, 20) != 20) kembali -2 tutup_jika
+    jika (min(10, 20) != 10) kembali -2 tutup_jika
+    
+    ; Test pow
+    jika (pow(2, 3) != 8) kembali -3 tutup_jika
+    jika (pow(5, 0) != 1) kembali -3 tutup_jika
+    
+    ; Test sqrt
+    jika (sqrt(16) != 4) kembali -4 tutup_jika
+    jika (sqrt(25) != 5) kembali -4 tutup_jika
+    
+    ; Test gcd
+    jika (gcd(12, 8) != 4) kembali -5 tutup_jika
+    jika (gcd(17, 13) != 1) kembali -5 tutup_jika
+    
+    ; Test factorial
+    jika (factorial(5) != 120) kembali -6 tutup_jika
+    jika (factorial(0) != 1) kembali -6 tutup_jika
+    
+    ; Test fibonacci
+    jika (fibonacci(7) != 13) kembali -7 tutup_jika
+    jika (fibonacci(0) != 0) kembali -7 tutup_jika
+    
+    ; Test is_prime
+    jika (is_prime(17) != 1) kembali -8 tutup_jika
+    jika (is_prime(16) != 0) kembali -8 tutup_jika
+    
+    sistem 1, 1, "✓ Basic math passed\n", 21
+    kembali 0
+tutup_fungsi
+
+fungsi test_bitwise() -> i64
+    sistem 1, 1, "Testing bitwise ops...\n", 24
+    
+    ; Test basic bitwise
+    jika (bit_and(12, 10) != 8) kembali -1 tutup_jika  ; 1100 & 1010 = 1000
+    jika (bit_or(12, 10) != 14) kembali -2 tutup_jika  ; 1100 | 1010 = 1110
+    jika (bit_xor(12, 10) != 6) kembali -3 tutup_jika  ; 1100 ^ 1010 = 0110
+    
+    ; Test shifts
+    jika (bit_shl(5, 2) != 20) kembali -4 tutup_jika   ; 5 << 2 = 20
+    jika (bit_shr(20, 2) != 5) kembali -5 tutup_jika   ; 20 >> 2 = 5
+    
+    ; Test popcount
+    jika (popcount(7) != 3) kembali -6 tutup_jika      ; 111 has 3 bits
+    jika (popcount(8) != 1) kembali -6 tutup_jika      ; 1000 has 1 bit
+    
+    ; Test power of 2
+    jika (is_power_of_2(16) != 1) kembali -7 tutup_jika
+    jika (is_power_of_2(15) != 0) kembali -7 tutup_jika
+    
+    ; Test next power of 2
+    jika (next_power_of_2(10) != 16) kembali -8 tutup_jika
+    jika (next_power_of_2(16) != 16) kembali -8 tutup_jika
+    
+    sistem 1, 1, "✓ Bitwise ops passed\n", 22
+    kembali 0
+tutup_fungsi
+
+fungsi test_fixed_point() -> i64
+    sistem 1, 1, "Testing fixed point...\n", 24
+    
+    ; Test basic conversion
+    var fp_5 = fixed_from_int(5)
+    jika (fixed_to_int(fp_5) != 5) kembali -1 tutup_jika
+    
+    ; Test fixed_make (5.5)
+    var fp_5_5 = fixed_make(5, 500)  ; 5.500
+    jika (fixed_to_int(fp_5_5) != 5) kembali -2 tutup_jika
+    
+    ; Test addition
+    var fp_2 = fixed_from_int(2)
+    var fp_3 = fixed_from_int(3)
+    var fp_sum = fixed_add(fp_2, fp_3)
+    jika (fixed_to_int(fp_sum) != 5) kembali -3 tutup_jika
+    
+    ; Test multiplication
+    var fp_mul = fixed_mul(fp_2, fp_3)
+    jika (fixed_to_int(fp_mul) != 6) kembali -4 tutup_jika
+    
+    ; Test division
+    var fp_6 = fixed_from_int(6)
+    var fp_div = fixed_div(fp_6, fp_2)
+    jika (fixed_to_int(fp_div) != 3) kembali -5 tutup_jika
+    
+    ; Test sqrt
+    var fp_16 = fixed_from_int(16)
+    var fp_sqrt = fixed_sqrt(fp_16)
+    jika (fixed_to_int(fp_sqrt) != 4) kembali -6 tutup_jika
+    
+    sistem 1, 1, "✓ Fixed point passed\n", 22
+    kembali 0
+tutup_fungsi
+
+fungsi test_hash_functions() -> i64
+    sistem 1, 1, "Testing hash functions...\n", 27
+    
+    var test_data = "Hello World"
+    var len = 11
+    
+    ; Test DJB2 hash
+    var hash1 = hash_djb2(test_data, len)
+    jika (hash1 == 0) kembali -1 tutup_jika
+    
+    ; Test FNV1a hash
+    var hash2 = hash_fnv1a(test_data, len)
+    jika (hash2 == 0) kembali -2 tutup_jika
+    
+    ; Hashes should be different
+    jika (hash1 == hash2) kembali -3 tutup_jika
+    
+    ; Test checksum
+    var checksum = checksum_simple(test_data, len)
+    jika (checksum == 0) kembali -4 tutup_jika
+    
+    ; Test CRC32
+    var crc = crc32_simple(test_data, len)
+    jika (crc == 0) kembali -5 tutup_jika
+    
+    sistem 1, 1, "✓ Hash functions passed\n", 26
+    kembali 0
+tutup_fungsi
+
+fungsi test_random() -> i64
+    sistem 1, 1, "Testing random numbers...\n", 27
+    
+    ; Seed RNG
+    random_seed(12345)
+    
+    ; Generate some numbers
+    var r1 = random()
+    var r2 = random()
+    var r3 = random()
+    
+    ; Should be different
+    jika (r1 == r2 atau r2 == r3 atau r1 == r3) kembali -1 tutup_jika
+    
+    ; Test range
+    var range_val = random_range(10, 20)
+    jika (range_val < 10 atau range_val >= 20) kembali -2 tutup_jika
+    
+    sistem 1, 1, "✓ Random numbers passed\n", 26
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║      MATH LIBRARY TEST SUITE        ║\n"
+    sistem 1, 1, title, 40
+    var version = "║            v2.1.0                   ║\n"
+    sistem 1, 1, version, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    ; Run all tests
+    jika (test_basic_math() != 0)
+        sistem 1, 1, "❌ Basic math test failed\n", 27
+        kembali 1
+    tutup_jika
+    
+    jika (test_bitwise() != 0)
+        sistem 1, 1, "❌ Bitwise test failed\n", 24
+        kembali 1
+    tutup_jika
+    
+    jika (test_fixed_point() != 0)
+        sistem 1, 1, "❌ Fixed point test failed\n", 28
+        kembali 1
+    tutup_jika
+    
+    jika (test_hash_functions() != 0)
+        sistem 1, 1, "❌ Hash functions test failed\n", 31
+        kembali 1
+    tutup_jika
+    
+    jika (test_random() != 0)
+        sistem 1, 1, "❌ Random test failed\n", 23
+        kembali 1
+    tutup_jika
+    
+    var success = "\n🎉 All math tests passed! Advanced stdlib ready.\n"
+    sistem 1, 1, success, 51
+    
+    kembali 0
+tutup_fungsi

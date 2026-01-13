@@ -1,0 +1,60 @@
+ambil "corelib/core/builtins.fox"
+
+; ==============================================================================
+; SIMPLE MEMORY MODULE (Bootstrap Compatible)
+; ==============================================================================
+
+; Safe memory allocation
+fungsi mem_alloc_safe(size: i64) -> ptr
+  jika (size <= 0)
+    kembali 0
+  tutup_jika
+
+  var ptr = __mf_mem_alloc(size)
+  jika (ptr == 0)
+    kembali 0
+  tutup_jika
+
+  kembali ptr
+tutup_fungsi
+
+; Safe memory deallocation
+fungsi mem_free_safe(ptr: ptr, size: i64) -> void
+  jika (ptr == 0)
+    kembali
+  tutup_jika
+
+  __mf_mem_free(ptr, size)
+tutup_fungsi
+
+; Safe byte load
+fungsi mem_load_byte_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_byte(addr)
+tutup_fungsi
+
+; Safe byte store
+fungsi mem_store_byte_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_byte(addr, value)
+tutup_fungsi
+
+; Safe i64 load
+fungsi mem_load_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(addr)
+tutup_fungsi
+
+; Safe i64 store
+fungsi mem_store_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_i64(addr, value)
+tutup_fungsi

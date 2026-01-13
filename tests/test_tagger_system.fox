@@ -1,0 +1,162 @@
+; ==============================================================================
+; TAGGER SYSTEM TEST - Path Indexing Demo
+; ==============================================================================
+
+fungsi test_tagger_basic() -> i64
+    sistem 1, 1, "Testing tagger system...\n", 26
+    
+    ; Initialize tagger
+    var init_result = tagger_init()
+    jika (init_result != 0)
+        sistem 1, 1, "✗ Tagger init failed\n", 22
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Tagger initialized\n", 22
+    
+    ; Test getting ID by name
+    var strlen_id = tagger_get_id("string_length")
+    jika (strlen_id == 0)
+        sistem 1, 1, "✗ string_length ID not found\n", 30
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ string_length ID: ", 21
+    var id_str = i64_to_string(strlen_id)
+    sistem 1, 1, id_str, string_length(id_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(id_str)
+    
+    ; Test getting entry by ID
+    var entry = tagger_get_by_id(strlen_id)
+    jika (entry == 0)
+        sistem 1, 1, "✗ Entry not found by ID\n", 25
+        kembali -1
+    tutup_jika
+    
+    var name = mem_load_safe(entry + 8)
+    var path = mem_load_safe(entry + 16)
+    var module = mem_load_safe(entry + 24)
+    
+    sistem 1, 1, "✓ Entry found: ", 16
+    sistem 1, 1, module, string_length(module)
+    sistem 1, 1, ".", 1
+    sistem 1, 1, name, string_length(name)
+    sistem 1, 1, " @ ", 3
+    sistem 1, 1, path, string_length(path)
+    sistem 1, 1, "\n", 1
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_ambil_resolution() -> i64
+    sistem 1, 1, "Testing Ambil resolution...\n", 29
+    
+    ; Test resolving different IDs
+    var test_ids = vector_new()
+    vector_push(test_ids, 1)   ; string_length
+    vector_push(test_ids, 9)   ; vector_new
+    vector_push(test_ids, 15)  ; hashmap_new
+    vector_push(test_ids, 20)  ; pow
+    vector_push(test_ids, 36)  ; bit_and
+    
+    var i = 0
+    var count = vector_length(test_ids)
+    
+    selama (i < count)
+        var test_id = vector_get(test_ids, i)
+        var entry = tagger_resolve_ambil(test_id)
+        
+        jika (entry == 0)
+            sistem 1, 1, "✗ Failed to resolve ID ", 24
+            var id_str = i64_to_string(test_id)
+            sistem 1, 1, id_str, string_length(id_str)
+            sistem 1, 1, "\n", 1
+            mem_free_safe(id_str)
+            vector_free(test_ids)
+            kembali -1
+        tutup_jika
+        
+        var name = mem_load_safe(entry + 8)
+        var module = mem_load_safe(entry + 24)
+        
+        sistem 1, 1, "✓ Ambil ", 9
+        var id_str2 = i64_to_string(test_id)
+        sistem 1, 1, id_str2, string_length(id_str2)
+        sistem 1, 1, " = ", 3
+        sistem 1, 1, module, string_length(module)
+        sistem 1, 1, ".", 1
+        sistem 1, 1, name, string_length(name)
+        sistem 1, 1, "\n", 1
+        mem_free_safe(id_str2)
+        
+        i = i + 1
+    tutup_selama
+    
+    vector_free(test_ids)
+    kembali 0
+tutup_fungsi
+
+fungsi demo_usage_pattern() -> i64
+    sistem 1, 1, "=== USAGE PATTERN DEMO ===\n", 28
+    
+    sistem 1, 1, "1. tagger.fox (like __init__.py):\n", 35
+    sistem 1, 1, "   ambil \"corelib/lib/string.fox\"\n", 35
+    sistem 1, 1, "   ambil \"corelib/lib/vector.fox\"\n", 35
+    sistem 1, 1, "   ambil \"corelib/lib/math.fox\"\n", 33
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "2. user_code.fox:\n", 18
+    sistem 1, 1, "   Ambil 1  ; string_length\n", 28
+    sistem 1, 1, "   Ambil 9  ; vector_new\n", 25
+    sistem 1, 1, "   Ambil 20 ; pow\n", 18
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "3. Compiler resolves:\n", 22
+    sistem 1, 1, "   Ambil 1  -> std.string_length\n", 33
+    sistem 1, 1, "   Ambil 9  -> std.vector_new\n", 30
+    sistem 1, 1, "   Ambil 20 -> math.pow\n", 24
+    sistem 1, 1, "\n", 1
+    
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║        TAGGER SYSTEM TEST           ║\n"
+    sistem 1, 1, title, 40
+    var subtitle = "║      Path Indexing System          ║\n"
+    sistem 1, 1, subtitle, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    ; Run tests
+    jika (test_tagger_basic() != 0)
+        sistem 1, 1, "\n❌ Basic tagger test failed\n", 29
+        kembali 1
+    tutup_jika
+    
+    jika (test_ambil_resolution() != 0)
+        sistem 1, 1, "\n❌ Ambil resolution test failed\n", 33
+        kembali 1
+    tutup_jika
+    
+    ; Show usage pattern
+    demo_usage_pattern()
+    
+    ; Show full registry
+    tagger_print_registry()
+    
+    var success = "\n🎉 Tagger system working perfectly!\n"
+    sistem 1, 1, success, 37
+    
+    var explanation = "📋 System Design:\n"
+    sistem 1, 1, explanation, 18
+    sistem 1, 1, "   • ambil \"path\" = Path-based import (tagger.fox)\n", 50
+    sistem 1, 1, "   • Ambil ID = Symbol-based import (user files)\n", 48
+    sistem 1, 1, "   • Bootstrap compiler already supports both!\n", 46
+    
+    ; Cleanup
+    tagger_cleanup()
+    
+    kembali 0
+tutup_fungsi

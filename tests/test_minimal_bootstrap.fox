@@ -1,0 +1,5 @@
+; Test minimal program tanpa import
+fungsi utama() -> i64
+    var x = 42
+    kembali x
+tutup_fungsi

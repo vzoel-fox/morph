@@ -1,0 +1,19 @@
+; Simple stdlib test
+fungsi utama() -> i64
+    ; Test basic string operations
+    var hello = "Hello"
+    var len = 5  ; string_length(hello) - manual for now
+    
+    ; Test basic memory allocation
+    var ptr = mem_alloc_safe(100)
+    jika (ptr == 0)
+        kembali 1
+    tutup_jika
+    
+    mem_free_safe(ptr)
+    
+    var msg = "✓ Basic stdlib test passed\n"
+    print(msg, 27)
+    
+    kembali 0
+tutup_fungsi

@@ -1,0 +1,96 @@
+; ==============================================================================
+; VECTOR - Dynamic Array Implementation
+; ==============================================================================
+
+struktur Vector {
+    buffer: ptr,
+    length: i64,
+    capacity: i64
+}
+
+; Create new vector
+fungsi vector_new() -> ptr
+    var v = mem_alloc_safe(24)  ; sizeof(Vector)
+    jika (v == 0) kembali 0 tutup_jika
+    
+    var initial_cap = 8
+    var buffer = mem_alloc_safe(initial_cap * 8)  ; i64 elements
+    jika (buffer == 0)
+        mem_free_safe(v)
+        kembali 0
+    tutup_jika
+    
+    mem_store_safe(v + 0, buffer)      ; buffer
+    mem_store_safe(v + 8, 0)           ; length
+    mem_store_safe(v + 16, initial_cap) ; capacity
+    kembali v
+tutup_fungsi
+
+; Push element to end
+fungsi vector_push(v: ptr, item: i64) -> i64
+    jika (v == 0) kembali -1 tutup_jika
+    
+    var length = mem_load_safe(v + 8)
+    var capacity = mem_load_safe(v + 16)
+    
+    ; Resize if needed
+    jika (length >= capacity)
+        var new_cap = capacity * 2
+        var buffer = mem_load_safe(v + 0)
+        var new_buffer = mem_alloc_safe(new_cap * 8)
+        jika (new_buffer == 0) kembali -1 tutup_jika
+        
+        ; Copy old data
+        var i = 0
+        selama (i < length)
+            var val = mem_load_safe(buffer + (i * 8))
+            mem_store_safe(new_buffer + (i * 8), val)
+            i = i + 1
+        tutup_selama
+        
+        mem_free_safe(buffer)
+        mem_store_safe(v + 0, new_buffer)
+        mem_store_safe(v + 16, new_cap)
+    tutup_jika
+    
+    ; Add new item
+    var buffer = mem_load_safe(v + 0)
+    mem_store_safe(buffer + (length * 8), item)
+    mem_store_safe(v + 8, length + 1)
+    kembali 0
+tutup_fungsi
+
+; Get element at index
+fungsi vector_get(v: ptr, index: i64) -> i64
+    jika (v == 0) kembali 0 tutup_jika
+    var length = mem_load_safe(v + 8)
+    jika (index < 0 atau index >= length) kembali 0 tutup_jika
+    
+    var buffer = mem_load_safe(v + 0)
+    kembali mem_load_safe(buffer + (index * 8))
+tutup_fungsi
+
+; Set element at index
+fungsi vector_set(v: ptr, index: i64, value: i64) -> i64
+    jika (v == 0) kembali -1 tutup_jika
+    var length = mem_load_safe(v + 8)
+    jika (index < 0 atau index >= length) kembali -1 tutup_jika
+    
+    var buffer = mem_load_safe(v + 0)
+    mem_store_safe(buffer + (index * 8), value)
+    kembali 0
+tutup_fungsi
+
+; Get vector length
+fungsi vector_length(v: ptr) -> i64
+    jika (v == 0) kembali 0 tutup_jika
+    kembali mem_load_safe(v + 8)
+tutup_fungsi
+
+; Free vector
+fungsi vector_free(v: ptr) -> void
+    jika (v == 0) kembali tutup_jika
+    var buffer = mem_load_safe(v + 0)
+    jika (buffer != 0) mem_free_safe(buffer) tutup_jika
+    mem_free_safe(v)
+tutup_fungsi

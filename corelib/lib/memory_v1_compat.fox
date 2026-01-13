@@ -1,0 +1,53 @@
+ambil "corelib/core/builtins.fox"
+
+; ==============================================================================
+; MEMORY MODULE - Bootstrap v1.2 Compatible (NO "kembali" keyword)
+; ==============================================================================
+
+; Safe memory allocation
+fungsi mem_alloc_safe(size: i64) -> ptr
+  var ptr = 0
+  jika (size > 0)
+    ptr = __mf_mem_alloc(size)
+  tutup_jika
+  ptr
+tutup_fungsi
+
+; Safe memory deallocation
+fungsi mem_free_safe(ptr: ptr, size: i64) -> void
+  jika (ptr != 0)
+    __mf_mem_free(ptr, size)
+  tutup_jika
+tutup_fungsi
+
+; Safe byte load
+fungsi mem_load_byte_safe(addr: ptr) -> i64
+  var result = 0
+  jika (addr != 0)
+    result = __mf_load_byte(addr)
+  tutup_jika
+  result
+tutup_fungsi
+
+; Safe byte store
+fungsi mem_store_byte_safe(addr: ptr, value: i64) -> void
+  jika (addr != 0)
+    __mf_poke_byte(addr, value)
+  tutup_jika
+tutup_fungsi
+
+; Safe i64 load
+fungsi mem_load_safe(addr: ptr) -> i64
+  var result = 0
+  jika (addr != 0)
+    result = __mf_load_i64(addr)
+  tutup_jika
+  result
+tutup_fungsi
+
+; Safe i64 store
+fungsi mem_store_safe(addr: ptr, value: i64) -> void
+  jika (addr != 0)
+    __mf_poke_i64(addr, value)
+  tutup_jika
+tutup_fungsi

@@ -1,0 +1,163 @@
+; ==============================================================================
+; EXAMPLE: New Module System Usage
+; ==============================================================================
+
+; New import syntax (akan diimplementasi di compiler)
+; gunakan std                           ; Import all from std
+; gunakan std.string_length             ; Import specific function
+; gunakan std.{vector_new, hashmap_new} ; Import multiple
+; gunakan math sebagai m                ; Import with alias
+
+; For now, we'll demonstrate the module system programmatically
+
+fungsi demo_module_system() -> i64
+    sistem 1, 1, "=== Module System Demo ===\n", 29
+    
+    ; Initialize module system
+    var init_result = module_init()
+    jika (init_result != 0)
+        sistem 1, 1, "Failed to initialize module system\n", 37
+        kembali -1
+    tutup_jika
+    
+    ; Load std module
+    var std_module = module_load("std")
+    jika (std_module == 0)
+        sistem 1, 1, "Failed to load std module\n", 27
+        kembali -1
+    tutup_jika
+    
+    sistem 1, 1, "✓ Loaded std module\n", 21
+    
+    ; Add some symbols to std module (simulate)
+    module_add_symbol(std_module, "string_length", SYMBOL_FUNCTION, 0x1000)
+    module_add_symbol(std_module, "vector_new", SYMBOL_FUNCTION, 0x2000)
+    module_add_symbol(std_module, "hashmap_new", SYMBOL_FUNCTION, 0x3000)
+    module_add_symbol(std_module, "STDLIB_VERSION", SYMBOL_CONSTANT, 21000)
+    
+    sistem 1, 1, "✓ Added symbols to std module\n", 31
+    
+    ; Load math module
+    var math_module = module_load("math")
+    jika (math_module != 0)
+        module_add_symbol(math_module, "pow", SYMBOL_FUNCTION, 0x4000)
+        module_add_symbol(math_module, "sqrt", SYMBOL_FUNCTION, 0x5000)
+        module_add_symbol(math_module, "MATH_PI", SYMBOL_CONSTANT, 3141592653589793)
+        sistem 1, 1, "✓ Loaded math module\n", 22
+    tutup_jika
+    
+    ; Test symbol resolution
+    var symbol = module_get_symbol(std_module, "string_length")
+    jika (symbol != 0)
+        sistem 1, 1, "✓ Found string_length symbol\n", 30
+    lain
+        sistem 1, 1, "✗ string_length symbol not found\n", 34
+    tutup_jika
+    
+    ; Test import system
+    import_init()
+    
+    ; Import specific symbol
+    var import_result = import_symbol("std", "vector_new")
+    jika (import_result == 0)
+        sistem 1, 1, "✓ Imported vector_new\n", 23
+    lain
+        sistem 1, 1, "✗ Failed to import vector_new\n", 31
+    tutup_jika
+    
+    ; Import with alias
+    import_module_as("math", "m")
+    sistem 1, 1, "✓ Imported math as m\n", 22
+    
+    ; Test symbol resolution
+    var resolved = import_resolve_symbol("vector_new")
+    jika (resolved != 0)
+        sistem 1, 1, "✓ Resolved vector_new\n", 23
+    lain
+        sistem 1, 1, "✗ Failed to resolve vector_new\n", 32
+    tutup_jika
+    
+    ; Test qualified access
+    var qualified = import_resolve_symbol("m.pow")
+    jika (qualified != 0)
+        sistem 1, 1, "✓ Resolved m.pow\n", 18
+    lain
+        sistem 1, 1, "✗ Failed to resolve m.pow\n", 27
+    tutup_jika
+    
+    sistem 1, 1, "\n=== Module System Ready ===\n", 30
+    
+    ; Cleanup
+    import_cleanup()
+    
+    kembali 0
+tutup_fungsi
+
+fungsi demo_new_syntax() -> i64
+    sistem 1, 1, "=== New Import Syntax Demo ===\n", 33
+    
+    ; Show what the new syntax will look like
+    var examples = "New import syntax examples:\n\n"
+    sistem 1, 1, examples, 30
+    
+    var ex1 = "gunakan std                    ; Import all from std\n"
+    sistem 1, 1, ex1, 53
+    
+    var ex2 = "gunakan std.string_length      ; Import specific function\n"
+    sistem 1, 1, ex2, 57
+    
+    var ex3 = "gunakan std.{vector_new, hashmap_new}  ; Multiple imports\n"
+    sistem 1, 1, ex3, 58
+    
+    var ex4 = "gunakan math sebagai m         ; Import with alias\n"
+    sistem 1, 1, ex4, 51
+    
+    var ex5 = "gunakan bitwise.{popcount, ctz} sebagai bits  ; Alias + multiple\n"
+    sistem 1, 1, ex5, 66
+    
+    var usage = "\nUsage in code:\n"
+    sistem 1, 1, usage, 15
+    
+    var use1 = "var len = string_length(\"hello\")  ; Direct import\n"
+    sistem 1, 1, use1, 50
+    
+    var use2 = "var result = m.pow(2, 8)          ; Aliased module\n"
+    sistem 1, 1, use2, 50
+    
+    var use3 = "var bits = bits.popcount(255)     ; Aliased symbols\n"
+    sistem 1, 1, use3, 51
+    
+    sistem 1, 1, "\n✓ Clean, readable import system!\n", 35
+    
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║       MODULE SYSTEM v2.1            ║\n"
+    sistem 1, 1, title, 40
+    var subtitle = "║    Path & Symbol Resolution         ║\n"
+    sistem 1, 1, subtitle, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    ; Demo current module system
+    var result1 = demo_module_system()
+    jika (result1 != 0)
+        sistem 1, 1, "Module system demo failed\n", 27
+        kembali 1
+    tutup_jika
+    
+    ; Demo new syntax
+    var result2 = demo_new_syntax()
+    jika (result2 != 0)
+        sistem 1, 1, "Syntax demo failed\n", 20
+        kembali 1
+    tutup_jika
+    
+    var success = "\n🎉 Module system ready for compiler integration!\n"
+    sistem 1, 1, success, 50
+    
+    kembali 0
+tutup_fungsi

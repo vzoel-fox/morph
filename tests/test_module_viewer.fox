@@ -1,0 +1,192 @@
+; ==============================================================================
+; MODULE REGISTRY VIEWER - Debug and Inspection Tool
+; ==============================================================================
+
+fungsi print_module_info(module: ptr) -> void
+    jika (module == 0)
+        sistem 1, 1, "  [NULL MODULE]\n", 16
+        kembali
+    tutup_jika
+    
+    var name = mem_load_safe(module + 0)
+    var path = mem_load_safe(module + 8)
+    var loaded = mem_load_safe(module + 24)
+    
+    sistem 1, 1, "  Name: ", 8
+    sistem 1, 1, name, string_length(name)
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "  Path: ", 8
+    sistem 1, 1, path, string_length(path)
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "  Status: ", 10
+    jika (loaded == MODULE_LOADED)
+        sistem 1, 1, "LOADED\n", 7
+    lain jika (loaded == MODULE_NOT_LOADED)
+        sistem 1, 1, "NOT_LOADED\n", 11
+    lain jika (loaded == MODULE_ERROR)
+        sistem 1, 1, "ERROR\n", 6
+    lain
+        sistem 1, 1, "UNKNOWN\n", 8
+    tutup_jika
+    
+    ; Show symbol count
+    var symbols = mem_load_safe(module + 16)
+    jika (symbols != 0)
+        ; TODO: Count symbols in hashmap
+        sistem 1, 1, "  Symbols: [hashmap]\n", 21
+    tutup_jika
+    
+    ; Show exports
+    var exports = mem_load_safe(module + 40)
+    jika (exports != 0)
+        var export_count = vector_length(exports)
+        sistem 1, 1, "  Exports: ", 11
+        var count_str = i64_to_string(export_count)
+        sistem 1, 1, count_str, string_length(count_str)
+        sistem 1, 1, " symbols\n", 9
+        mem_free_safe(count_str)
+    tutup_jika
+    
+    sistem 1, 1, "\n", 1
+tutup_fungsi
+
+fungsi list_all_modules() -> i64
+    jika (module_init_done == 0)
+        sistem 1, 1, "Module system not initialized\n", 31
+        kembali -1
+    tutup_jika
+    
+    sistem 1, 1, "=== MODULE REGISTRY ===\n", 25
+    
+    ; TODO: Iterate through hashmap
+    ; For now, show known modules
+    var known_modules = vector_new()
+    vector_push(known_modules, "std")
+    vector_push(known_modules, "math")
+    vector_push(known_modules, "bitwise")
+    
+    var i = 0
+    var count = vector_length(known_modules)
+    
+    selama (i < count)
+        var module_name = vector_get(known_modules, i)
+        sistem 1, 1, "Module: ", 8
+        sistem 1, 1, module_name, string_length(module_name)
+        sistem 1, 1, "\n", 1
+        
+        jika (module_is_loaded(module_name) == 1)
+            var module = module_get_info(module_name)
+            print_module_info(module)
+        lain
+            sistem 1, 1, "  [NOT LOADED]\n\n", 16
+        tutup_jika
+        
+        i = i + 1
+    tutup_selama
+    
+    vector_free(known_modules)
+    kembali 0
+tutup_fungsi
+
+fungsi show_symbol_details(module: ptr, symbol_name: ptr) -> i64
+    jika (module == 0 atau symbol_name == 0) kembali -1 tutup_jika
+    
+    var symbol = module_get_symbol(module, symbol_name)
+    jika (symbol == 0)
+        sistem 1, 1, "Symbol not found: ", 18
+        sistem 1, 1, symbol_name, string_length(symbol_name)
+        sistem 1, 1, "\n", 1
+        kembali -1
+    tutup_jika
+    
+    sistem 1, 1, "=== SYMBOL DETAILS ===\n", 24
+    
+    var name = mem_load_safe(symbol + 0)
+    var type = mem_load_safe(symbol + 8)
+    var address = mem_load_safe(symbol + 16)
+    var exported = mem_load_safe(symbol + 32)
+    
+    sistem 1, 1, "Name: ", 6
+    sistem 1, 1, name, string_length(name)
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "Type: ", 6
+    jika (type == SYMBOL_FUNCTION)
+        sistem 1, 1, "FUNCTION\n", 9
+    lain jika (type == SYMBOL_VARIABLE)
+        sistem 1, 1, "VARIABLE\n", 9
+    lain jika (type == SYMBOL_CONSTANT)
+        sistem 1, 1, "CONSTANT\n", 9
+    lain jika (type == SYMBOL_STRUCTURE)
+        sistem 1, 1, "STRUCTURE\n", 10
+    lain
+        sistem 1, 1, "UNKNOWN\n", 8
+    tutup_jika
+    
+    sistem 1, 1, "Address: 0x", 11
+    var addr_str = i64_to_string(address)
+    sistem 1, 1, addr_str, string_length(addr_str)
+    sistem 1, 1, "\n", 1
+    mem_free_safe(addr_str)
+    
+    sistem 1, 1, "Exported: ", 10
+    jika (exported == 1)
+        sistem 1, 1, "YES\n", 4
+    lain
+        sistem 1, 1, "NO\n", 3
+    tutup_jika
+    
+    kembali 0
+tutup_fungsi
+
+fungsi demo_module_inspection() -> i64
+    sistem 1, 1, "=== MODULE INSPECTION DEMO ===\n", 32
+    
+    ; Initialize and load modules
+    module_init()
+    module_load("std")
+    module_load("math")
+    module_load("bitwise")
+    
+    ; List all modules
+    list_all_modules()
+    
+    ; Show specific symbol details
+    var std_module = module_get_info("std")
+    jika (std_module != 0)
+        show_symbol_details(std_module, "string_length")
+        show_symbol_details(std_module, "vector_new")
+    tutup_jika
+    
+    var math_module = module_get_info("math")
+    jika (math_module != 0)
+        show_symbol_details(math_module, "pow")
+        show_symbol_details(math_module, "MATH_PI")
+    tutup_jika
+    
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║      MODULE REGISTRY VIEWER         ║\n"
+    sistem 1, 1, title, 40
+    var subtitle = "║        Debug & Inspection           ║\n"
+    sistem 1, 1, subtitle, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    var result = demo_module_inspection()
+    jika (result != 0)
+        sistem 1, 1, "Demo failed\n", 12
+        kembali 1
+    tutup_jika
+    
+    var success = "\n✅ Module inspection complete!\n"
+    sistem 1, 1, success, 32
+    
+    kembali 0
+tutup_fungsi

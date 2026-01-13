@@ -1,0 +1,280 @@
+; ==============================================================================
+; ENHANCED MODULE SYSTEM TEST
+; ==============================================================================
+
+fungsi test_module_loading() -> i64
+    sistem 1, 1, "Testing module loading...\n", 27
+    
+    ; Initialize module system
+    var init_result = module_init()
+    jika (init_result != 0)
+        sistem 1, 1, "✗ Module init failed\n", 22
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Module system initialized\n", 29
+    
+    ; Test loading std module
+    var std_module = module_load("std")
+    jika (std_module == 0)
+        sistem 1, 1, "✗ Failed to load std module\n", 29
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Loaded std module\n", 21
+    
+    ; Test loading math module
+    var math_module = module_load("math")
+    jika (math_module == 0)
+        sistem 1, 1, "✗ Failed to load math module\n", 30
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Loaded math module\n", 22
+    
+    ; Test loading bitwise module
+    var bitwise_module = module_load("bitwise")
+    jika (bitwise_module == 0)
+        sistem 1, 1, "✗ Failed to load bitwise module\n", 33
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Loaded bitwise module\n", 25
+    
+    ; Test duplicate loading (should return same module)
+    var std_module2 = module_load("std")
+    jika (std_module2 != std_module)
+        sistem 1, 1, "✗ Duplicate loading failed\n", 28
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Duplicate loading works\n", 27
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_symbol_resolution() -> i64
+    sistem 1, 1, "Testing symbol resolution...\n", 30
+    
+    ; Get std module
+    var std_module = module_load("std")
+    jika (std_module == 0)
+        sistem 1, 1, "✗ No std module\n", 17
+        kembali -1
+    tutup_jika
+    
+    ; Test symbol lookup
+    var symbol = module_get_symbol(std_module, "string_length")
+    jika (symbol == 0)
+        sistem 1, 1, "✗ string_length not found\n", 27
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Found string_length\n", 23
+    
+    ; Test symbol properties
+    var symbol_type = mem_load_safe(symbol + 8)
+    jika (symbol_type != SYMBOL_FUNCTION)
+        sistem 1, 1, "✗ Wrong symbol type\n", 21
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Correct symbol type\n", 23
+    
+    ; Test exported flag
+    var exported = mem_load_safe(symbol + 32)
+    jika (exported != 1)
+        sistem 1, 1, "✗ Symbol not exported\n", 23
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Symbol is exported\n", 22
+    
+    ; Test non-existent symbol
+    var bad_symbol = module_get_symbol(std_module, "nonexistent")
+    jika (bad_symbol != 0)
+        sistem 1, 1, "✗ Found non-existent symbol\n", 29
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Non-existent symbol handled\n", 31
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_module_exports() -> i64
+    sistem 1, 1, "Testing module exports...\n", 26
+    
+    ; Get math module
+    var math_module = module_load("math")
+    jika (math_module == 0)
+        sistem 1, 1, "✗ No math module\n", 18
+        kembali -1
+    tutup_jika
+    
+    ; Test exports vector
+    var exports = module_get_exports(math_module)
+    jika (exports == 0)
+        sistem 1, 1, "✗ No exports vector\n", 21
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Exports vector exists\n", 25
+    
+    ; Test export check
+    var is_exported = module_is_symbol_exported(math_module, "pow")
+    jika (is_exported != 1)
+        sistem 1, 1, "✗ pow not exported\n", 20
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ pow is exported\n", 19
+    
+    ; Test multiple symbols
+    var symbols_to_test = vector_new()
+    vector_push(symbols_to_test, "sqrt")
+    vector_push(symbols_to_test, "abs")
+    vector_push(symbols_to_test, "max")
+    
+    var i = 0
+    var count = vector_length(symbols_to_test)
+    selama (i < count)
+        var sym_name = vector_get(symbols_to_test, i)
+        var sym = module_get_symbol(math_module, sym_name)
+        jika (sym == 0)
+            sistem 1, 1, "✗ Symbol not found: ", 21
+            sistem 1, 1, sym_name, string_length(sym_name))
+            sistem 1, 1, "\n", 1
+            vector_free(symbols_to_test)
+            kembali -1
+        tutup_jika
+        i = i + 1
+    tutup_selama
+    
+    vector_free(symbols_to_test)
+    sistem 1, 1, "✓ All math symbols found\n", 26
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_import_system() -> i64
+    sistem 1, 1, "Testing import system...\n", 26
+    
+    ; Initialize import system
+    var import_result = import_init()
+    jika (import_result != 0)
+        sistem 1, 1, "✗ Import init failed\n", 22
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Import system initialized\n", 29
+    
+    ; Test specific symbol import
+    var symbol_import = import_symbol("std", "vector_new")
+    jika (symbol_import != 0)
+        sistem 1, 1, "✗ Symbol import failed\n", 24
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Imported vector_new\n", 23
+    
+    ; Test module alias
+    var alias_result = import_module_as("math", "m")
+    jika (alias_result != 0)
+        sistem 1, 1, "✗ Module alias failed\n", 23
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Created math alias 'm'\n", 26
+    
+    ; Test symbol resolution
+    var resolved = import_resolve_symbol("vector_new")
+    jika (resolved == 0)
+        sistem 1, 1, "✗ Symbol resolution failed\n", 28
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Resolved vector_new\n", 23
+    
+    ; Test qualified access
+    var qualified = import_resolve_symbol("m.pow")
+    jika (qualified == 0)
+        sistem 1, 1, "✗ Qualified access failed\n", 27
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Resolved m.pow\n", 18
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_error_handling() -> i64
+    sistem 1, 1, "Testing error handling...\n", 26
+    
+    ; Test loading non-existent module
+    var bad_module = module_load("nonexistent")
+    jika (bad_module != 0)
+        sistem 1, 1, "✗ Loaded non-existent module\n", 30
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Non-existent module handled\n", 31
+    
+    ; Test null parameter handling
+    var null_result = module_get_symbol(0, "test")
+    jika (null_result != 0)
+        sistem 1, 1, "✗ Null module not handled\n", 27
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Null parameters handled\n", 27
+    
+    ; Test invalid symbol lookup
+    var std_module = module_load("std")
+    var invalid_symbol = module_get_symbol(std_module, 0)
+    jika (invalid_symbol != 0)
+        sistem 1, 1, "✗ Null symbol name not handled\n", 32
+        kembali -1
+    tutup_jika
+    sistem 1, 1, "✓ Invalid symbol handled\n", 26
+    
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    sistem 1, 1, banner, 40
+    var title = "║    ENHANCED MODULE SYSTEM TEST      ║\n"
+    sistem 1, 1, title, 40
+    var version = "║            v2.1.1                   ║\n"
+    sistem 1, 1, version, 40
+    var bottom = "╚══════════════════════════════════════╝\n"
+    sistem 1, 1, bottom, 40
+    
+    ; Run all tests
+    jika (test_module_loading() != 0)
+        sistem 1, 1, "\n❌ Module loading test failed\n", 31
+        kembali 1
+    tutup_jika
+    
+    jika (test_symbol_resolution() != 0)
+        sistem 1, 1, "\n❌ Symbol resolution test failed\n", 34
+        kembali 1
+    tutup_jika
+    
+    jika (test_module_exports() != 0)
+        sistem 1, 1, "\n❌ Module exports test failed\n", 31
+        kembali 1
+    tutup_jika
+    
+    jika (test_import_system() != 0)
+        sistem 1, 1, "\n❌ Import system test failed\n", 30
+        kembali 1
+    tutup_jika
+    
+    jika (test_error_handling() != 0)
+        sistem 1, 1, "\n❌ Error handling test failed\n", 31
+        kembali 1
+    tutup_jika
+    
+    var success = "\n🎉 All module system tests passed!\n"
+    sistem 1, 1, success, 36
+    
+    var stats = "📊 Test Results:\n"
+    sistem 1, 1, stats, 17
+    sistem 1, 1, "   ✓ Module loading\n", 20
+    sistem 1, 1, "   ✓ Symbol resolution\n", 23
+    sistem 1, 1, "   ✓ Export management\n", 23
+    sistem 1, 1, "   ✓ Import system\n", 19
+    sistem 1, 1, "   ✓ Error handling\n", 20
+    
+    var ready = "\n🚀 Module system ready for compiler!\n"
+    sistem 1, 1, ready, 38
+    
+    ; Cleanup
+    import_cleanup()
+    
+    kembali 0
+tutup_fungsi

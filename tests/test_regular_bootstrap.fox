@@ -1,0 +1,7 @@
+; Test regular import dengan bootstrap compiler
+ambil "corelib/lib/std.fox"
+
+fungsi utama() -> i64
+    var version = stdlib_version()
+    kembali version
+tutup_fungsi

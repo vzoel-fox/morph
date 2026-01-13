@@ -1,6 +1,14 @@
-ambil "corelib/lib/memory.fox"
-ambil "corelib/lib/io.fox"
-ambil "corelib/lib/morphroutine.fox"
+ambil "../lib/memory.fox"
+ambil "../lib/io.fox"
+ambil "../lib/morphroutine.fox"
+ambil "../lib/string.fox"
+ambil "../lib/vector.fox"
+ambil "../lib/hashmap.fox"
+ambil "../lib/math.fox"
+ambil "../lib/bitwise.fox"
+ambil "../lib/fixed_point.fox"
+ambil "../lib/module.fox"
+ambil "../lib/import.fox"
 
 ; ==============================================================================
 ; STANDARD LIBRARY - MAIN MODULE
@@ -18,10 +26,43 @@ ambil "corelib/lib/morphroutine.fox"
 ; - mr_spawn, mr_yield, mr_resume, mr_current, mr_destroy
 ; - mr_sleep, mr_now, mr_schedule
 
+; String operations
+; - string_length, string_equals, string_copy, string_concat
+; - string_substring, string_find_char, i64_to_string, string_to_i64
+
+; Vector (dynamic array)
+; - vector_new, vector_push, vector_get, vector_set, vector_length, vector_free
+
+; HashMap (hash table)
+; - hashmap_new, hashmap_insert, hashmap_get, hashmap_has, hashmap_free
+
+; Advanced Mathematics
+; - add_safe, mul_safe, abs, max, min, pow, sqrt
+; - gcd, lcm, factorial, fibonacci, is_prime, mod_pow
+; - lerp, clamp
+
+; Bitwise Operations & Crypto
+; - bit_and, bit_or, bit_xor, bit_not, bit_shl, bit_shr
+; - popcount, clz, ctz, bit_reverse, is_power_of_2
+; - hash_djb2, hash_fnv1a, crc32_simple, random, random_range
+
+; Fixed Point Arithmetic (Q16.16)
+; - fixed_from_int, fixed_to_int, fixed_make
+; - fixed_add, fixed_sub, fixed_mul, fixed_div, fixed_sqrt
+; - fixed_sin, fixed_cos, fixed_abs, fixed_floor, fixed_ceil
+
+; Module System
+; - module_init, module_load, module_add_symbol, module_get_symbol
+; - module_import, module_is_loaded, module_cleanup
+
+; Import System  
+; - import_init, import_module, import_symbol, import_module_as
+; - import_resolve_symbol, import_parse_statement, import_cleanup
+
 ; Version info
-const STDLIB_VERSION_MAJOR = 1
-const STDLIB_VERSION_MINOR = 0
-const STDLIB_VERSION_PATCH = 0
+const STDLIB_VERSION_MAJOR = 2
+const STDLIB_VERSION_MINOR = 1
+const STDLIB_VERSION_PATCH = 1
 
 fungsi stdlib_version() -> i64
   var major = STDLIB_VERSION_MAJOR * 10000

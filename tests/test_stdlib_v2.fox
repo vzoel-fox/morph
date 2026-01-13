@@ -1,0 +1,194 @@
+ambil "../corelib/lib/std.fox"
+
+; ==============================================================================
+; STDLIB TEST - String, Vector, HashMap
+; ==============================================================================
+
+fungsi test_string_ops() -> i64
+    var msg = "Testing string operations...\n"
+    print(msg, 30)
+    
+    ; Test string_length
+    var hello = "Hello"
+    var len = string_length(hello)
+    jika (len != 5)
+        var err = "ERROR: string_length failed\n"
+        print(err, 29)
+        kembali -1
+    tutup_jika
+    
+    ; Test string_equals
+    var world = "World"
+    var hello2 = "Hello"
+    jika (string_equals(hello, hello2) != 1)
+        var err = "ERROR: string_equals failed\n"
+        print(err, 30)
+        kembali -1
+    tutup_jika
+    
+    ; Test string_concat
+    var space = " "
+    var hello_space = string_concat(hello, space)
+    var hello_world = string_concat(hello_space, world)
+    
+    jika (string_length(hello_world) != 11)
+        var err = "ERROR: string_concat failed\n"
+        print(err, 30)
+        kembali -1
+    tutup_jika
+    
+    ; Test i64_to_string
+    var num_str = i64_to_string(42)
+    jika (string_equals(num_str, "42") != 1)
+        var err = "ERROR: i64_to_string failed\n"
+        print(err, 30)
+        kembali -1
+    tutup_jika
+    
+    ; Test string_to_i64
+    var num = string_to_i64("123")
+    jika (num != 123)
+        var err = "ERROR: string_to_i64 failed\n"
+        print(err, 30)
+        kembali -1
+    tutup_jika
+    
+    var ok = "✓ String operations passed\n"
+    print(ok, 27)
+    
+    ; Cleanup
+    mem_free_safe(hello_space)
+    mem_free_safe(hello_world)
+    mem_free_safe(num_str)
+    
+    kembali 0
+tutup_fungsi
+
+fungsi test_vector_ops() -> i64
+    var msg = "Testing vector operations...\n"
+    print(msg, 29)
+    
+    ; Create vector
+    var v = vector_new()
+    jika (v == 0)
+        var err = "ERROR: vector_new failed\n"
+        print(err, 26)
+        kembali -1
+    tutup_jika
+    
+    ; Test push and length
+    vector_push(v, 10)
+    vector_push(v, 20)
+    vector_push(v, 30)
+    
+    var len = vector_length(v)
+    jika (len != 3)
+        var err = "ERROR: vector length failed\n"
+        print(err, 30)
+        kembali -1
+    tutup_jika
+    
+    ; Test get
+    var val = vector_get(v, 1)
+    jika (val != 20)
+        var err = "ERROR: vector_get failed\n"
+        print(err, 27)
+        kembali -1
+    tutup_jika
+    
+    ; Test set
+    vector_set(v, 1, 25)
+    val = vector_get(v, 1)
+    jika (val != 25)
+        var err = "ERROR: vector_set failed\n"
+        print(err, 27)
+        kembali -1
+    tutup_jika
+    
+    var ok = "✓ Vector operations passed\n"
+    print(ok, 27)
+    
+    vector_free(v)
+    kembali 0
+tutup_fungsi
+
+fungsi test_hashmap_ops() -> i64
+    var msg = "Testing hashmap operations...\n"
+    print(msg, 30)
+    
+    ; Create hashmap
+    var h = hashmap_new()
+    jika (h == 0)
+        var err = "ERROR: hashmap_new failed\n"
+        print(err, 27)
+        kembali -1
+    tutup_jika
+    
+    ; Test insert and get
+    var key1 = "name"
+    var key2 = "age"
+    
+    hashmap_insert(h, key1, 100)
+    hashmap_insert(h, key2, 25)
+    
+    var val1 = hashmap_get(h, key1)
+    jika (val1 != 100)
+        var err = "ERROR: hashmap_get failed\n"
+        print(err, 28)
+        kembali -1
+    tutup_jika
+    
+    ; Test has
+    jika (hashmap_has(h, key1) != 1)
+        var err = "ERROR: hashmap_has failed\n"
+        print(err, 28)
+        kembali -1
+    tutup_jika
+    
+    jika (hashmap_has(h, "nonexistent") != 0)
+        var err = "ERROR: hashmap_has false positive\n"
+        print(err, 36)
+        kembali -1
+    tutup_jika
+    
+    var ok = "✓ HashMap operations passed\n"
+    print(ok, 28)
+    
+    hashmap_free(h)
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    var banner = "╔══════════════════════════════════════╗\n"
+    print(banner, 40)
+    var title = "║        STDLIB TEST SUITE v2.0       ║\n"
+    print(title, 40)
+    var bottom = "╚══════════════════════════════════════╝\n"
+    print(bottom, 40)
+    
+    ; Check stdlib version
+    var version = stdlib_version()
+    jika (version < 20000)
+        var err = "ERROR: Stdlib version too old\n"
+        print(err, 31)
+        kembali 1
+    tutup_jika
+    
+    var version_msg = "Stdlib version: "
+    print(version_msg, 16)
+    var version_str = i64_to_string(version)
+    print(version_str, string_length(version_str))
+    var newline = "\n\n"
+    print(newline, 2)
+    
+    ; Run tests
+    jika (test_string_ops() != 0) kembali 1 tutup_jika
+    jika (test_vector_ops() != 0) kembali 1 tutup_jika
+    jika (test_hashmap_ops() != 0) kembali 1 tutup_jika
+    
+    var success = "\n🎉 All tests passed! Stdlib ready for self-hosting.\n"
+    print(success, 53)
+    
+    mem_free_safe(version_str)
+    kembali 0
+tutup_fungsi

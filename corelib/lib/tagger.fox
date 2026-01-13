@@ -1,0 +1,222 @@
+; ==============================================================================
+; TAGGER SYSTEM - Path Indexing for Self-Host Compiler
+; ==============================================================================
+; Seperti __init__.py tapi untuk MorphFox
+; Mengindeks semua path dan memberikan ID untuk setiap symbol
+
+struktur TagEntry {
+    id: i64,            ; Symbol ID (1, 2, 3, ...)
+    name: ptr,          ; Symbol name ("string_length", "pow", etc)
+    path: ptr,          ; File path ("corelib/lib/string.fox")
+    module: ptr,        ; Module name ("std", "math", etc)
+    type: i64           ; Symbol type (function, constant, etc)
+}
+
+; Global tag registry
+var tag_registry = 0       ; HashMap: ID -> TagEntry
+var tag_name_index = 0     ; HashMap: name -> ID
+var tag_next_id = 1        ; Next available ID
+
+; Initialize tagger system
+fungsi tagger_init() -> i64
+    jika (tag_registry != 0) kembali 0 tutup_jika
+    
+    tag_registry = hashmap_new()
+    jika (tag_registry == 0) kembali -1 tutup_jika
+    
+    tag_name_index = hashmap_new()
+    jika (tag_name_index == 0)
+        hashmap_free(tag_registry)
+        tag_registry = 0
+        kembali -1
+    tutup_jika
+    
+    ; Pre-populate with core symbols
+    tagger_populate_core_symbols()
+    
+    kembali 0
+tutup_fungsi
+
+; Add symbol to tag registry
+fungsi tagger_add_symbol(name: ptr, path: ptr, module: ptr, type: i64) -> i64
+    jika (tag_registry == 0) tagger_init() tutup_jika
+    
+    ; Check if symbol already exists
+    jika (hashmap_has(tag_name_index, name) == 1)
+        kembali hashmap_get(tag_name_index, name)  ; Return existing ID
+    tutup_jika
+    
+    ; Create new tag entry
+    var entry = mem_alloc_safe(40)  ; sizeof(TagEntry)
+    jika (entry == 0) kembali -1 tutup_jika
+    
+    ; Copy strings
+    var name_copy = mem_alloc_safe(string_length(name) + 1)
+    var path_copy = mem_alloc_safe(string_length(path) + 1)
+    var module_copy = mem_alloc_safe(string_length(module) + 1)
+    
+    jika (name_copy == 0 atau path_copy == 0 atau module_copy == 0)
+        jika (name_copy != 0) mem_free_safe(name_copy) tutup_jika
+        jika (path_copy != 0) mem_free_safe(path_copy) tutup_jika
+        jika (module_copy != 0) mem_free_safe(module_copy) tutup_jika
+        mem_free_safe(entry)
+        kembali -1
+    tutup_jika
+    
+    string_copy(name_copy, name)
+    string_copy(path_copy, path)
+    string_copy(module_copy, module)
+    
+    ; Initialize entry
+    var current_id = tag_next_id
+    mem_store_safe(entry + 0, current_id)     ; id
+    mem_store_safe(entry + 8, name_copy)      ; name
+    mem_store_safe(entry + 16, path_copy)     ; path
+    mem_store_safe(entry + 24, module_copy)   ; module
+    mem_store_safe(entry + 32, type)          ; type
+    
+    ; Add to registries
+    hashmap_insert(tag_registry, current_id, entry)
+    hashmap_insert(tag_name_index, name, current_id)
+    
+    tag_next_id = tag_next_id + 1
+    kembali current_id
+tutup_fungsi
+
+; Get symbol by ID
+fungsi tagger_get_by_id(id: i64) -> ptr
+    jika (tag_registry == 0) kembali 0 tutup_jika
+    
+    jika (hashmap_has(tag_registry, id) == 0) kembali 0 tutup_jika
+    kembali hashmap_get(tag_registry, id)
+tutup_fungsi
+
+; Get ID by symbol name
+fungsi tagger_get_id(name: ptr) -> i64
+    jika (tag_name_index == 0) kembali 0 tutup_jika
+    
+    jika (hashmap_has(tag_name_index, name) == 0) kembali 0 tutup_jika
+    kembali hashmap_get(tag_name_index, name)
+tutup_fungsi
+
+; Populate core symbols (like __init__.py)
+fungsi tagger_populate_core_symbols() -> void
+    ; String operations (IDs 1-8)
+    tagger_add_symbol("string_length", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_equals", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_copy", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_concat", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_substring", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_find_char", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("i64_to_string", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("string_to_i64", "corelib/lib/string.fox", "std", SYMBOL_FUNCTION)
+    
+    ; Vector operations (IDs 9-14)
+    tagger_add_symbol("vector_new", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("vector_push", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("vector_get", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("vector_set", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("vector_length", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("vector_free", "corelib/lib/vector.fox", "std", SYMBOL_FUNCTION)
+    
+    ; HashMap operations (IDs 15-19)
+    tagger_add_symbol("hashmap_new", "corelib/lib/hashmap.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("hashmap_insert", "corelib/lib/hashmap.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("hashmap_get", "corelib/lib/hashmap.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("hashmap_has", "corelib/lib/hashmap.fox", "std", SYMBOL_FUNCTION)
+    tagger_add_symbol("hashmap_free", "corelib/lib/hashmap.fox", "std", SYMBOL_FUNCTION)
+    
+    ; Math operations (IDs 20-35)
+    tagger_add_symbol("pow", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("sqrt", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("abs", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("max", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("min", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("gcd", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("lcm", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("factorial", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("fibonacci", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("is_prime", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("mod_pow", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("lerp", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("clamp", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("add_safe", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("mul_safe", "corelib/lib/math.fox", "math", SYMBOL_FUNCTION)
+    tagger_add_symbol("MATH_PI", "corelib/lib/math.fox", "math", SYMBOL_CONSTANT)
+    
+    ; Bitwise operations (IDs 36-50)
+    tagger_add_symbol("bit_and", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_or", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_xor", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_not", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_shl", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_shr", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("popcount", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("clz", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("ctz", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("bit_reverse", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("is_power_of_2", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("next_power_of_2", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("hash_djb2", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("hash_fnv1a", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+    tagger_add_symbol("random", "corelib/lib/bitwise.fox", "bitwise", SYMBOL_FUNCTION)
+tutup_fungsi
+
+; Generate tagger.fox file (like __init__.py)
+fungsi tagger_generate_file(output_path: ptr) -> i64
+    ; This would generate a file like:
+    ; ambil "corelib/lib/string.fox"
+    ; ambil "corelib/lib/vector.fox"
+    ; ambil "corelib/lib/hashmap.fox"
+    ; ambil "corelib/lib/math.fox"
+    ; ambil "corelib/lib/bitwise.fox"
+    
+    ; For now, just return success
+    kembali 0
+tutup_fungsi
+
+; Resolve Ambil ID to symbol info
+fungsi tagger_resolve_ambil(id: i64) -> ptr
+    kembali tagger_get_by_id(id)
+tutup_fungsi
+
+; Print tag registry (debug)
+fungsi tagger_print_registry() -> void
+    sistem 1, 1, "=== TAG REGISTRY ===\n", 21
+    
+    var i = 1
+    selama (i < tag_next_id)
+        var entry = tagger_get_by_id(i)
+        jika (entry != 0)
+            var name = mem_load_safe(entry + 8)
+            var module = mem_load_safe(entry + 24)
+            
+            sistem 1, 1, "ID ", 3
+            var id_str = i64_to_string(i)
+            sistem 1, 1, id_str, string_length(id_str)
+            sistem 1, 1, ": ", 2
+            sistem 1, 1, module, string_length(module)
+            sistem 1, 1, ".", 1
+            sistem 1, 1, name, string_length(name)
+            sistem 1, 1, "\n", 1
+            
+            mem_free_safe(id_str)
+        tutup_jika
+        i = i + 1
+    tutup_selama
+tutup_fungsi
+
+; Cleanup tagger system
+fungsi tagger_cleanup() -> void
+    jika (tag_registry != 0)
+        hashmap_free(tag_registry)
+        tag_registry = 0
+    tutup_jika
+    
+    jika (tag_name_index != 0)
+        hashmap_free(tag_name_index)
+        tag_name_index = 0
+    tutup_jika
+    
+    tag_next_id = 1
+tutup_fungsi

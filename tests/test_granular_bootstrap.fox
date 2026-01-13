@@ -1,0 +1,8 @@
+; Test granular import dengan bootstrap compiler
+ambil "corelib/lib/std.fox" : string_length
+
+fungsi utama() -> i64
+    var text = "Hello"
+    var len = string_length(text)
+    kembali len
+tutup_fungsi

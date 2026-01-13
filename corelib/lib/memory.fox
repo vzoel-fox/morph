@@ -61,3 +61,35 @@ fungsi mem_compare(ptr1: ptr, ptr2: ptr, size: i64) -> i64
   tutup_selama
   kembali 0
 tutup_fungsi
+
+; Safe byte load (wrapper untuk __mf_load_byte)
+fungsi mem_load_byte_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_byte(addr)
+tutup_fungsi
+
+; Safe byte store (wrapper untuk __mf_poke_byte)
+fungsi mem_store_byte_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_byte(addr, value)
+tutup_fungsi
+
+; Safe i64 load (wrapper untuk __mf_load_i64)
+fungsi mem_load_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(addr)
+tutup_fungsi
+
+; Safe i64 store (wrapper untuk __mf_poke_i64)
+fungsi mem_store_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_i64(addr, value)
+tutup_fungsi

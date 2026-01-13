@@ -1,0 +1,47 @@
+; Test stdlib components individually
+fungsi test_memory() -> i64
+    ; Test memory allocation
+    var ptr = mem_alloc_safe(100)
+    jika (ptr == 0) kembali -1 tutup_jika
+    
+    ; Test memory store/load
+    mem_store_safe(ptr, 42)
+    var val = mem_load_safe(ptr)
+    jika (val != 42) kembali -2 tutup_jika
+    
+    mem_free_safe(ptr)
+    kembali 0
+tutup_fungsi
+
+fungsi test_string_basic() -> i64
+    ; Test string length calculation
+    var hello = "Hello"
+    var len = 0
+    
+    ; Manual string length
+    selama (mem_load_byte_safe(hello + len) != 0)
+        len = len + 1
+    tutup_selama
+    
+    jika (len != 5) kembali -1 tutup_jika
+    kembali 0
+tutup_fungsi
+
+fungsi utama() -> i64
+    ; Test memory operations
+    var mem_result = test_memory()
+    jika (mem_result != 0)
+        sistem 1, 1, "Memory test failed\n", 19
+        kembali 1
+    tutup_jika
+    
+    ; Test string operations
+    var str_result = test_string_basic()
+    jika (str_result != 0)
+        sistem 1, 1, "String test failed\n", 19
+        kembali 1
+    tutup_jika
+    
+    sistem 1, 1, "✓ All basic tests passed\n", 26
+    kembali 0
+tutup_fungsi
