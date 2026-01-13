@@ -1,12 +1,18 @@
-# Morph - Self-Hosting Compiler for MorphFox Language
+# MorphFox Programming Language
 
-[![Bootstrap Status](https://img.shields.io/badge/bootstrap-v1.2-green)](https://github.com/VzoelFox/morphfox/releases/tag/v1.2-bootstrap)
-[![Language](https://img.shields.io/badge/language-Morph-ff6b35)](https://github.com/VzoelFox/morphfox)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20WASM-lightgrey)]()
-[![GitHub Linguist](https://img.shields.io/badge/GitHub%20Linguist-Morph-ff6b35)]()
-[![Syntax Highlighting](https://img.shields.io/badge/syntax-supported-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-v1.4-blue)](https://github.com/vzoel-fox/morph/releases)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20WASM-lightgrey)]()
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Morph** adalah compiler self-hosting untuk bahasa pemrograman **MorphFox**. Repository ini berisi binary compiler yang di-bootstrap dari Assembly dan akan menjadi foundation untuk compiler yang ditulis dalam MorphFox sendiri.
+A high-performance systems programming language with RPN-based runtime, custom memory management, and lightweight concurrency.
+
+## 🚀 Quick Install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/vzoel-fox/morph/main/install.sh | bash
+```
+
+## ✨ Features
 
 ## 🎯 Visi: Path to Self-Hosting
 
