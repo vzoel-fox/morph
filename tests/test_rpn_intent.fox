@@ -1,0 +1,69 @@
+ambil "../src/rpn_intent_system.fox"
+
+utama {
+    sistem 1, 1, "Testing RPN + Intent Tree System\n", 33
+    
+    ; Test Intent node creation
+    var literal_node = intent_node_new(0x3001)  ; INTENT_FRAG_LITERAL
+    __mf_poke_i64(literal_node + INTENT_DATA_A, 42)
+    
+    sistem 1, 1, "Created literal intent node\n", 28
+    
+    ; Test RPN context
+    var ctx = rpn_intent_new()
+    jika ctx != 0
+        sistem 1, 1, "RPN+Intent context created\n", 27
+    tutup_jika
+    
+    ; Test RPN emission
+    rpn_emit(ctx, 1, 42)  ; OP_LIT 42
+    rpn_emit(ctx, 1, 10)  ; OP_LIT 10
+    rpn_emit(ctx, 10, 0)  ; OP_ADD
+    
+    var instructions = __mf_load_i64(ctx + RPN_INTENT_INSTRUCTIONS)
+    var count = vector_length(instructions)
+    
+    sistem 1, 1, "Emitted ", 8
+    print_number_simple(count)
+    sistem 1, 1, " RPN instructions\n", 18
+    
+    ; Test stack depth tracking
+    var depth = __mf_load_i64(ctx + RPN_INTENT_STACK_DEPTH)
+    sistem 1, 1, "Stack depth: ", 13
+    print_number_simple(depth)
+    sistem 1, 1, "\n", 1
+    
+    ; Test Intent to RPN conversion
+    var binary_node = intent_node_new(0x3002)  ; INTENT_FRAG_BINARY
+    __mf_poke_i64(binary_node + INTENT_DATA_A, 43)  ; '+' operator
+    
+    var left_literal = intent_node_new(0x3001)
+    __mf_poke_i64(left_literal + INTENT_DATA_A, 5)
+    
+    var right_literal = intent_node_new(0x3001)
+    __mf_poke_i64(right_literal + INTENT_DATA_A, 3)
+    
+    ; Link nodes: binary -> left -> right
+    __mf_poke_i64(binary_node + INTENT_CHILD, left_literal)
+    __mf_poke_i64(left_literal + INTENT_NEXT, right_literal)
+    
+    ; Convert to RPN
+    var ctx2 = rpn_intent_new()
+    intent_to_rpn(ctx2, binary_node)
+    
+    var instructions2 = __mf_load_i64(ctx2 + RPN_INTENT_INSTRUCTIONS)
+    var count2 = vector_length(instructions2)
+    
+    sistem 1, 1, "Intent->RPN generated ", 21
+    print_number_simple(count2)
+    sistem 1, 1, " instructions\n", 14
+    
+    ; Test string hashing
+    var hash = string_hash_simple("test_var")
+    sistem 1, 1, "String hash: ", 13
+    print_number_simple(hash)
+    sistem 1, 1, "\n", 1
+    
+    sistem 1, 1, "RPN + Intent Tree tests completed!\n", 35
+    kembali 0
+}

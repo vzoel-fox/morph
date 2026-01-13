@@ -1,0 +1,84 @@
+; Main compiler with RPN + Intent Tree system
+ambil "../corelib/lib/std.fox"
+ambil "file_extensions.fox"
+ambil "parser.fox"
+ambil "rpn_intent_system.fox"
+
+utama {
+    sistem 1, 1, "MorphFox Self-Hosting Compiler v1.4\n", 36
+    sistem 1, 1, "RPN + Intent Tree (AST SSA) System\n", 35
+    
+    ; Test simple AST to Intent to RPN pipeline
+    sistem 1, 1, "Testing compilation pipeline...\n", 32
+    
+    ; Create simple AST: literal 42
+    var ast_literal = ast_new(AST_LITERAL)
+    __mf_poke_i64(ast_literal + AST_DATA1, 42)
+    
+    sistem 1, 1, "Created AST literal node\n", 25
+    
+    ; Convert AST to Intent Tree
+    var intent_tree = ast_to_intent(ast_literal)
+    jika intent_tree != 0
+        sistem 1, 1, "AST -> Intent Tree conversion OK\n", 33
+        
+        ; Print Intent Tree
+        sistem 1, 1, "Intent Tree structure:\n", 23
+        intent_print_tree(intent_tree, 0)
+    tutup_jika
+    
+    ; Complete compilation pipeline
+    var rpn_ctx = compile_ast_to_rpn(ast_literal)
+    jika rpn_ctx != 0
+        sistem 1, 1, "Complete AST -> Intent -> RPN pipeline OK\n", 42
+        
+        var instructions = __mf_load_i64(rpn_ctx + RPN_INTENT_INSTRUCTIONS)
+        var count = vector_length(instructions)
+        
+        sistem 1, 1, "Generated ", 10
+        print_number_simple(count)
+        sistem 1, 1, " RPN instructions\n", 18
+        
+        ; Test writing to .morph file
+        var output_file = "test_output.morph"
+        var result = rpn_write_morph_file(rpn_ctx, output_file)
+        jika result == 1
+            sistem 1, 1, "Successfully wrote stripe-protected .morph file\n", 48
+        tutup_jika
+    tutup_jika
+    
+    ; Test more complex AST: binary operation (5 + 3)
+    sistem 1, 1, "\nTesting binary operation (5 + 3)...\n", 37
+    
+    var ast_binary = ast_new(AST_BINARY)
+    __mf_poke_i64(ast_binary + AST_DATA1, 43)  ; '+' operator
+    
+    var children = vector_new()
+    
+    var left_literal = ast_new(AST_LITERAL)
+    __mf_poke_i64(left_literal + AST_DATA1, 5)
+    vector_push(children, left_literal)
+    
+    var right_literal = ast_new(AST_LITERAL)
+    __mf_poke_i64(right_literal + AST_DATA1, 3)
+    vector_push(children, right_literal)
+    
+    __mf_poke_i64(ast_binary + AST_CHILDREN, children)
+    
+    ; Compile binary operation
+    var rpn_ctx2 = compile_ast_to_rpn(ast_binary)
+    jika rpn_ctx2 != 0
+        var instructions2 = __mf_load_i64(rpn_ctx2 + RPN_INTENT_INSTRUCTIONS)
+        var count2 = vector_length(instructions2)
+        
+        sistem 1, 1, "Binary operation generated ", 26
+        print_number_simple(count2)
+        sistem 1, 1, " instructions\n", 14
+        
+        ; Print expected: LIT 5, LIT 3, ADD
+        sistem 1, 1, "Expected: LIT 5, LIT 3, ADD\n", 29
+    tutup_jika
+    
+    sistem 1, 1, "\nRPN + Intent Tree compilation successful!\n", 42
+    kembali 0
+}

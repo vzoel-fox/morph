@@ -1,10 +1,11 @@
 ; ==============================================================================
 ; CODEGEN - MorphFox Self-Hosting Compiler
 ; ==============================================================================
-; Code generator: AST -> RPN instructions
+; Code generator: AST -> Intent Tree -> RPN instructions -> .morph
 
 ambil "corelib/core/parser.fox"
 ambil "stripe_protection.fox"
+ambil "rpn_intent_system.fox"
 
 const OP_LIT = 1
 const OP_LOAD = 2
@@ -90,100 +91,65 @@ fungsi codegen_generate(gen: ptr, ast: ptr) -> i64
     kembali 0
   tutup_jika
   
-  var type = ast_type(ast)
-  jika type == AST_PROGRAM
-    ; Generate code for program
-    var children = __mf_load_i64(ast + AST_CHILDREN)
-    jika children != 0
-      var len = vector_length(children)
-      var i = 0
-      selama i < len
-        var child = vector_get(children, i)
-        codegen_generate(gen, child)
-        i = i + 1
-      tutup_selama
-    tutup_jika
-    kembali 1
+  ; Use RPN + Intent system for compilation
+  var rpn_ctx = compile_ast_to_rpn(ast)
+  jika rpn_ctx == 0
+    kembali 0
   tutup_jika
   
-  jika type == AST_FUNCTION
-    ; Generate function code
-    codegen_emit(gen, OP_LABEL, 0)  ; Function start
-    var children = __mf_load_i64(ast + AST_CHILDREN)
-    jika children != 0
-      var body = vector_get(children, 0)
-      codegen_generate(gen, body)
-    tutup_jika
-    codegen_emit(gen, OP_RET, 0)
-    kembali 1
-  tutup_jika
+  ; Copy RPN instructions to codegen context
+  var instructions = __mf_load_i64(rpn_ctx + RPN_INTENT_INSTRUCTIONS)
+  var count = vector_length(instructions)
   
-  jika type == AST_LITERAL
-    var value = __mf_load_i64(ast + AST_DATA1)
-    codegen_emit(gen, OP_LIT, value)
-    kembali 1
-  tutup_jika
+  ; Update codegen with RPN instructions
+  __mf_poke_i64(gen + GEN_LEN, count)
   
-  jika type == AST_BINARY
-    ; Generate left operand
-    var children = __mf_load_i64(ast + AST_CHILDREN)
-    jika children != 0
-      var left = vector_get(children, 0)
-      var right = vector_get(children, 1)
-      codegen_generate(gen, left)
-      codegen_generate(gen, right)
-      
-      var op = __mf_load_i64(ast + AST_DATA1)
-      jika op == 43  ; '+'
-        codegen_emit(gen, OP_ADD, 0)
-      lain
-        jika op == 45  ; '-'
-          codegen_emit(gen, OP_SUB, 0)
-        tutup_jika
-      tutup_jika
-    tutup_jika
-    kembali 1
-  tutup_jika
+  ; Copy instruction data
+  var code = __mf_load_i64(gen + GEN_CODE)
+  var i = 0
+  selama i < count
+    var instr = vector_get(instructions, i)
+    var offset = i * INSTR_SIZE
+    
+    ; Copy RPN instruction to codegen buffer
+    var opcode = __mf_load_i64(instr + RPN_OPCODE)
+    var operand = __mf_load_i64(instr + RPN_OPERAND)
+    
+    __mf_poke_i64(code + offset + INSTR_OP, opcode)
+    __mf_poke_i64(code + offset + INSTR_ARG, operand)
+    
+    i = i + 1
+  tutup_selama
   
   kembali 1
 tutup_fungsi
 
 fungsi codegen_write_morph_file(gen: ptr, filename: ptr) -> i64
-  ; Create output file
-  var fd = sistem 2, filename, 577, 420  ; open(filename, O_CREAT|O_WRONLY|O_TRUNC, 0644)
-  jika fd < 0
-    kembali 0
-  tutup_jika
+  ; Use RPN system for stripe-protected output
+  var rpn_ctx = rpn_intent_new()
   
-  ; Write MORPH header with stripe protection
-  var header = "MORPHFX1"  ; Updated header
-  sistem 1, fd, header, 8
-  
-  ; Write version (1)
-  var version = 1
-  sistem 1, fd, version, 8
-  
-  ; Get instruction data
+  ; Copy instructions from codegen to RPN context
   var code = __mf_load_i64(gen + GEN_CODE)
   var len = __mf_load_i64(gen + GEN_LEN)
-  var data_size = len * INSTR_SIZE
+  var instructions = __mf_load_i64(rpn_ctx + RPN_INTENT_INSTRUCTIONS)
   
-  ; Apply stripe protection to instructions
-  var protected_code = stripe_protect_assembly(code, data_size)
-  jika protected_code == 0
-    sistem 3, fd
-    kembali 0
-  tutup_jika
+  var i = 0
+  selama i < len
+    var offset = i * INSTR_SIZE
+    var opcode = __mf_load_i64(code + offset + INSTR_OP)
+    var operand = __mf_load_i64(code + offset + INSTR_ARG)
+    
+    ; Create RPN instruction
+    var instr = __mf_mem_alloc(RPN_SIZE)
+    __mf_poke_i64(instr + RPN_OPCODE, opcode)
+    __mf_poke_i64(instr + RPN_OPERAND, operand)
+    
+    vector_push(instructions, instr)
+    i = i + 1
+  tutup_selama
   
-  ; Write protected instruction count
-  sistem 1, fd, len, 8
-  
-  ; Write stripe-protected instructions
-  sistem 1, fd, protected_code, data_size + 16  ; +16 for protection header
-  
-  ; Close file
-  sistem 3, fd
-  kembali 1
+  ; Write using RPN system with stripe protection
+  kembali rpn_write_morph_file(rpn_ctx, filename)
 tutup_fungsi
     var left = __mf_load_i64(node + AST_DATA2)
     var right = __mf_load_i64(node + AST_DATA3)

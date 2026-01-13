@@ -1,0 +1,389 @@
+; ==============================================================================
+; RPN + INTENT TREE - Integrated AST SSA System
+; ==============================================================================
+; Combines Intent Tree (AST) with RPN (Stack-based IR) for optimal compilation
+
+ambil "../corelib/core/intent.fox"
+ambil "../corelib/core/rpn.fox"
+ambil "../corelib/lib/vector.fox"
+ambil "../corelib/lib/hashmap.fox"
+ambil "stripe_protection.fox"
+
+; RPN Instruction Structure (16 bytes)
+const RPN_OPCODE = 0
+const RPN_OPERAND = 8
+const RPN_SIZE = 16
+
+; Intent Tree Node Structure (48 bytes)
+const INTENT_TYPE = 0
+const INTENT_NEXT = 8
+const INTENT_CHILD = 16
+const INTENT_HINT = 24
+const INTENT_DATA_A = 32
+const INTENT_DATA_B = 40
+const INTENT_SIZE = 48
+
+; RPN + Intent Integration Context
+const RPN_INTENT_INSTRUCTIONS = 0
+const RPN_INTENT_TREE = 8
+const RPN_INTENT_SYMBOLS = 16
+const RPN_INTENT_STACK_DEPTH = 24
+const RPN_INTENT_CONTEXT_SIZE = 32
+
+fungsi rpn_intent_new() -> ptr
+  var ctx = __mf_mem_alloc(RPN_INTENT_CONTEXT_SIZE)
+  __mf_poke_i64(ctx + RPN_INTENT_INSTRUCTIONS, vector_new())
+  __mf_poke_i64(ctx + RPN_INTENT_TREE, 0)
+  __mf_poke_i64(ctx + RPN_INTENT_SYMBOLS, hashmap_new())
+  __mf_poke_i64(ctx + RPN_INTENT_STACK_DEPTH, 0)
+  kembali ctx
+tutup_fungsi
+
+fungsi intent_node_new(type: i64) -> ptr
+  var node = __mf_mem_alloc(INTENT_SIZE)
+  __mf_poke_i64(node + INTENT_TYPE, type)
+  __mf_poke_i64(node + INTENT_NEXT, 0)
+  __mf_poke_i64(node + INTENT_CHILD, 0)
+  __mf_poke_i64(node + INTENT_HINT, 0)
+  __mf_poke_i64(node + INTENT_DATA_A, 0)
+  __mf_poke_i64(node + INTENT_DATA_B, 0)
+  kembali node
+tutup_fungsi
+
+fungsi rpn_emit(ctx: ptr, opcode: i64, operand: i64) -> i64
+  var instructions = __mf_load_i64(ctx + RPN_INTENT_INSTRUCTIONS)
+  
+  ; Create RPN instruction
+  var instr = __mf_mem_alloc(RPN_SIZE)
+  __mf_poke_i64(instr + RPN_OPCODE, opcode)
+  __mf_poke_i64(instr + RPN_OPERAND, operand)
+  
+  ; Add to instruction vector
+  vector_push(instructions, instr)
+  
+  ; Update stack depth tracking
+  var depth = __mf_load_i64(ctx + RPN_INTENT_STACK_DEPTH)
+  jika opcode == 1  ; OP_LIT
+    depth = depth + 1
+  lain
+    jika opcode == 2  ; OP_LOAD
+      depth = depth + 1
+    lain
+      jika opcode == 3  ; OP_STORE
+        depth = depth - 1
+      lain
+        jika opcode == 10  ; OP_ADD
+          depth = depth - 1  ; Pop 2, push 1
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  __mf_poke_i64(ctx + RPN_INTENT_STACK_DEPTH, depth)
+  
+  kembali vector_length(instructions)
+tutup_fungsi
+
+; Convert Intent Tree to RPN instructions
+fungsi intent_to_rpn(ctx: ptr, intent_node: ptr) -> i64
+  jika intent_node == 0
+    kembali 0
+  tutup_jika
+  
+  var type = __mf_load_i64(intent_node + INTENT_TYPE)
+  
+  ; Handle different intent types
+  jika type == 0x3001  ; INTENT_FRAG_LITERAL
+    var value = __mf_load_i64(intent_node + INTENT_DATA_A)
+    rpn_emit(ctx, 1, value)  ; OP_LIT
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3005  ; INTENT_FRAG_VAR
+    var var_hash = __mf_load_i64(intent_node + INTENT_DATA_A)
+    rpn_emit(ctx, 2, var_hash)  ; OP_LOAD
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3006  ; INTENT_FRAG_ASSIGN
+    ; Process right side first (value)
+    var child = __mf_load_i64(intent_node + INTENT_CHILD)
+    jika child != 0
+      intent_to_rpn(ctx, child)
+    tutup_jika
+    
+    ; Store to variable
+    var var_hash = __mf_load_i64(intent_node + INTENT_DATA_A)
+    rpn_emit(ctx, 3, var_hash)  ; OP_STORE
+    kembali 1
+  tutup_jika
+  
+  jika type == 0x3002  ; INTENT_FRAG_BINARY
+    ; Process left operand
+    var left = __mf_load_i64(intent_node + INTENT_CHILD)
+    jika left != 0
+      intent_to_rpn(ctx, left)
+    tutup_jika
+    
+    ; Process right operand
+    var right = __mf_load_i64(left + INTENT_NEXT)
+    jika right != 0
+      intent_to_rpn(ctx, right)
+    tutup_jika
+    
+    ; Emit operation
+    var op = __mf_load_i64(intent_node + INTENT_DATA_A)
+    jika op == 43  ; '+'
+      rpn_emit(ctx, 10, 0)  ; OP_ADD
+    lain
+      jika op == 45  ; '-'
+        rpn_emit(ctx, 11, 0)  ; OP_SUB
+      lain
+        jika op == 42  ; '*'
+          rpn_emit(ctx, 12, 0)  ; OP_MUL
+        lain
+          jika op == 47  ; '/'
+            rpn_emit(ctx, 13, 0)  ; OP_DIV
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+    kembali 1
+  tutup_jika
+  
+  ; Process next sibling
+  var next = __mf_load_i64(intent_node + INTENT_NEXT)
+  jika next != 0
+    intent_to_rpn(ctx, next)
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+; Build Intent Tree from AST
+fungsi ast_to_intent(ast_node: ptr) -> ptr
+  jika ast_node == 0
+    kembali 0
+  tutup_jika
+  
+  var ast_type = __mf_load_i64(ast_node + AST_TYPE)
+  var intent_node = 0
+  
+  jika ast_type == AST_LITERAL
+    intent_node = intent_node_new(0x3001)  ; INTENT_FRAG_LITERAL
+    var value = __mf_load_i64(ast_node + AST_DATA1)
+    __mf_poke_i64(intent_node + INTENT_DATA_A, value)
+  tutup_jika
+  
+  jika ast_type == AST_IDENT
+    intent_node = intent_node_new(0x3005)  ; INTENT_FRAG_VAR
+    var name = __mf_load_i64(ast_node + AST_DATA1)
+    var hash = string_hash_simple(name)
+    __mf_poke_i64(intent_node + INTENT_DATA_A, hash)
+  tutup_jika
+  
+  jika ast_type == AST_BINARY
+    intent_node = intent_node_new(0x3002)  ; INTENT_FRAG_BINARY
+    var op = __mf_load_i64(ast_node + AST_DATA1)
+    __mf_poke_i64(intent_node + INTENT_DATA_A, op)
+    
+    ; Convert children
+    var children = __mf_load_i64(ast_node + AST_CHILDREN)
+    jika children != 0
+      var left_ast = vector_get(children, 0)
+      var right_ast = vector_get(children, 1)
+      
+      var left_intent = ast_to_intent(left_ast)
+      var right_intent = ast_to_intent(right_ast)
+      
+      __mf_poke_i64(intent_node + INTENT_CHILD, left_intent)
+      jika left_intent != 0
+        __mf_poke_i64(left_intent + INTENT_NEXT, right_intent)
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  jika ast_type == AST_ASSIGN
+    intent_node = intent_node_new(0x3006)  ; INTENT_FRAG_ASSIGN
+    var var_name = __mf_load_i64(ast_node + AST_DATA1)
+    var hash = string_hash_simple(var_name)
+    __mf_poke_i64(intent_node + INTENT_DATA_A, hash)
+    
+    ; Convert value expression
+    var children = __mf_load_i64(ast_node + AST_CHILDREN)
+    jika children != 0
+      var value_ast = vector_get(children, 0)
+      var value_intent = ast_to_intent(value_ast)
+      __mf_poke_i64(intent_node + INTENT_CHILD, value_intent)
+    tutup_jika
+  tutup_jika
+  
+  kembali intent_node
+tutup_fungsi
+
+; Complete compilation pipeline: AST -> Intent -> RPN
+fungsi compile_ast_to_rpn(ast_root: ptr) -> ptr
+  ; Create RPN+Intent context
+  var ctx = rpn_intent_new()
+  
+  ; Convert AST to Intent Tree
+  var intent_tree = ast_to_intent(ast_root)
+  __mf_poke_i64(ctx + RPN_INTENT_TREE, intent_tree)
+  
+  ; Convert Intent Tree to RPN instructions
+  intent_to_rpn(ctx, intent_tree)
+  
+  kembali ctx
+tutup_fungsi
+
+; Write RPN instructions to stripe-protected .morph file
+fungsi rpn_write_morph_file(ctx: ptr, filename: ptr) -> i64
+  var instructions = __mf_load_i64(ctx + RPN_INTENT_INSTRUCTIONS)
+  var count = vector_length(instructions)
+  
+  ; Calculate total size
+  var data_size = count * RPN_SIZE
+  
+  ; Create instruction buffer
+  var buffer = __mf_mem_alloc(data_size)
+  var i = 0
+  selama i < count
+    var instr = vector_get(instructions, i)
+    var offset = i * RPN_SIZE
+    
+    ; Copy instruction to buffer
+    var opcode = __mf_load_i64(instr + RPN_OPCODE)
+    var operand = __mf_load_i64(instr + RPN_OPERAND)
+    __mf_poke_i64(buffer + offset + RPN_OPCODE, opcode)
+    __mf_poke_i64(buffer + offset + RPN_OPERAND, operand)
+    
+    i = i + 1
+  tutup_selama
+  
+  ; Apply stripe protection
+  var protected_buffer = stripe_protect_assembly(buffer, data_size)
+  jika protected_buffer == 0
+    kembali 0
+  tutup_jika
+  
+  ; Write to file
+  var fd = sistem 2, filename, 577, 420  ; open with create/write/truncate
+  jika fd < 0
+    kembali 0
+  tutup_jika
+  
+  ; Write header
+  var header = "MORPHFX1"
+  sistem 1, fd, header, 8
+  
+  ; Write version
+  var version = 1
+  sistem 1, fd, version, 8
+  
+  ; Write instruction count
+  sistem 1, fd, count, 8
+  
+  ; Write stripe-protected instructions
+  sistem 1, fd, protected_buffer, data_size + 16  ; +16 for protection header
+  
+  sistem 3, fd  ; close
+  kembali 1
+tutup_fungsi
+
+; Simple string hash function
+fungsi string_hash_simple(str: ptr) -> i64
+  jika str == 0
+    kembali 0
+  tutup_jika
+  
+  var hash = 5381
+  var i = 0
+  selama 1 == 1
+    var c = __mf_load_byte(str + i)
+    jika c == 0
+      kembali hash
+    tutup_jika
+    hash = ((hash << 5) + hash) + c  ; hash * 33 + c
+    i = i + 1
+  tutup_selama
+  kembali hash
+tutup_fungsi
+
+; Debug: Print Intent Tree
+fungsi intent_print_tree(node: ptr, depth: i64) -> i64
+  jika node == 0
+    kembali 0
+  tutup_jika
+  
+  ; Print indentation
+  var i = 0
+  selama i < depth
+    sistem 1, 1, "  ", 2
+    i = i + 1
+  tutup_selama
+  
+  ; Print node type
+  var type = __mf_load_i64(node + INTENT_TYPE)
+  jika type == 0x3001
+    sistem 1, 1, "LITERAL: ", 9
+    var value = __mf_load_i64(node + INTENT_DATA_A)
+    print_number_simple(value)
+  lain
+    jika type == 0x3005
+      sistem 1, 1, "VAR: ", 5
+      var hash = __mf_load_i64(node + INTENT_DATA_A)
+      print_number_simple(hash)
+    lain
+      jika type == 0x3002
+        sistem 1, 1, "BINARY: ", 8
+        var op = __mf_load_i64(node + INTENT_DATA_A)
+        sistem 1, 1, &op, 1  ; Print operator char
+      lain
+        sistem 1, 1, "UNKNOWN", 7
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  sistem 1, 1, "\n", 1
+  
+  ; Print children
+  var child = __mf_load_i64(node + INTENT_CHILD)
+  jika child != 0
+    intent_print_tree(child, depth + 1)
+  tutup_jika
+  
+  ; Print siblings
+  var next = __mf_load_i64(node + INTENT_NEXT)
+  jika next != 0
+    intent_print_tree(next, depth)
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+fungsi print_number_simple(n: i64) -> i64
+  jika n == 0
+    sistem 1, 1, "0", 1
+    kembali 0
+  tutup_jika
+  
+  ; Simple number printing
+  var digits = "0123456789"
+  var buffer = __mf_mem_alloc(32)
+  var pos = 0
+  var temp = n
+  
+  selama temp > 0
+    var digit = temp % 10
+    __mf_poke_byte(buffer + pos, __mf_load_byte(digits + digit))
+    temp = temp / 10
+    pos = pos + 1
+  tutup_selama
+  
+  ; Reverse and print
+  var i = pos - 1
+  selama i >= 0
+    sistem 1, 1, buffer + i, 1
+    i = i - 1
+  tutup_selama
+  
+  kembali pos
+tutup_fungsi
