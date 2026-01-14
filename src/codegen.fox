@@ -3,8 +3,8 @@
 ; ==============================================================================
 ; Code generator: AST -> Intent Tree -> RPN instructions -> .morph
 
-ambil "corelib/core/parser.fox"
-ambil "stripe_protection.fox"
+; ambil "parser.fox"
+; ambil "stripe_protection.fox"
 ambil "rpn_intent_system.fox"
 
 ; Extended RPN Opcodes for complete compilation
@@ -166,6 +166,33 @@ fungsi codegen_write_morph_file(gen: ptr, filename: ptr) -> i64
 tutup_fungsi
     var left = __mf_load_i64(node + AST_DATA2)
     var right = __mf_load_i64(node + AST_DATA3)
+
+    jika op == 261 ; &&
+      var false_label = codegen_new_label(gen)
+      var end_label = codegen_new_label(gen)
+      codegen_expr(gen, left)
+      codegen_emit(gen, OP_JZ, false_label)
+      codegen_expr(gen, right)
+      codegen_emit(gen, OP_JMP, end_label)
+      codegen_emit_label(gen, false_label)
+      codegen_emit(gen, OP_LIT, 0)
+      codegen_emit_label(gen, end_label)
+      kembali 1
+    tutup_jika
+
+    jika op == 262 ; ||
+      var true_label = codegen_new_label(gen)
+      var end_label = codegen_new_label(gen)
+      codegen_expr(gen, left)
+      codegen_emit(gen, OP_JNZ, true_label)
+      codegen_expr(gen, right)
+      codegen_emit(gen, OP_JMP, end_label)
+      codegen_emit_label(gen, true_label)
+      codegen_emit(gen, OP_LIT, 1)
+      codegen_emit_label(gen, end_label)
+      kembali 1
+    tutup_jika
+
     codegen_expr(gen, left)
     codegen_expr(gen, right)
     jika op == 43
