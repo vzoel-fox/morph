@@ -1,6 +1,0 @@
-; Test input for self-hosting compiler
-utama {
-    var x = 42
-    var y = x + 10
-    kembali y
-}
