@@ -1,0 +1,6 @@
+fungsi __mf_poke_i64(addr: ptr, value: i64) -> void
+
+fungsi utama()
+  sistem 1, 1, "Hello\n", 6
+  kembali 1
+tutup_fungsi

@@ -1,7 +1,0 @@
-utama {
-    sistem 1, 1, "Step 5: Before selama\n", 22
-    selama 0 == 1
-        sistem 1, 1, "Never executed\n", 16
-    tutup_selama
-    0
-}
