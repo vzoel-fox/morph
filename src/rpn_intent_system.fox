@@ -119,20 +119,47 @@ fungsi intent_to_rpn(ctx: ptr, intent_node: ptr) -> i64
   tutup_jika
   
   jika type == 0x3002  ; INTENT_FRAG_BINARY
-    ; Process left operand
+    var op = __mf_load_i64(intent_node + INTENT_DATA_A)
     var left = __mf_load_i64(intent_node + INTENT_CHILD)
+    var right = __mf_load_i64(left + INTENT_NEXT)
+
+    jika op == 261 ; &&
+       var false_label = generate_label()
+       var end_label = generate_label()
+       intent_to_rpn(ctx, left)
+       rpn_emit(ctx, 31, false_label) ; OP_JZ
+       intent_to_rpn(ctx, right)
+       rpn_emit(ctx, 30, end_label) ; OP_JMP
+       rpn_emit(ctx, 33, false_label) ; OP_LABEL
+       rpn_emit(ctx, 1, 0) ; OP_LIT 0
+       rpn_emit(ctx, 33, end_label) ; OP_LABEL
+       kembali 1
+    tutup_jika
+
+    jika op == 262 ; ||
+       var true_label = generate_label()
+       var end_label = generate_label()
+       intent_to_rpn(ctx, left)
+       rpn_emit(ctx, 32, true_label) ; OP_JNZ
+       intent_to_rpn(ctx, right)
+       rpn_emit(ctx, 30, end_label) ; OP_JMP
+       rpn_emit(ctx, 33, true_label) ; OP_LABEL
+       rpn_emit(ctx, 1, 1) ; OP_LIT 1
+       rpn_emit(ctx, 33, end_label) ; OP_LABEL
+       kembali 1
+    tutup_jika
+
+    ; Process left operand
     jika left != 0
       intent_to_rpn(ctx, left)
     tutup_jika
     
     ; Process right operand
-    var right = __mf_load_i64(left + INTENT_NEXT)
     jika right != 0
       intent_to_rpn(ctx, right)
     tutup_jika
     
     ; Emit operation based on operator
-    var op = __mf_load_i64(intent_node + INTENT_DATA_A)
     jika op == 43  ; '+'
       rpn_emit(ctx, 10, 0)  ; OP_ADD
     lain
