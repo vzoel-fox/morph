@@ -3,8 +3,8 @@
 ; ==============================================================================
 ; Code generator: AST -> Intent Tree -> RPN instructions -> .morph
 
-ambil "corelib/core/parser.fox"
-ambil "stripe_protection.fox"
+; ambil "parser.fox"
+; ambil "stripe_protection.fox"
 ambil "rpn_intent_system.fox"
 
 ; Extended RPN Opcodes for complete compilation

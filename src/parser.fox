@@ -4,7 +4,7 @@
 ; Recursive descent parser: token stream -> AST
 ; Supports .fox and .elsa source formats
 
-ambil "corelib/core/lexer.fox"
+; ambil "lexer.fox"
 ambil "file_extensions.fox"
 ambil "stripe_protection.fox"
 

@@ -4,10 +4,10 @@
 ; Type checking: AST -> Typed AST with error reporting
 ; Integrated with AI-Readable Hint System for enhanced diagnostics
 
-ambil "../corelib/core/parser.fox"
+; ambil "parser.fox"
 ambil "../corelib/core/ai_hint_system.fox"
-ambil "../corelib/lib/hashmap.fox"
-ambil "../corelib/lib/vector.fox"
+; ambil "../corelib/lib/hashmap.fox"
+; ambil "../corelib/lib/vector.fox"
 
 ; Type constants
 const TYPE_VOID = 0

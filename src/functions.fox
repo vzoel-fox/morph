@@ -3,7 +3,7 @@
 ; ==============================================================================
 ; Function definition, calls, arguments, return values
 
-ambil "codegen.fox"
+; ambil "codegen.fox"
 
 ; Function table
 var __func_table = 0

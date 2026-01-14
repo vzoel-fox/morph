@@ -5,9 +5,9 @@
 
 ambil "../corelib/core/intent.fox"
 ambil "../corelib/core/rpn.fox"
-ambil "../corelib/lib/vector.fox"
-ambil "../corelib/lib/hashmap.fox"
-ambil "stripe_protection.fox"
+; ambil "../corelib/lib/vector.fox"
+; ambil "../corelib/lib/hashmap.fox"
+; ambil "stripe_protection.fox"
 
 ; RPN Instruction Structure (16 bytes)
 const RPN_OPCODE = 0
