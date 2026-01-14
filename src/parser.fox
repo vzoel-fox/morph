@@ -56,7 +56,10 @@ fungsi parser_new_with_file(source: ptr, length: i64, filename: ptr) -> ptr
 tutup_fungsi
 
 fungsi parser_set_file(p: ptr, filename: ptr) -> i64
-  jika p == 0 || filename == 0
+  jika p == 0
+    kembali 0
+  tutup_jika
+  jika filename == 0
     kembali 0
   tutup_jika
   

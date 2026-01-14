@@ -184,27 +184,49 @@ fungsi tc_infer_binary(tc: ptr, node: ptr) -> i64
   var right_type = tc_infer_type(tc, right)
   
   ; Comparison ops always return i64 (bool)
-  jika op == OP_EQ || op == OP_NEQ || op == OP_LT || op == OP_GT || op == OP_LE || op == OP_GE
+  jika op == OP_EQ
+    kembali TYPE_I64
+  tutup_jika
+  jika op == OP_NEQ
+    kembali TYPE_I64
+  tutup_jika
+  jika op == OP_LT
+    kembali TYPE_I64
+  tutup_jika
+  jika op == OP_GT
+    kembali TYPE_I64
+  tutup_jika
+  jika op == OP_LE
+    kembali TYPE_I64
+  tutup_jika
+  jika op == OP_GE
     kembali TYPE_I64
   tutup_jika
   
   ; String concat
-  jika left_type == TYPE_STRING && right_type == TYPE_STRING
-    jika op == OP_ADD
-      kembali TYPE_STRING
+  jika left_type == TYPE_STRING
+    jika right_type == TYPE_STRING
+      jika op == OP_ADD
+        kembali TYPE_STRING
+      tutup_jika
     tutup_jika
   tutup_jika
   
   ; Pointer arithmetic
   jika left_type == TYPE_PTR
-    jika op == OP_ADD || op == OP_SUB
+    jika op == OP_ADD
+      kembali TYPE_PTR
+    tutup_jika
+    jika op == OP_SUB
       kembali TYPE_PTR
     tutup_jika
   tutup_jika
   
   ; Numeric ops
-  jika left_type == TYPE_I64 && right_type == TYPE_I64
-    kembali TYPE_I64
+  jika left_type == TYPE_I64
+    jika right_type == TYPE_I64
+      kembali TYPE_I64
+    tutup_jika
   tutup_jika
   
   ; Type mismatch - try to find common type
@@ -290,11 +312,15 @@ fungsi tc_common_type(t1: i64, t2: i64) -> i64
   tutup_jika
   
   ; ptr + i64 = ptr
-  jika t1 == TYPE_PTR && t2 == TYPE_I64
-    kembali TYPE_PTR
+  jika t1 == TYPE_PTR
+    jika t2 == TYPE_I64
+      kembali TYPE_PTR
+    tutup_jika
   tutup_jika
-  jika t1 == TYPE_I64 && t2 == TYPE_PTR
-    kembali TYPE_PTR
+  jika t1 == TYPE_I64
+    jika t2 == TYPE_PTR
+      kembali TYPE_PTR
+    tutup_jika
   tutup_jika
   
   ; Default to i64
@@ -387,13 +413,23 @@ fungsi tc_check_var_decl(tc: ptr, node: ptr) -> i64
     var init_type = tc_infer_type(tc, init)
     
     ; Type inference: if no explicit type, use inferred
-    jika type == 0 || type == TYPE_VOID
+    var is_inferred = 0
+    jika type == 0
+      is_inferred = 1
+    tutup_jika
+    jika type == TYPE_VOID
+      is_inferred = 1
+    tutup_jika
+
+    jika is_inferred == 1
       type = init_type
-    selain
+    lain
       ; Explicit type - check match
-      jika init_type != type && init_type != TYPE_ERROR
-        kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
-          "Initializer type mismatch", "Ensure initializer matches declared type")
+      jika init_type != type
+        jika init_type != TYPE_ERROR
+          kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+            "Initializer type mismatch", "Ensure initializer matches declared type")
+        tutup_jika
       tutup_jika
     tutup_jika
   tutup_jika
@@ -510,7 +546,7 @@ fungsi tc_print_errors_ai(tc: ptr) -> i64
   jika error_count > 0
     sistem 1, 1, "\n", 1
     analyze_hints()
-  selain
+  lain
     sistem 1, 1, "✓ No type errors found\n", 26
   tutup_jika
   
@@ -639,7 +675,11 @@ fungsi tc_check_array_bounds(tc: ptr, array_type: ptr, index_value: i64) -> i64
     kembali 1
   tutup_jika
   
-  jika index_value < 0 || index_value >= array_size
+  jika index_value < 0
+    kembali tc_error_hint(tc, HINT_MEMORY_BUFFER_OVERFLOW,
+      "Array index out of bounds", "Ensure 0 <= index < array_size")
+  tutup_jika
+  jika index_value >= array_size
     kembali tc_error_hint(tc, HINT_MEMORY_BUFFER_OVERFLOW,
       "Array index out of bounds", "Ensure 0 <= index < array_size")
   tutup_jika
