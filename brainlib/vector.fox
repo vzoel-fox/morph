@@ -3,6 +3,8 @@
 ; ==============================================================================
 ; Dynamic array with automatic resizing (2x growth)
 
+ambil "brainlib/memory.fox"
+
 const VECTOR_LEN = 0
 const VECTOR_CAP = 8
 const VECTOR_DATA = 16
@@ -12,13 +14,13 @@ fungsi vector_new(capacity: i64) -> ptr
   jika capacity < 4
     capacity = 4
   tutup_jika
-  var vec = __mf_mem_alloc(VECTOR_SIZE)
+  var vec = mem_alloc(VECTOR_SIZE)
   jika vec == 0
     kembali 0
   tutup_jika
-  var data = __mf_mem_alloc(capacity * 8)
+  var data = mem_alloc(capacity * 8)
   jika data == 0
-    __mf_mem_free(vec)
+    mem_free(vec, VECTOR_SIZE)
     kembali 0
   tutup_jika
   __mf_poke_i64(vec + VECTOR_LEN, 0)
@@ -45,12 +47,12 @@ fungsi vector_grow(vec: ptr) -> i64
   var old_cap = __mf_load_i64(vec + VECTOR_CAP)
   var new_cap = old_cap * 2
   var old_data = __mf_load_i64(vec + VECTOR_DATA)
-  var new_data = __mf_mem_alloc(new_cap * 8)
+  var new_data = mem_alloc(new_cap * 8)
   jika new_data == 0
     kembali 0
   tutup_jika
   __mf_memcpy(new_data, old_data, __mf_load_i64(vec + VECTOR_LEN) * 8)
-  __mf_mem_free(old_data, old_cap * 8)
+  mem_free(old_data, old_cap * 8)
   __mf_poke_i64(vec + VECTOR_CAP, new_cap)
   __mf_poke_i64(vec + VECTOR_DATA, new_data)
   kembali new_cap
@@ -114,8 +116,8 @@ fungsi vector_free(vec: ptr) -> i64
   jika vec == 0
     kembali 0
   tutup_jika
-  __mf_mem_free(__mf_load_i64(vec + VECTOR_DATA), __mf_load_i64(vec + VECTOR_CAP) * 8)
-  __mf_mem_free(vec, VECTOR_SIZE)
+  mem_free(__mf_load_i64(vec + VECTOR_DATA), __mf_load_i64(vec + VECTOR_CAP) * 8)
+  mem_free(vec, VECTOR_SIZE)
   kembali 1
 tutup_fungsi
 

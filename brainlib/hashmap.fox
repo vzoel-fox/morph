@@ -3,6 +3,7 @@
 ; ==============================================================================
 ; Hash table with separate chaining, DJB2 hash
 
+ambil "brainlib/memory.fox"
 ambil "brainlib/string.fox"
 
 const HASHMAP_SIZE = 0
@@ -15,13 +16,13 @@ const NODE_SIZE = 24
 
 fungsi hashmap_new() -> ptr
   var cap = 16
-  var map = __mf_mem_alloc(24)
+  var map = mem_alloc(24)
   jika map == 0
     kembali 0
   tutup_jika
-  var buckets = __mf_mem_alloc(cap * 8)
+  var buckets = mem_alloc(cap * 8)
   jika buckets == 0
-    __mf_mem_free(map, 24)
+    mem_free(map, 24)
     kembali 0
   tutup_jika
   var i = 0
@@ -60,7 +61,7 @@ fungsi hashmap_insert(map: ptr, key: ptr, value: i64) -> i64
     node = __mf_load_i64(node + NODE_NEXT)
   tutup_selama
 
-  var new_node = __mf_mem_alloc(NODE_SIZE)
+  var new_node = mem_alloc(NODE_SIZE)
   jika new_node == 0
     kembali -1
   tutup_jika
@@ -68,7 +69,7 @@ fungsi hashmap_insert(map: ptr, key: ptr, value: i64) -> i64
   ; Deep copy key
   var key_copy = string_copy(key)
   jika key_copy == 0
-    __mf_mem_free(new_node, NODE_SIZE)
+    mem_free(new_node, NODE_SIZE)
     kembali -1
   tutup_jika
 
@@ -126,7 +127,7 @@ fungsi hashmap_remove(map: ptr, key: ptr) -> i64
         __mf_poke_i64(prev + NODE_NEXT, next)
       tutup_jika
       string_free(node_key)
-      __mf_mem_free(node, NODE_SIZE)
+      mem_free(node, NODE_SIZE)
       __mf_poke_i64(map + HASHMAP_SIZE, __mf_load_i64(map + HASHMAP_SIZE) - 1)
       kembali 1
     tutup_jika
@@ -146,7 +147,7 @@ fungsi hashmap_clear(map: ptr) -> i64
       var next = __mf_load_i64(node + NODE_NEXT)
       var key = __mf_load_i64(node + NODE_KEY)
       string_free(key)
-      __mf_mem_free(node, NODE_SIZE)
+      mem_free(node, NODE_SIZE)
       node = next
     tutup_selama
     __mf_poke_i64(buckets + i * 8, 0)
@@ -161,7 +162,7 @@ fungsi hashmap_free(map: ptr) -> i64
     kembali 0
   tutup_jika
   hashmap_clear(map)
-  __mf_mem_free(__mf_load_i64(map + HASHMAP_BUCKETS), __mf_load_i64(map + HASHMAP_CAP) * 8)
-  __mf_mem_free(map, 24)
+  mem_free(__mf_load_i64(map + HASHMAP_BUCKETS), __mf_load_i64(map + HASHMAP_CAP) * 8)
+  mem_free(map, 24)
   kembali 1
 tutup_fungsi

@@ -196,7 +196,7 @@ fungsi lexer_match_kw(buf: ptr, kw: ptr, len: i64) -> i64
   ; brainlib string wrapper
   var s_kw = string_new(kw, len)
   var res = string_equals(buf, s_kw)
-  string_free(s_kw)
+  string_free_wrapper(s_kw) ; Use wrapper free for literals
   kembali res
 tutup_fungsi
 

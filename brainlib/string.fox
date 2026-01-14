@@ -3,14 +3,17 @@
 ; ==============================================================================
 ; Fat pointer string implementation (length + data pointer)
 
+ambil "brainlib/memory.fox"
+
 const STRING_LEN = 0
 const STRING_DATA = 8
 const STRING_SIZE = 16
 const FNV_PRIME = 1099511628211
 const FNV_OFFSET = 14695981039346656037
 
+; Creates a string view (does not own data, creates struct wrapper)
 fungsi string_new(data_ptr: ptr, length: i64) -> ptr
-  var str = __mf_mem_alloc(STRING_SIZE)
+  var str = mem_alloc(STRING_SIZE)
   jika str == 0
     kembali 0
   tutup_jika
@@ -19,15 +22,41 @@ fungsi string_new(data_ptr: ptr, length: i64) -> ptr
   kembali str
 tutup_fungsi
 
+; Creates an owned string (copies data)
+fungsi string_from(data_ptr: ptr, length: i64) -> ptr
+  var str = mem_alloc(STRING_SIZE)
+  jika str == 0
+    kembali 0
+  tutup_jika
+  var new_data = mem_alloc(length)
+  jika new_data == 0
+    mem_free(str, STRING_SIZE)
+    kembali 0
+  tutup_jika
+  __mf_memcpy(new_data, data_ptr, length)
+  __mf_poke_i64(str + STRING_LEN, length)
+  __mf_poke_i64(str + STRING_DATA, new_data)
+  kembali str
+tutup_fungsi
+
+; Frees the string struct wrapper only (for string views/literals)
+fungsi string_free_wrapper(str: ptr) -> void
+  jika str == 0
+    kembali
+  tutup_jika
+  mem_free(str, STRING_SIZE)
+tutup_fungsi
+
+; Frees string struct AND data (for owned strings)
 fungsi string_free(str: ptr) -> void
   jika str == 0
     kembali
   tutup_jika
   var data = __mf_load_i64(str + STRING_DATA)
   jika data != 0
-    __mf_mem_free(data, __mf_load_i64(str + STRING_LEN)) ; Passing size just in case, though ignored by asm
+    mem_free(data, __mf_load_i64(str + STRING_LEN))
   tutup_jika
-  __mf_mem_free(str, STRING_SIZE)
+  mem_free(str, STRING_SIZE)
 tutup_fungsi
 
 fungsi string_length(str: ptr) -> i64
@@ -76,18 +105,21 @@ tutup_fungsi
 
 fungsi string_copy(str: ptr) -> ptr
   var len = string_length(str)
-  var dst = __mf_mem_alloc(len)
+  var dst = mem_alloc(len)
   jika dst == 0
     kembali 0
   tutup_jika
   __mf_memcpy(dst, string_data(str), len)
+  ; Return new struct but data is owned by caller who must manage pointer
+  ; Wait, string_copy logic in original code was: create new data copy, wrap in new struct.
+  ; That's effectively an owned string.
   kembali string_new(dst, len)
 tutup_fungsi
 
 fungsi string_concat(str1: ptr, str2: ptr) -> ptr
   var len1 = string_length(str1)
   var len2 = string_length(str2)
-  var buf = __mf_mem_alloc(len1 + len2)
+  var buf = mem_alloc(len1 + len2)
   jika buf == 0
     kembali 0
   tutup_jika
@@ -132,7 +164,7 @@ fungsi string_char_at(str: ptr, index: i64) -> i64
 tutup_fungsi
 
 fungsi i64_to_string(value: i64) -> ptr
-  var buf = __mf_mem_alloc(21)
+  var buf = mem_alloc(21)
   jika buf == 0
     kembali 0
   tutup_jika
