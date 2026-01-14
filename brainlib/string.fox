@@ -11,9 +11,23 @@ const FNV_OFFSET = 14695981039346656037
 
 fungsi string_new(data_ptr: ptr, length: i64) -> ptr
   var str = __mf_mem_alloc(STRING_SIZE)
+  jika str == 0
+    kembali 0
+  tutup_jika
   __mf_poke_i64(str + STRING_LEN, length)
   __mf_poke_i64(str + STRING_DATA, data_ptr)
   kembali str
+tutup_fungsi
+
+fungsi string_free(str: ptr) -> void
+  jika str == 0
+    kembali
+  tutup_jika
+  var data = __mf_load_i64(str + STRING_DATA)
+  jika data != 0
+    __mf_mem_free(data, __mf_load_i64(str + STRING_LEN)) ; Passing size just in case, though ignored by asm
+  tutup_jika
+  __mf_mem_free(str, STRING_SIZE)
 tutup_fungsi
 
 fungsi string_length(str: ptr) -> i64
@@ -63,6 +77,9 @@ tutup_fungsi
 fungsi string_copy(str: ptr) -> ptr
   var len = string_length(str)
   var dst = __mf_mem_alloc(len)
+  jika dst == 0
+    kembali 0
+  tutup_jika
   __mf_memcpy(dst, string_data(str), len)
   kembali string_new(dst, len)
 tutup_fungsi
@@ -71,6 +88,9 @@ fungsi string_concat(str1: ptr, str2: ptr) -> ptr
   var len1 = string_length(str1)
   var len2 = string_length(str2)
   var buf = __mf_mem_alloc(len1 + len2)
+  jika buf == 0
+    kembali 0
+  tutup_jika
   __mf_memcpy(buf, string_data(str1), len1)
   __mf_memcpy(buf + len1, string_data(str2), len2)
   kembali string_new(buf, len1 + len2)
@@ -113,6 +133,9 @@ tutup_fungsi
 
 fungsi i64_to_string(value: i64) -> ptr
   var buf = __mf_mem_alloc(21)
+  jika buf == 0
+    kembali 0
+  tutup_jika
   var pos = 20
   var neg = 0
   jika value < 0

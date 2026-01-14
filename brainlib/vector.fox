@@ -13,7 +13,14 @@ fungsi vector_new(capacity: i64) -> ptr
     capacity = 4
   tutup_jika
   var vec = __mf_mem_alloc(VECTOR_SIZE)
+  jika vec == 0
+    kembali 0
+  tutup_jika
   var data = __mf_mem_alloc(capacity * 8)
+  jika data == 0
+    __mf_mem_free(vec)
+    kembali 0
+  tutup_jika
   __mf_poke_i64(vec + VECTOR_LEN, 0)
   __mf_poke_i64(vec + VECTOR_CAP, capacity)
   __mf_poke_i64(vec + VECTOR_DATA, data)
@@ -39,8 +46,11 @@ fungsi vector_grow(vec: ptr) -> i64
   var new_cap = old_cap * 2
   var old_data = __mf_load_i64(vec + VECTOR_DATA)
   var new_data = __mf_mem_alloc(new_cap * 8)
+  jika new_data == 0
+    kembali 0
+  tutup_jika
   __mf_memcpy(new_data, old_data, __mf_load_i64(vec + VECTOR_LEN) * 8)
-  __mf_mem_free(old_data)
+  __mf_mem_free(old_data, old_cap * 8)
   __mf_poke_i64(vec + VECTOR_CAP, new_cap)
   __mf_poke_i64(vec + VECTOR_DATA, new_data)
   kembali new_cap
@@ -49,7 +59,10 @@ tutup_fungsi
 fungsi vector_push(vec: ptr, value: i64) -> i64
   var len = __mf_load_i64(vec + VECTOR_LEN)
   jika len >= __mf_load_i64(vec + VECTOR_CAP)
-    vector_grow(vec)
+    var new_cap = vector_grow(vec)
+    jika new_cap == 0
+       kembali -1
+    tutup_jika
   tutup_jika
   var data = __mf_load_i64(vec + VECTOR_DATA)
   __mf_poke_i64(data + len * 8, value)
@@ -101,8 +114,8 @@ fungsi vector_free(vec: ptr) -> i64
   jika vec == 0
     kembali 0
   tutup_jika
-  __mf_mem_free(__mf_load_i64(vec + VECTOR_DATA))
-  __mf_mem_free(vec)
+  __mf_mem_free(__mf_load_i64(vec + VECTOR_DATA), __mf_load_i64(vec + VECTOR_CAP) * 8)
+  __mf_mem_free(vec, VECTOR_SIZE)
   kembali 1
 tutup_fungsi
 
