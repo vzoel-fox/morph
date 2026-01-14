@@ -6,13 +6,13 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ SOURCE CODE (MorphFox)                                  │
+│ SOURCE CODE (Morph)                                  │
 │ "x = y + 42"                                           │
 └─────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│ LEXER (MorphFox) ✅ IMPLEMENTED                         │
+│ LEXER (Morph) ✅ IMPLEMENTED                         │
 │ ├── lexer_create, lexer_char, lexer_advance            │
 │ ├── lexer_parse_int, lexer_parse_ident                 │
 │ └── Token recognition & parsing                        │
@@ -20,7 +20,7 @@
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│ PARSER (MorphFox) ✅ IMPLEMENTED                        │
+│ PARSER (Morph) ✅ IMPLEMENTED                        │
 │ ├── parse_expression, parse_binary                     │
 │ ├── parse_assignment, parse_intent_tree                │
 │ └── Recursive descent parsing                          │

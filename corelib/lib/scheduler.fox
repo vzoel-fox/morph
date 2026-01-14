@@ -1,0 +1,106 @@
+; ==============================================================================
+; MORPHROUTINE SCHEDULER - Self-Hosting Wrapper
+; ==============================================================================
+; Wrapper untuk scheduler builtins di bootstrap
+; Concurrency model: Cooperative multitasking (yield-based)
+
+; Routine status
+const ROUTINE_READY = 0
+const ROUTINE_RUNNING = 1
+const ROUTINE_BLOCKED = 2
+const ROUTINE_TERMINATED = 3
+
+; Routine structure offsets (64 bytes)
+const ROUTINE_RSP = 0
+const ROUTINE_RIP = 8
+const ROUTINE_STATUS = 16
+const ROUTINE_FRAGMENT = 24
+const ROUTINE_ID = 32
+const ROUTINE_NEXT = 40
+const ROUTINE_STACK_BASE = 48
+const ROUTINE_STACK_LIMIT = 56
+const ROUTINE_SIZE = 64
+
+; Scheduler structure offsets (32 bytes)
+const SCHED_HEAD = 0
+const SCHED_TAIL = 8
+const SCHED_CURRENT = 16
+const SCHED_COUNT = 24
+
+; ==============================================================================
+; BUILTIN DECLARATIONS (implemented in bootstrap asm)
+; ==============================================================================
+
+; These call into bootstrap scheduler.s
+extern fungsi __sched_init() -> void
+extern fungsi __sched_spawn(func: ptr, arg: i64) -> i64
+extern fungsi __sched_yield() -> void
+extern fungsi __sched_exit() -> void
+extern fungsi __sched_current() -> ptr
+extern fungsi __sched_count() -> i64
+
+; ==============================================================================
+; HIGH-LEVEL API
+; ==============================================================================
+
+; Initialize scheduler (call once at program start)
+fungsi scheduler_init() -> void
+  __sched_init()
+tutup_fungsi
+
+; Spawn a new routine
+; Returns routine ID (> 0) or 0 on failure
+fungsi spawn(func: ptr, arg: i64) -> i64
+  kembali __sched_spawn(func, arg)
+tutup_fungsi
+
+; Yield execution to next routine
+; Call this in long-running loops
+fungsi yield() -> void
+  __sched_yield()
+tutup_fungsi
+
+; Exit current routine
+fungsi exit_routine() -> void
+  __sched_exit()
+tutup_fungsi
+
+; Get current routine pointer
+fungsi current_routine() -> ptr
+  kembali __sched_current()
+tutup_fungsi
+
+; Get number of active routines
+fungsi routine_count() -> i64
+  kembali __sched_count()
+tutup_fungsi
+
+; ==============================================================================
+; CONVENIENCE FUNCTIONS
+; ==============================================================================
+
+; Check if we're in main routine (ID 0)
+fungsi is_main_routine() -> i64
+  var r = current_routine()
+  jika r == 0
+    kembali 1
+  tutup_jika
+  var id = __mf_load_i64(r + ROUTINE_ID)
+  kembali id == 0
+tutup_fungsi
+
+; Sleep for N yield cycles (cooperative sleep)
+fungsi sleep_cycles(n: i64) -> void
+  var i = 0
+  selama i < n
+    yield()
+    i = i + 1
+  tutup_selama
+tutup_fungsi
+
+; Run until all routines complete
+fungsi run_all() -> void
+  selama routine_count() > 1
+    yield()
+  tutup_selama
+tutup_fungsi

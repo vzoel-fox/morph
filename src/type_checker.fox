@@ -2,8 +2,10 @@
 ; TYPE CHECKER - MorphFox Self-Hosting Compiler
 ; ==============================================================================
 ; Type checking: AST -> Typed AST with error reporting
+; Integrated with AI-Readable Hint System for enhanced diagnostics
 
 ambil "../corelib/core/parser.fox"
+ambil "../corelib/core/ai_hint_system.fox"
 ambil "../corelib/lib/hashmap.fox"
 ambil "../corelib/lib/vector.fox"
 
@@ -46,7 +48,10 @@ const TC_STRUCTS = 24
 const TC_ALIASES = 32
 const TC_GENERICS = 40
 const TC_UNIONS = 48
-const TC_SIZE = 56
+const TC_HINTS = 56
+const TC_CURRENT_LINE = 64
+const TC_CURRENT_COL = 72
+const TC_SIZE = 80
 
 fungsi type_checker_new() -> ptr
   var tc = __mf_mem_alloc(TC_SIZE)
@@ -57,6 +62,10 @@ fungsi type_checker_new() -> ptr
   __mf_poke_i64(tc + TC_ALIASES, hashmap_new())
   __mf_poke_i64(tc + TC_GENERICS, hashmap_new())
   __mf_poke_i64(tc + TC_UNIONS, hashmap_new())
+  __mf_poke_i64(tc + TC_HINTS, 1)  ; Enable AI hints
+  __mf_poke_i64(tc + TC_CURRENT_LINE, 0)
+  __mf_poke_i64(tc + TC_CURRENT_COL, 0)
+  hint_system_init()
   kembali tc
 tutup_fungsi
 
@@ -81,6 +90,28 @@ fungsi tc_error(tc: ptr, msg: ptr) -> i64
   kembali TYPE_ERROR
 tutup_fungsi
 
+; AI-enhanced error with hint generation
+fungsi tc_error_hint(tc: ptr, hint_code: i64, msg: ptr, suggestion: ptr) -> i64
+  var errors = __mf_load_i64(tc + TC_ERRORS)
+  vector_push(errors, msg)
+  
+  ; Generate AI hint if enabled
+  var hints_enabled = __mf_load_i64(tc + TC_HINTS)
+  jika hints_enabled != 0
+    var line = __mf_load_i64(tc + TC_CURRENT_LINE)
+    var col = __mf_load_i64(tc + TC_CURRENT_COL)
+    create_hint(hint_code, line, col, msg, suggestion)
+  tutup_jika
+  
+  kembali TYPE_ERROR
+tutup_fungsi
+
+; Set current source location for hints
+fungsi tc_set_location(tc: ptr, line: i64, col: i64) -> void
+  __mf_poke_i64(tc + TC_CURRENT_LINE, line)
+  __mf_poke_i64(tc + TC_CURRENT_COL, col)
+tutup_fungsi
+
 fungsi tc_check_literal(tc: ptr, node: ptr) -> i64
   var data2 = __mf_load_i64(node + AST_DATA2)
   jika data2 == 1  ; String literal
@@ -89,11 +120,210 @@ fungsi tc_check_literal(tc: ptr, node: ptr) -> i64
   kembali TYPE_I64  ; Integer literal
 tutup_fungsi
 
+; ==============================================================================
+; TYPE INFERENCE ENGINE
+; ==============================================================================
+
+; Infer type from expression (for var without explicit type)
+fungsi tc_infer_type(tc: ptr, node: ptr) -> i64
+  jika node == 0
+    kembali TYPE_VOID
+  tutup_jika
+  
+  var node_type = __mf_load_i64(node + AST_TYPE)
+  
+  ; Literal inference
+  jika node_type == AST_LITERAL
+    var data2 = __mf_load_i64(node + AST_DATA2)
+    jika data2 == 1
+      kembali TYPE_STRING
+    tutup_jika
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Identifier - lookup in symbol table
+  jika node_type == AST_IDENT
+    var name = __mf_load_i64(node + AST_DATA1)
+    var sym = tc_lookup_symbol(tc, name)
+    jika sym != 0
+      kembali __mf_load_i64(sym + SYM_TYPE)
+    tutup_jika
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  ; Binary ops - infer from operands
+  jika node_type == AST_BINARY
+    kembali tc_infer_binary(tc, node)
+  tutup_jika
+  
+  ; Function call - lookup return type
+  jika node_type == AST_CALL
+    kembali tc_infer_call(tc, node)
+  tutup_jika
+  
+  ; Unary ops
+  jika node_type == AST_UNARY
+    kembali tc_infer_unary(tc, node)
+  tutup_jika
+  
+  kembali TYPE_I64  ; Default fallback
+tutup_fungsi
+
+; Infer binary expression type
+fungsi tc_infer_binary(tc: ptr, node: ptr) -> i64
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children == 0
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  var left = vector_get(children, 0)
+  var right = vector_get(children, 1)
+  var op = __mf_load_i64(node + AST_DATA1)
+  
+  var left_type = tc_infer_type(tc, left)
+  var right_type = tc_infer_type(tc, right)
+  
+  ; Comparison ops always return i64 (bool)
+  jika op == OP_EQ || op == OP_NEQ || op == OP_LT || op == OP_GT || op == OP_LE || op == OP_GE
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; String concat
+  jika left_type == TYPE_STRING && right_type == TYPE_STRING
+    jika op == OP_ADD
+      kembali TYPE_STRING
+    tutup_jika
+  tutup_jika
+  
+  ; Pointer arithmetic
+  jika left_type == TYPE_PTR
+    jika op == OP_ADD || op == OP_SUB
+      kembali TYPE_PTR
+    tutup_jika
+  tutup_jika
+  
+  ; Numeric ops
+  jika left_type == TYPE_I64 && right_type == TYPE_I64
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Type mismatch - try to find common type
+  kembali tc_common_type(left_type, right_type)
+tutup_fungsi
+
+; Infer unary expression type
+fungsi tc_infer_unary(tc: ptr, node: ptr) -> i64
+  var children = __mf_load_i64(node + AST_CHILDREN)
+  jika children == 0
+    kembali TYPE_ERROR
+  tutup_jika
+  
+  var operand = vector_get(children, 0)
+  var op = __mf_load_i64(node + AST_DATA1)
+  
+  var operand_type = tc_infer_type(tc, operand)
+  
+  ; Negation
+  jika op == OP_NEG
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Logical not
+  jika op == OP_NOT
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Address-of
+  jika op == OP_ADDR
+    kembali TYPE_PTR
+  tutup_jika
+  
+  ; Dereference
+  jika op == OP_DEREF
+    kembali TYPE_I64  ; Assume i64 for now
+  tutup_jika
+  
+  kembali operand_type
+tutup_fungsi
+
+; Infer function call return type
+fungsi tc_infer_call(tc: ptr, node: ptr) -> i64
+  var func_name = __mf_load_i64(node + AST_DATA1)
+  
+  ; Check built-in functions
+  jika string_equals_simple(func_name, "sistem")
+    kembali TYPE_I64
+  tutup_jika
+  jika string_equals_simple(func_name, "__mf_mem_alloc")
+    kembali TYPE_PTR
+  tutup_jika
+  jika string_equals_simple(func_name, "__mf_load_i64")
+    kembali TYPE_I64
+  tutup_jika
+  jika string_equals_simple(func_name, "__mf_poke_i64")
+    kembali TYPE_VOID
+  tutup_jika
+  jika string_equals_simple(func_name, "vector_new")
+    kembali TYPE_PTR
+  tutup_jika
+  jika string_equals_simple(func_name, "hashmap_new")
+    kembali TYPE_PTR
+  tutup_jika
+  jika string_equals_simple(func_name, "string_length")
+    kembali TYPE_I64
+  tutup_jika
+  
+  ; Lookup user-defined function
+  var sym = tc_lookup_symbol(tc, func_name)
+  jika sym != 0
+    ; TODO: Store return type in function symbol
+    kembali TYPE_I64  ; Default for now
+  tutup_jika
+  
+  kembali TYPE_I64
+tutup_fungsi
+
+; Find common type for two types
+fungsi tc_common_type(t1: i64, t2: i64) -> i64
+  jika t1 == t2
+    kembali t1
+  tutup_jika
+  
+  ; ptr + i64 = ptr
+  jika t1 == TYPE_PTR && t2 == TYPE_I64
+    kembali TYPE_PTR
+  tutup_jika
+  jika t1 == TYPE_I64 && t2 == TYPE_PTR
+    kembali TYPE_PTR
+  tutup_jika
+  
+  ; Default to i64
+  kembali TYPE_I64
+tutup_fungsi
+
+; Operator constants for inference
+const OP_ADD = 1
+const OP_SUB = 2
+const OP_MUL = 3
+const OP_DIV = 4
+const OP_MOD = 5
+const OP_EQ = 10
+const OP_NEQ = 11
+const OP_LT = 12
+const OP_GT = 13
+const OP_LE = 14
+const OP_GE = 15
+const OP_NEG = 20
+const OP_NOT = 21
+const OP_ADDR = 22
+const OP_DEREF = 23
+
 fungsi tc_check_identifier(tc: ptr, node: ptr) -> i64
   var name = __mf_load_i64(node + AST_DATA1)
   var sym = tc_lookup_symbol(tc, name)
   jika sym == 0
-    kembali tc_error(tc, "Undefined variable")
+    kembali tc_error_hint(tc, HINT_SEMANTIC_UNDEFINED_VARIABLE, 
+      "Undefined variable", "Declare variable before use with 'var name = value'")
   tutup_jika
   kembali __mf_load_i64(sym + SYM_TYPE)
 tutup_fungsi
@@ -119,10 +349,12 @@ fungsi tc_check_binary(tc: ptr, node: ptr) -> i64
   
   ; Arithmetic ops require i64
   jika left_type != TYPE_I64
-    kembali tc_error(tc, "Left operand must be i64")
+    kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Left operand must be i64", "Cast to i64 or use compatible type")
   tutup_jika
   jika right_type != TYPE_I64
-    kembali tc_error(tc, "Right operand must be i64")
+    kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Right operand must be i64", "Cast to i64 or use compatible type")
   tutup_jika
   
   kembali TYPE_I64
@@ -137,7 +369,8 @@ fungsi tc_check_assign(tc: ptr, node: ptr) -> i64
   var value_type = tc_check_node(tc, value)
   
   jika target_type != value_type
-    kembali tc_error(tc, "Type mismatch in assignment")
+    kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Type mismatch in assignment", "Ensure value type matches variable type")
   tutup_jika
   
   kembali target_type
@@ -147,18 +380,26 @@ fungsi tc_check_var_decl(tc: ptr, node: ptr) -> i64
   var name = __mf_load_i64(node + AST_DATA1)
   var type = __mf_load_i64(node + AST_DATA2)
   
-  ; Add to symbol table
-  tc_add_symbol(tc, name, type)
-  
   ; Check initializer if present
   var children = __mf_load_i64(node + AST_CHILDREN)
   jika children != 0
     var init = vector_get(children, 0)
-    var init_type = tc_check_node(tc, init)
-    jika init_type != type
-      kembali tc_error(tc, "Initializer type mismatch")
+    var init_type = tc_infer_type(tc, init)
+    
+    ; Type inference: if no explicit type, use inferred
+    jika type == 0 || type == TYPE_VOID
+      type = init_type
+    selain
+      ; Explicit type - check match
+      jika init_type != type && init_type != TYPE_ERROR
+        kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+          "Initializer type mismatch", "Ensure initializer matches declared type")
+      tutup_jika
     tutup_jika
   tutup_jika
+  
+  ; Add to symbol table with inferred/declared type
+  tc_add_symbol(tc, name, type)
   
   kembali TYPE_VOID
 tutup_fungsi
@@ -259,6 +500,22 @@ fungsi tc_print_errors(tc: ptr) -> i64
   tutup_selama
   kembali len
 tutup_fungsi
+
+; Print errors with AI hints (structured output)
+fungsi tc_print_errors_ai(tc: ptr) -> i64
+  sistem 1, 1, "=== TYPE CHECK RESULTS (AI-READABLE) ===\n", 41
+  
+  var error_count = tc_print_errors(tc)
+  
+  jika error_count > 0
+    sistem 1, 1, "\n", 1
+    analyze_hints()
+  selain
+    sistem 1, 1, "✓ No type errors found\n", 26
+  tutup_jika
+  
+  kembali error_count
+tutup_fungsi
 ; Register struct type
 fungsi tc_register_struct(tc: ptr, name: ptr, fields: ptr) -> i64
   var structs = __mf_load_i64(tc + TC_STRUCTS)
@@ -279,14 +536,72 @@ fungsi tc_check_struct_access(tc: ptr, struct_name: ptr, field_name: ptr) -> i64
   var struct_entry = hashmap_get(structs, name_hash)
   
   jika struct_entry == 0
-    kembali TYPE_ERROR
+    kembali tc_error_hint(tc, HINT_SEMANTIC_UNDEFINED_VARIABLE,
+      "Struct type not found", "Declare struct before use")
   tutup_jika
   
   var fields = __mf_load_i64(struct_entry + STRUCT_FIELDS)
-  var field_hash = string_hash_simple(field_name)
+  var field_count = vector_length(fields)
   
-  ; Simple field lookup - return i64 for now
-  kembali TYPE_I64
+  ; Search for field
+  var i = 0
+  selama i < field_count
+    var field = vector_get(fields, i)
+    jika string_equals_simple(field, field_name)
+      ; Found - return field type (stored at i+1)
+      jika i + 1 < field_count
+        kembali vector_get(fields, i + 1)
+      tutup_jika
+      kembali TYPE_I64  ; Default
+    tutup_jika
+    i = i + 2  ; Skip name+type pairs
+  tutup_selama
+  
+  kembali tc_error_hint(tc, HINT_SEMANTIC_UNDEFINED_VARIABLE,
+    "Field not found in struct", "Check field name spelling")
+tutup_fungsi
+
+; Get struct field offset for codegen
+fungsi tc_get_field_offset(tc: ptr, struct_name: ptr, field_name: ptr) -> i64
+  var structs = __mf_load_i64(tc + TC_STRUCTS)
+  var name_hash = string_hash_simple(struct_name)
+  var struct_entry = hashmap_get(structs, name_hash)
+  
+  jika struct_entry == 0
+    kembali -1
+  tutup_jika
+  
+  var fields = __mf_load_i64(struct_entry + STRUCT_FIELDS)
+  var field_count = vector_length(fields)
+  var offset = 0
+  
+  var i = 0
+  selama i < field_count
+    var field = vector_get(fields, i)
+    jika string_equals_simple(field, field_name)
+      kembali offset
+    tutup_jika
+    ; Add size of this field
+    var field_type = vector_get(fields, i + 1)
+    offset = offset + tc_type_size(field_type)
+    i = i + 2
+  tutup_selama
+  
+  kembali -1
+tutup_fungsi
+
+; Get size of type
+fungsi tc_type_size(type_id: i64) -> i64
+  jika type_id == TYPE_I64
+    kembali 8
+  tutup_jika
+  jika type_id == TYPE_PTR
+    kembali 8
+  tutup_jika
+  jika type_id == TYPE_STRING
+    kembali 16
+  tutup_jika
+  kembali 8
 tutup_fungsi
 
 ; Create array type
@@ -295,6 +610,50 @@ fungsi tc_create_array_type(element_type: i64, size: i64) -> ptr
   __mf_poke_i64(array_entry + ARRAY_ELEMENT_TYPE, element_type)
   __mf_poke_i64(array_entry + ARRAY_SIZE, size)
   kembali array_entry
+tutup_fungsi
+
+; Check array index access
+fungsi tc_check_array_access(tc: ptr, array_type: ptr, index_node: ptr) -> i64
+  jika array_type == 0
+    kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Not an array type", "Use array type for indexing")
+  tutup_jika
+  
+  ; Check index is i64
+  var index_type = tc_infer_type(tc, index_node)
+  jika index_type != TYPE_I64
+    kembali tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Array index must be i64", "Convert index to integer")
+  tutup_jika
+  
+  ; Return element type
+  kembali __mf_load_i64(array_type + ARRAY_ELEMENT_TYPE)
+tutup_fungsi
+
+; Check array bounds (compile-time if possible)
+fungsi tc_check_array_bounds(tc: ptr, array_type: ptr, index_value: i64) -> i64
+  var array_size = __mf_load_i64(array_type + ARRAY_SIZE)
+  
+  ; -1 means dynamic size, skip bounds check
+  jika array_size == -1
+    kembali 1
+  tutup_jika
+  
+  jika index_value < 0 || index_value >= array_size
+    kembali tc_error_hint(tc, HINT_MEMORY_BUFFER_OVERFLOW,
+      "Array index out of bounds", "Ensure 0 <= index < array_size")
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+; Register array type in type checker
+fungsi tc_register_array(tc: ptr, name: ptr, element_type: i64, size: i64) -> i64
+  var array_type = tc_create_array_type(element_type, size)
+  var aliases = __mf_load_i64(tc + TC_ALIASES)
+  var name_hash = string_hash_simple(name)
+  hashmap_insert(aliases, name_hash, array_type)
+  kembali 1
 tutup_fungsi
 ; Register type alias
 fungsi tc_register_alias(tc: ptr, alias_name: ptr, target_type: i64) -> i64
@@ -334,13 +693,15 @@ fungsi tc_check_function_call(tc: ptr, func_name: ptr, args: ptr) -> i64
   var func_symbol = hashmap_get(symbols, name_hash)
   
   jika func_symbol == 0
-    tc_add_error(tc, "Function not found")
+    tc_error_hint(tc, HINT_SEMANTIC_UNDEFINED_VARIABLE,
+      "Function not found", "Declare function before calling or check spelling")
     kembali TYPE_ERROR
   tutup_jika
   
   var func_type = __mf_load_i64(func_symbol + SYM_TYPE)
   jika func_type != TYPE_FUNCTION
-    tc_add_error(tc, "Not a function")
+    tc_error_hint(tc, HINT_SEMANTIC_TYPE_MISMATCH,
+      "Not a function", "Cannot call non-function type")
     kembali TYPE_ERROR
   tutup_jika
   

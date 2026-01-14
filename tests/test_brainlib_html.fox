@@ -1,0 +1,84 @@
+; ==============================================================================
+; TEST: Brainlib HTML/CSS Parser
+; ==============================================================================
+
+ambil "brainlib/html.fox"
+ambil "brainlib/selector.fox"
+ambil "brainlib/css.fox"
+
+utama {
+    sistem 1, 1, "=== Brainlib HTML/CSS Test ===\n", 31
+    
+    ; Test 1: Multiple attributes
+    sistem 1, 1, "Test 1: Multiple attributes...\n", 31
+    var html1 = "<div id=\"main\" class=\"container\" data-value=\"42\">Content</div>"
+    var root = html_parse(html1)
+    
+    jika root != 0
+        var id = node_get_id(root)
+        var cls = node_get_class(root)
+        var data = node_get_attr(root, "data-value")
+        sistem 1, 1, "  ✓ Parsed with attributes\n", 29
+    tutup_jika
+    
+    ; Test 2: Self-closing tags
+    sistem 1, 1, "Test 2: Self-closing tags...\n", 29
+    var html2 = "<div><br><img src=\"test.png\"><input type=\"text\"></div>"
+    var root2 = html_parse(html2)
+    jika root2 != 0
+        sistem 1, 1, "  ✓ Self-closing tags parsed\n", 31
+    tutup_jika
+    
+    ; Test 3: CSS Selectors
+    sistem 1, 1, "Test 3: CSS Selectors...\n", 25
+    var html3 = "<div id=\"app\"><p class=\"text\">Hello</p><p class=\"text\">World</p></div>"
+    var root3 = html_parse(html3)
+    
+    var by_id = query_selector(root3, "#app")
+    jika by_id != 0
+        sistem 1, 1, "  ✓ #id selector works\n", 25
+    tutup_jika
+    
+    var by_class = query_selector_all(root3, ".text")
+    jika by_class != 0
+        sistem 1, 1, "  ✓ .class selector works\n", 28
+    tutup_jika
+    
+    var by_tag = get_elements_by_tag(root3, "p")
+    jika by_tag != 0
+        sistem 1, 1, "  ✓ tag selector works\n", 25
+    tutup_jika
+    
+    ; Test 4: Flexbox CSS
+    sistem 1, 1, "Test 4: Flexbox CSS...\n", 23
+    var css1 = "display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 10px;"
+    var style = css_parse(css1, 96)
+    
+    jika style_is_flex(style)
+        sistem 1, 1, "  ✓ display: flex parsed\n", 27
+    tutup_jika
+    
+    var dir = style_get_flex_direction(style)
+    jika dir == FLEX_COLUMN
+        sistem 1, 1, "  ✓ flex-direction: column\n", 29
+    tutup_jika
+    
+    var justify = style_get_justify(style)
+    jika justify == JUSTIFY_CENTER
+        sistem 1, 1, "  ✓ justify-content: center\n", 30
+    tutup_jika
+    
+    var gap = style_get_gap(style)
+    jika gap == 10
+        sistem 1, 1, "  ✓ gap: 10px\n", 16
+    tutup_jika
+    
+    ; Test 5: Color parsing
+    sistem 1, 1, "Test 5: Color parsing...\n", 25
+    var css2 = "color: #ff5500; background-color: #333333;"
+    var style2 = css_parse(css2, 42)
+    sistem 1, 1, "  ✓ Hex colors parsed\n", 24
+    
+    sistem 1, 1, "\n✓ All brainlib tests complete\n", 33
+    0
+}

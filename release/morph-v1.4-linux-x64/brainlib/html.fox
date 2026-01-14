@@ -1,0 +1,352 @@
+; ==============================================================================
+; BRAINLIB: HTML PARSER (Enhanced)
+; ==============================================================================
+; Full-featured HTML parser dengan attribute support
+
+ambil "corelib/lib/hashmap.fox"
+ambil "corelib/lib/vector.fox"
+ambil "corelib/lib/string.fox"
+
+; Node types
+const HTML_ELEMENT = 1
+const HTML_TEXT = 2
+const HTML_COMMENT = 3
+
+; Node structure (64 bytes)
+const NODE_TYPE = 0
+const NODE_PARENT = 8
+const NODE_FIRST_CHILD = 16
+const NODE_NEXT_SIBLING = 24
+const NODE_TAG = 32
+const NODE_ATTRS = 40
+const NODE_STYLE = 48
+const NODE_LAYOUT = 56
+
+; Self-closing tags
+var SELF_CLOSING_TAGS = 0
+
+fungsi html_init() -> void
+  SELF_CLOSING_TAGS = vector_new()
+  vector_push(SELF_CLOSING_TAGS, "br")
+  vector_push(SELF_CLOSING_TAGS, "hr")
+  vector_push(SELF_CLOSING_TAGS, "img")
+  vector_push(SELF_CLOSING_TAGS, "input")
+  vector_push(SELF_CLOSING_TAGS, "meta")
+  vector_push(SELF_CLOSING_TAGS, "link")
+  vector_push(SELF_CLOSING_TAGS, "area")
+  vector_push(SELF_CLOSING_TAGS, "base")
+  vector_push(SELF_CLOSING_TAGS, "col")
+  vector_push(SELF_CLOSING_TAGS, "embed")
+tutup_fungsi
+
+fungsi is_self_closing(tag: ptr) -> i64
+  jika SELF_CLOSING_TAGS == 0
+    html_init()
+  tutup_jika
+  
+  var len = vector_length(SELF_CLOSING_TAGS)
+  var i = 0
+  selama i < len
+    var t = vector_get(SELF_CLOSING_TAGS, i)
+    jika string_equals_simple(tag, t)
+      kembali 1
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; ATTRIBUTE PARSER
+; ==============================================================================
+
+; Parse all attributes: id="x" class="y" href="z"
+fungsi parse_attributes(input: ptr, idx: ptr) -> ptr
+  var attrs = hashmap_new()
+  var pos = __mf_load_i64(idx)
+  
+  selama 1 == 1
+    ; Skip whitespace
+    selama peek_byte(input, pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    var c = peek_byte(input, pos)
+    
+    ; End of attributes?
+    jika c == 62 || c == 47 || c == 0  ; '>' or '/' or null
+      keluar
+    tutup_jika
+    
+    ; Parse attribute name
+    var name_start = pos
+    selama 1 == 1
+      c = peek_byte(input, pos)
+      jika c == 61 || c == 32 || c == 62 || c == 47 || c == 0  ; '=' space '>' '/' null
+        keluar
+      tutup_jika
+      pos = pos + 1
+    tutup_selama
+    
+    var name_len = pos - name_start
+    var attr_name = string_slice_new(input, name_start, name_len)
+    
+    ; Skip whitespace
+    selama peek_byte(input, pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    ; Check for '='
+    var attr_value = ""
+    jika peek_byte(input, pos) == 61  ; '='
+      pos = pos + 1
+      
+      ; Skip whitespace
+      selama peek_byte(input, pos) == 32
+        pos = pos + 1
+      tutup_selama
+      
+      ; Parse value (quoted or unquoted)
+      var quote = peek_byte(input, pos)
+      jika quote == 34 || quote == 39  ; " or '
+        pos = pos + 1
+        var val_start = pos
+        
+        selama peek_byte(input, pos) != quote && peek_byte(input, pos) != 0
+          pos = pos + 1
+        tutup_selama
+        
+        attr_value = string_slice_new(input, val_start, pos - val_start)
+        jika peek_byte(input, pos) == quote
+          pos = pos + 1
+        tutup_jika
+      selain
+        ; Unquoted value
+        var val_start = pos
+        selama 1 == 1
+          c = peek_byte(input, pos)
+          jika c == 32 || c == 62 || c == 47 || c == 0
+            keluar
+          tutup_jika
+          pos = pos + 1
+        tutup_selama
+        attr_value = string_slice_new(input, val_start, pos - val_start)
+      tutup_jika
+    tutup_jika
+    
+    ; Store attribute
+    hashmap_set(attrs, attr_name, attr_value)
+  tutup_selama
+  
+  __mf_poke_i64(idx, pos)
+  kembali attrs
+tutup_fungsi
+
+; ==============================================================================
+; MAIN PARSER
+; ==============================================================================
+
+fungsi html_parse(input: ptr) -> ptr
+  var pos = 0
+  kembali parse_node(input, pos, 0)
+tutup_fungsi
+
+fungsi parse_node(input: ptr, pos: i64, depth: i64) -> ptr
+  jika depth > 50
+    kembali 0
+  tutup_jika
+  
+  ; Skip whitespace
+  selama peek_byte(input, pos) == 32 || peek_byte(input, pos) == 10
+    pos = pos + 1
+  tutup_selama
+  
+  var c = peek_byte(input, pos)
+  jika c == 0
+    kembali 0
+  tutup_jika
+  
+  jika c == 60  ; '<'
+    kembali parse_element(input, pos, depth)
+  selain
+    kembali parse_text(input, pos)
+  tutup_jika
+tutup_fungsi
+
+fungsi parse_element(input: ptr, pos: i64, depth: i64) -> ptr
+  pos = pos + 1  ; Skip '<'
+  
+  ; Check for comment
+  jika peek_byte(input, pos) == 33  ; '!'
+    kembali parse_comment(input, pos)
+  tutup_jika
+  
+  ; Check for closing tag
+  jika peek_byte(input, pos) == 47  ; '/'
+    kembali 0  ; Let parent handle
+  tutup_jika
+  
+  ; Parse tag name
+  var tag_start = pos
+  selama 1 == 1
+    var c = peek_byte(input, pos)
+    jika c == 32 || c == 62 || c == 47 || c == 0
+      keluar
+    tutup_jika
+    pos = pos + 1
+  tutup_selama
+  
+  var tag = string_slice_new(input, tag_start, pos - tag_start)
+  
+  ; Create node
+  var node = __mf_mem_alloc(64)
+  __mf_poke_i64(node + NODE_TYPE, HTML_ELEMENT)
+  __mf_poke_i64(node + NODE_TAG, tag)
+  
+  ; Parse attributes
+  var idx_ptr = __mf_mem_alloc(8)
+  __mf_poke_i64(idx_ptr, pos)
+  var attrs = parse_attributes(input, idx_ptr)
+  pos = __mf_load_i64(idx_ptr)
+  __mf_poke_i64(node + NODE_ATTRS, attrs)
+  
+  ; Check self-closing /> or self-closing tag
+  var self_close = 0
+  jika peek_byte(input, pos) == 47  ; '/'
+    pos = pos + 1
+    self_close = 1
+  tutup_jika
+  
+  jika peek_byte(input, pos) == 62  ; '>'
+    pos = pos + 1
+  tutup_jika
+  
+  jika self_close == 1 || is_self_closing(tag) == 1
+    kembali node
+  tutup_jika
+  
+  ; Parse children
+  var last_child = 0
+  selama 1 == 1
+    ; Skip whitespace
+    selama peek_byte(input, pos) == 32 || peek_byte(input, pos) == 10
+      pos = pos + 1
+    tutup_selama
+    
+    var c = peek_byte(input, pos)
+    jika c == 0
+      keluar
+    tutup_jika
+    
+    ; Check for closing tag
+    jika c == 60 && peek_byte(input, pos + 1) == 47
+      ; Skip </tag>
+      pos = pos + 2
+      selama peek_byte(input, pos) != 62 && peek_byte(input, pos) != 0
+        pos = pos + 1
+      tutup_selama
+      jika peek_byte(input, pos) == 62
+        pos = pos + 1
+      tutup_jika
+      keluar
+    tutup_jika
+    
+    var child = parse_node(input, pos, depth + 1)
+    jika child != 0
+      __mf_poke_i64(child + NODE_PARENT, node)
+      jika last_child == 0
+        __mf_poke_i64(node + NODE_FIRST_CHILD, child)
+      selain
+        __mf_poke_i64(last_child + NODE_NEXT_SIBLING, child)
+      tutup_jika
+      last_child = child
+    selain
+      keluar
+    tutup_jika
+    
+    ; Advance pos (simplified - would need proper state tracking)
+    pos = pos + 1
+  tutup_selama
+  
+  kembali node
+tutup_fungsi
+
+fungsi parse_text(input: ptr, pos: i64) -> ptr
+  var start = pos
+  selama peek_byte(input, pos) != 60 && peek_byte(input, pos) != 0
+    pos = pos + 1
+  tutup_selama
+  
+  var len = pos - start
+  jika len == 0
+    kembali 0
+  tutup_jika
+  
+  var node = __mf_mem_alloc(64)
+  __mf_poke_i64(node + NODE_TYPE, HTML_TEXT)
+  __mf_poke_i64(node + NODE_TAG, string_slice_new(input, start, len))
+  kembali node
+tutup_fungsi
+
+fungsi parse_comment(input: ptr, pos: i64) -> ptr
+  ; Skip <!-- ... -->
+  pos = pos + 2  ; Skip '!-'
+  jika peek_byte(input, pos) == 45
+    pos = pos + 1
+  tutup_jika
+  
+  var start = pos
+  selama 1 == 1
+    jika peek_byte(input, pos) == 0
+      keluar
+    tutup_jika
+    jika peek_byte(input, pos) == 45 && peek_byte(input, pos + 1) == 45 && peek_byte(input, pos + 2) == 62
+      keluar
+    tutup_jika
+    pos = pos + 1
+  tutup_selama
+  
+  var node = __mf_mem_alloc(64)
+  __mf_poke_i64(node + NODE_TYPE, HTML_COMMENT)
+  __mf_poke_i64(node + NODE_TAG, string_slice_new(input, start, pos - start))
+  kembali node
+tutup_fungsi
+
+; ==============================================================================
+; ATTRIBUTE ACCESS
+; ==============================================================================
+
+fungsi node_get_attr(node: ptr, name: ptr) -> ptr
+  var attrs = __mf_load_i64(node + NODE_ATTRS)
+  jika attrs == 0
+    kembali 0
+  tutup_jika
+  kembali hashmap_get(attrs, name)
+tutup_fungsi
+
+fungsi node_get_id(node: ptr) -> ptr
+  kembali node_get_attr(node, "id")
+tutup_fungsi
+
+fungsi node_get_class(node: ptr) -> ptr
+  kembali node_get_attr(node, "class")
+tutup_fungsi
+
+fungsi node_get_tag(node: ptr) -> ptr
+  kembali __mf_load_i64(node + NODE_TAG)
+tutup_fungsi
+
+; ==============================================================================
+; HELPERS
+; ==============================================================================
+
+fungsi peek_byte(ptr: ptr, offset: i64) -> i64
+  kembali load_byte(ptr + offset)
+tutup_fungsi
+
+fungsi string_slice_new(ptr: ptr, start: i64, len: i64) -> ptr
+  var s = __mf_mem_alloc(16)
+  __mf_poke_i64(s, len)
+  __mf_poke_i64(s + 8, ptr + start)
+  kembali s
+tutup_fungsi

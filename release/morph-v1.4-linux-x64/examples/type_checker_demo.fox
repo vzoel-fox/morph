@@ -1,0 +1,49 @@
+ambil "../src/type_checker.fox"
+
+; ==============================================================================
+; TYPE CHECKER DEMO
+; ==============================================================================
+
+utama {
+  sistem 1, 1, "Type Checker Demo\n", 18
+  
+  ; Create simple AST for: var x: i64 = 42
+  var var_node = ast_new(AST_VAR_DECL)
+  __mf_poke_i64(var_node + AST_DATA1, "x")
+  __mf_poke_i64(var_node + AST_DATA2, TYPE_I64)
+  
+  ; Create literal node for initializer
+  var lit_node = ast_new(AST_LITERAL)
+  __mf_poke_i64(lit_node + AST_DATA1, 42)
+  __mf_poke_i64(lit_node + AST_DATA2, 0)  ; Not string
+  
+  ; Add initializer as child
+  var children = vector_new()
+  vector_push(children, lit_node)
+  __mf_poke_i64(var_node + AST_CHILDREN, children)
+  
+  ; Type check
+  var tc = type_checker_new()
+  var result = tc_check_var_decl(tc, var_node)
+  
+  jika result == TYPE_ERROR
+    sistem 1, 2, "Type checking failed!\n", 21
+    tc_print_errors(tc)
+    kembali 1
+  tutup_jika
+  
+  sistem 1, 1, "Type checking passed!\n", 22
+  
+  ; Test identifier lookup
+  var id_node = ast_new(AST_IDENT)
+  __mf_poke_i64(id_node + AST_DATA1, "x")
+  
+  var id_type = tc_check_identifier(tc, id_node)
+  jika id_type == TYPE_I64
+    sistem 1, 1, "Variable 'x' has correct type i64\n", 34
+  lain
+    sistem 1, 2, "Variable 'x' type check failed\n", 31
+  tutup_jika
+  
+  kembali 0
+}

@@ -76,8 +76,8 @@ fungsi vm_load_morph_file(vm: ptr, filename: ptr) -> i64
     kembali 0
   tutup_jika
   
-  ; Verify header "MORPHFX1"
-  jika __mf_load_byte(header_buf) != 77  ; 'M'
+  ; Verify header "VZOELFOX" - BOOTSTRAP COMPATIBLE
+  jika __mf_load_byte(header_buf) != 86  ; 'V'
     sistem 3, fd
     kembali 0
   tutup_jika

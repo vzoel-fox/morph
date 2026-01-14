@@ -1,4 +1,4 @@
-# MorphFox Type System - Current Status & Analysis
+# Morph Type System - Current Status & Analysis
 
 ## 📊 **Current Type System Overview**
 
@@ -83,7 +83,7 @@ tc_check_function()    ; Function type checking
 
 | Language | Type System | Complexity | Features |
 |----------|-------------|------------|----------|
-| **MorphFox** | Basic Static | ⭐⭐☆☆☆ | 5 types, symbol table |
+| **Morph** | Basic Static | ⭐⭐☆☆☆ | 5 types, symbol table |
 | **Rust** | Advanced Static | ⭐⭐⭐⭐⭐ | Ownership, lifetimes, generics |
 | **Go** | Simple Static | ⭐⭐⭐☆☆ | Structs, interfaces, methods |
 | **C** | Basic Static | ⭐⭐☆☆☆ | Structs, unions, pointers |

@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "Testing simple return\n", 22
+    42  ; implicit return instead of kembali
+}

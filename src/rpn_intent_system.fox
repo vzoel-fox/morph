@@ -392,7 +392,7 @@ fungsi rpn_write_morph_file(ctx: ptr, filename: ptr) -> i64
   tutup_jika
   
   ; Write header
-  var header = "MORPHFX1"
+  var header = "VZOELFOX"  ; BOOTSTRAP COMPATIBLE
   sistem 1, fd, header, 8
   
   ; Write version

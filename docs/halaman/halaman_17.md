@@ -4,11 +4,11 @@
 **Tanggal: 2026-01-12**
 **Platforms: Linux x86-64, Windows x86-64, WebAssembly**
 
-Dokumen ini mendokumentasikan peningkatan keamanan memori yang diimplementasikan pada MorphFox v1.2 secara konsisten di semua platform, termasuk semua defensive checks, error codes baru, dan jaminan keamanan.
+Dokumen ini mendokumentasikan peningkatan keamanan memori yang diimplementasikan pada Morph v1.2 secara konsisten di semua platform, termasuk semua defensive checks, error codes baru, dan jaminan keamanan.
 
 ## 1. Ringkasan Eksekutif
 
-MorphFox v1.2 menerapkan **Defensive Programming** di seluruh codebase untuk mencegah vulnerability memory safety yang umum. Update ini menambahkan:
+Morph v1.2 menerapkan **Defensive Programming** di seluruh codebase untuk mencegah vulnerability memory safety yang umum. Update ini menambahkan:
 
 - ✅ **8 error codes baru** (104-117) untuk error handling yang lebih granular
 - ✅ **Bounds checking** pada executor untuk mencegah OOB read/write
@@ -22,7 +22,7 @@ MorphFox v1.2 menerapkan **Defensive Programming** di seluruh codebase untuk men
 
 ### 2.1 Platform Coverage
 
-Memory safety improvements telah diimplementasikan **secara konsisten** di semua platform yang didukung MorphFox:
+Memory safety improvements telah diimplementasikan **secara konsisten** di semua platform yang didukung Morph:
 
 | Platform | Executor | Parser | Scheduler | Networking | Status |
 |----------|----------|--------|-----------|------------|--------|
@@ -404,7 +404,7 @@ Jika performance menjadi bottleneck di production:
    - **Mitigation:** Add TLS (Thread-Local Storage) di future version
 
 2. **Integer Overflow**: Size calculations bisa overflow pada 32-bit systems
-   - **Mitigation:** MorphFox currently x86-64 only (64-bit sizes)
+   - **Mitigation:** Morph currently x86-64 only (64-bit sizes)
 
 3. **Spectre/Meltdown**: CPU speculative execution bisa leak data
    - **Mitigation:** Beyond scope (requires CPU microcode updates)
@@ -490,7 +490,7 @@ Implementasi memory safety v1.2 ini terinspirasi oleh:
 
 **Catatan Akhir:**
 
-Memory safety adalah **ongoing effort**. MorphFox v1.2 sudah jauh lebih aman dari v1.1, tapi masih ada room for improvement. Kontribusi community sangat welcome untuk meningkatkan security posture.
+Memory safety adalah **ongoing effort**. Morph v1.2 sudah jauh lebih aman dari v1.1, tapi masih ada room for improvement. Kontribusi community sangat welcome untuk meningkatkan security posture.
 
 **Report vulnerabilities:** security@morphfox.dev (placeholder)
 

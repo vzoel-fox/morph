@@ -102,8 +102,16 @@ const SNAP_PAGES = 24
 const SNAP_OFFSET = 32
 const SNAP_HDR = 64
 
-; Magic: "MORPHSNP"
-const MAGIC_MORPHSNP = 0x504E534850524F4D
+; BOOTSTRAP COMPATIBLE DUAL MAGIC SYSTEM:
+
+; Memory Page Magic - untuk memory allocator
+const MAGIC_VZOELFOX = 0x584F464C454F5A56  ; "VZOELFOX"
+
+; Snapshot Magic - untuk snapshot files  
+const MAGIC_MORPHSNP = 0x504E534850524F4D  ; "MORPHSNP"
+
+; File format version - SAME AS BOOTSTRAP  
+const FILE_VERSION = 1
 
 ; Operations:
 ;   mem_snapshot_save() -> void

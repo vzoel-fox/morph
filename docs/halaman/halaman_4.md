@@ -28,7 +28,7 @@ Kita memperkenalkan `scripts/morph_cleaner.sh`, sebuah daemon eksternal untuk me
 Kita mendefinisikan Single Source of Truth baru di `corelib/core/structures.fox` dan `corelib/core/token.fox`.
 
 ### A. String (Fat Pointer)
-String di MorphFox bukanlah C-String (null-terminated), melainkan Slice:
+String di Morph bukanlah C-String (null-terminated), melainkan Slice:
 - **Struct:** `[Length: i64] [Data Ptr: ptr]`
 - **Hashing:** Algoritma **FNV-1a (64-bit)** diimplementasikan di assembly untuk kinerja tinggi.
 - **Equality:** Cek panjang dulu, baru *byte-per-byte comparison*.

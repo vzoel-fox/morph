@@ -5,7 +5,7 @@
 ambil "../src/selfhost.fox"
 
 utama {
-    sistem 1, 1, "🔍 MorphFox Memory System Audit\n", 33
+    sistem 1, 1, "🔍 Morph Memory System Audit\n", 33
     sistem 1, 1, "===============================\n", 31
     
     ; Test 1: Arena Reset Functionality

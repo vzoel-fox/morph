@@ -433,6 +433,8 @@ parse_statement:
     je .do_return
     cmpq $6, %rax # pilih (switch)
     je .do_switch
+    cmpq $20, %rax # sistem
+    je .do_sistem
 
     # If generic keyword or unknown, treat as expression or null
     xorq %rax, %rax
@@ -457,6 +459,10 @@ parse_statement:
 .do_switch:
     movq %r12, %rdi
     call parse_switch
+    jmp .stmt_ret
+.do_sistem:
+    movq %r12, %rdi
+    call parse_syscall
     jmp .stmt_ret
 
 .stmt_ret:
@@ -625,6 +631,9 @@ parse_if:
     xorq %r15, %r15
     movq %r12, %rdi
     call lexer_peek_token
+    # SAFETY: Check if token is actually a keyword before calling get_keyword_id
+    cmpq $4, 0(%rax)  # TOKEN_KEYWORD = 4
+    jne .pif_close    # Not a keyword, skip else check
     movq 8(%rax), %rdi
     call get_keyword_id
     cmpq $7, %rax # lain
@@ -761,8 +770,22 @@ parse_return:
     movq $INTENT_NODE_SIZE, %rdi
     call mem_alloc
     popq %rbx
+    
+    # Check if expression is null (kembali without expression)
+    testq %rbx, %rbx
+    jnz .ret_with_expr
+    
+    # kembali without expression - set child to null
+    movq $INTENT_FRAG_RETURN, INTENT_OFFSET_TYPE(%rax)
+    movq $0, INTENT_OFFSET_CHILD(%rax)
+    jmp .ret_done
+    
+.ret_with_expr:
+    # kembali with expression
     movq $INTENT_FRAG_RETURN, INTENT_OFFSET_TYPE(%rax)
     movq %rbx, INTENT_OFFSET_CHILD(%rax)
+    
+.ret_done:
     popq %r12
     ret
 
@@ -779,6 +802,10 @@ parse_syscall:
     subq $16, %rsp
     movq %rdi, %r12
 
+    # Consume "sistem" keyword first
+    movq %r12, %rdi
+    call lexer_next_token
+
     # Parse Intent (Expression)
     movq %r12, %rdi
     call parser_parse_expression
@@ -791,6 +818,9 @@ parse_syscall:
     # Check for comma
     movq %r12, %rdi
     call lexer_peek_token
+    # Check token type first - must be DELIMITER (type 6)
+    cmpq $6, 0(%rax)
+    jne .psys_done
     movq 8(%rax), %rsi
     cmpq $44, %rsi # ','
     jne .psys_done
@@ -966,7 +996,16 @@ parse_primary:
 
 # Helpers
 is_closing_keyword:
+    # SAFETY: NULL check untuk input pointer
+    testq %rdi, %rdi
+    jz .not_close
+
     movq 8(%rdi), %rsi
+
+    # SAFETY: NULL check untuk string data pointer
+    testq %rsi, %rsi
+    jz .not_close
+
     cmpb $'t', (%rsi)
     jne .chk_lain
     cmpb $'u', 1(%rsi)
@@ -985,7 +1024,16 @@ is_closing_keyword:
     ret
 
 get_keyword_id:
+    # SAFETY: NULL check untuk input pointer
+    testq %rdi, %rdi
+    jz .k_null_ret
+
     movq 8(%rdi), %rsi
+
+    # SAFETY: NULL check untuk string data pointer
+    testq %rsi, %rsi
+    jz .k_null_ret
+
     movzbq (%rsi), %rax
     cmpb $'v', %al
     je .k_var
@@ -1033,6 +1081,11 @@ get_keyword_id:
     je .k_sel # selama
     cmpb $'i', %cl
     je .k_sys # sistem
+    xorq %rax, %rax
+    ret
+
+.k_null_ret:
+    # Return 0 for NULL input - not a keyword
     xorq %rax, %rax
     ret
 

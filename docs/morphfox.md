@@ -1,9 +1,9 @@
-# MorphFox: Bahasa Pemrograman Mandiri
+# Morph: Bahasa Pemrograman Mandiri
 
 ## Filosofi
 **"Mencari Kekayaan Sendiri"**
 
-MorphFox dibangun di atas prinsip kemandirian total. Kita tidak mewarisi "harta" dari bahasa lain (seperti libc C atau runtime Rust), melainkan mendefinisikan kekayaan (fitur & struktur) kita sendiri dari nol.
+Morph dibangun di atas prinsip kemandirian total. Kita tidak mewarisi "harta" dari bahasa lain (seperti libc C atau runtime Rust), melainkan mendefinisikan kekayaan (fitur & struktur) kita sendiri dari nol.
 
 ## Arsitektur
 Sistem ini dirancang dengan pendekatan **Bottom-Up**:

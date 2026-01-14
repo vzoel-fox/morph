@@ -2,7 +2,7 @@
 
 ## Overview
 
-Memory management builtins untuk MorphFox, diimplementasikan dalam x86_64 assembly.
+Memory management builtins untuk Morph, diimplementasikan dalam x86_64 assembly.
 
 ## Arsitektur
 

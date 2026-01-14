@@ -1,0 +1,5 @@
+utama {
+    var x = 42
+    sistem 1, 1, "test1234\n", 9
+    0
+}

@@ -1,0 +1,19 @@
+; Test multiple functions
+
+utama {
+    sistem 1, 1, "Test multi func\n", 16
+    var a = func1()
+    var b = func2(10)
+    sistem 1, 1, "Done\n", 5
+    0
+}
+
+fungsi func1() -> i64
+    sistem 1, 1, "func1\n", 6
+    1
+tutup_fungsi
+
+fungsi func2(x: i64) -> i64
+    sistem 1, 1, "func2\n", 6
+    x
+tutup_fungsi

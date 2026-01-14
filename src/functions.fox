@@ -1,0 +1,231 @@
+; ==============================================================================
+; FUNCTION CALLS - Complete Implementation
+; ==============================================================================
+; Function definition, calls, arguments, return values
+
+ambil "codegen.fox"
+
+; Function table
+var __func_table = 0
+var __func_count = 0
+
+; Call frame structure
+const FRAME_RETURN_ADDR = 0
+const FRAME_PREV_FRAME = 8
+const FRAME_LOCAL_COUNT = 16
+const FRAME_LOCALS = 24
+
+; ==============================================================================
+; FUNCTION TABLE
+; ==============================================================================
+
+fungsi func_table_init() -> void
+  __func_table = hashmap_new()
+  __func_count = 0
+tutup_fungsi
+
+fungsi func_register(name: ptr, label: i64, param_count: i64) -> i64
+  var entry = __mf_mem_alloc(24)
+  __mf_poke_i64(entry, label)
+  __mf_poke_i64(entry + 8, param_count)
+  __mf_poke_i64(entry + 16, __func_count)
+  hashmap_set(__func_table, name, entry)
+  __func_count = __func_count + 1
+  kembali __func_count - 1
+tutup_fungsi
+
+fungsi func_lookup(name: ptr) -> ptr
+  kembali hashmap_get(__func_table, name)
+tutup_fungsi
+
+; ==============================================================================
+; FUNCTION DEFINITION CODEGEN
+; ==============================================================================
+
+fungsi gen_function_def(gen: ptr, name: ptr, params: ptr, body: ptr) -> i64
+  ; Create function label
+  var func_label = codegen_new_label(gen)
+  
+  ; Register function
+  var param_count = 0
+  jika params != 0
+    param_count = vector_length(params)
+  tutup_jika
+  func_register(name, func_label, param_count)
+  
+  ; Emit function label
+  codegen_emit_label(gen, func_label)
+  
+  ; Setup frame
+  codegen_emit(gen, OP_FRAME, param_count)
+  
+  ; Bind parameters to local variables
+  jika params != 0
+    var i = 0
+    selama i < param_count
+      var param = vector_get(params, i)
+      var param_name = __mf_load_i64(param + AST_DATA1)
+      ; Store parameter from stack to local
+      codegen_emit(gen, OP_STORE, param_name)
+      i = i + 1
+    tutup_selama
+  tutup_jika
+  
+  ; Generate body
+  codegen_block(gen, body)
+  
+  ; Default return 0
+  codegen_emit(gen, OP_LIT, 0)
+  codegen_emit(gen, OP_RET, 0)
+  
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; FUNCTION CALL CODEGEN
+; ==============================================================================
+
+fungsi gen_function_call(gen: ptr, name: ptr, args: ptr) -> i64
+  ; Push arguments in reverse order
+  jika args != 0
+    var arg_count = vector_length(args)
+    var i = arg_count - 1
+    selama i >= 0
+      var arg = vector_get(args, i)
+      codegen_expr(gen, arg)
+      i = i - 1
+    tutup_selama
+  tutup_jika
+  
+  ; Lookup function
+  var func_entry = func_lookup(name)
+  jika func_entry == 0
+    ; Built-in function or external
+    codegen_emit(gen, OP_CALL, name)
+    kembali 1
+  tutup_jika
+  
+  var func_label = __mf_load_i64(func_entry)
+  codegen_emit(gen, OP_CALL, func_label)
+  
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; SYSCALL CODEGEN
+; ==============================================================================
+
+fungsi gen_syscall(gen: ptr, syscall_num: ptr, args: ptr) -> i64
+  ; Evaluate syscall number
+  codegen_expr(gen, syscall_num)
+  
+  ; Push arguments
+  var arg_count = 0
+  jika args != 0
+    arg_count = vector_length(args)
+    var i = 0
+    selama i < arg_count
+      var arg = vector_get(args, i)
+      codegen_expr(gen, arg)
+      i = i + 1
+    tutup_selama
+  tutup_jika
+  
+  ; Emit syscall with arg count
+  codegen_emit(gen, OP_SYSCALL, arg_count)
+  
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; RETURN STATEMENT
+; ==============================================================================
+
+fungsi gen_return(gen: ptr, value: ptr) -> i64
+  jika value != 0
+    codegen_expr(gen, value)
+  selain
+    codegen_emit(gen, OP_LIT, 0)
+  tutup_jika
+  
+  codegen_emit(gen, OP_RET, 0)
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; EXECUTOR SUPPORT FOR CALLS
+; ==============================================================================
+
+; Extended opcodes for function support
+const OP_CALL_NATIVE = 43
+const OP_LOAD_LOCAL = 44
+const OP_STORE_LOCAL = 45
+const OP_LOAD_ARG = 46
+
+fungsi vm_execute_call(vm: ptr, target: i64) -> i64
+  ; Save return address
+  var pc = __mf_load_i64(vm + VM_PC)
+  vm_push(vm, pc + 1)
+  
+  ; Jump to function
+  __mf_poke_i64(vm + VM_PC, target - 1)
+  kembali 1
+tutup_fungsi
+
+fungsi vm_execute_ret(vm: ptr) -> i64
+  ; Pop return address
+  var ret_addr = vm_pop(vm)
+  
+  ; Jump back
+  __mf_poke_i64(vm + VM_PC, ret_addr - 1)
+  kembali 1
+tutup_fungsi
+
+fungsi vm_execute_syscall(vm: ptr, arg_count: i64) -> i64
+  ; Pop syscall number
+  var syscall_num = vm_pop(vm)
+  
+  ; Pop arguments
+  var args = __mf_mem_alloc(arg_count * 8)
+  var i = arg_count - 1
+  selama i >= 0
+    __mf_poke_i64(args + i * 8, vm_pop(vm))
+    i = i - 1
+  tutup_selama
+  
+  ; Execute syscall based on arg count
+  var result = 0
+  jika arg_count == 0
+    result = sistem syscall_num
+  lain
+    jika arg_count == 1
+      result = sistem syscall_num, __mf_load_i64(args)
+    lain
+      jika arg_count == 2
+        result = sistem syscall_num, __mf_load_i64(args), __mf_load_i64(args + 8)
+      lain
+        jika arg_count == 3
+          result = sistem syscall_num, __mf_load_i64(args), __mf_load_i64(args + 8), __mf_load_i64(args + 16)
+        lain
+          jika arg_count == 4
+            result = sistem syscall_num, __mf_load_i64(args), __mf_load_i64(args + 8), __mf_load_i64(args + 16), __mf_load_i64(args + 24)
+          lain
+            jika arg_count == 5
+              result = sistem syscall_num, __mf_load_i64(args), __mf_load_i64(args + 8), __mf_load_i64(args + 16), __mf_load_i64(args + 24), __mf_load_i64(args + 32)
+            lain
+              jika arg_count == 6
+                result = sistem syscall_num, __mf_load_i64(args), __mf_load_i64(args + 8), __mf_load_i64(args + 16), __mf_load_i64(args + 24), __mf_load_i64(args + 32), __mf_load_i64(args + 40)
+              tutup_jika
+            tutup_jika
+          tutup_jika
+        tutup_jika
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  __mf_mem_free(args)
+  
+  ; Push result
+  vm_push(vm, result)
+  kembali 1
+tutup_fungsi

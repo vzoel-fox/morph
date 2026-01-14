@@ -4,7 +4,23 @@ ambil "corelib/core/builtins.fox"
 ; ==============================================================================
 ; STANDARD LIBRARY (STD)
 ; ==============================================================================
-; Wrapper functions for common operations.
+; Core imports for common operations.
+; ==============================================================================
+
+; Data Structures
+ambil "corelib/lib/vector.fox"
+ambil "corelib/lib/hashmap.fox"
+ambil "corelib/lib/string.fox"
+
+; Runtime
+ambil "corelib/lib/scheduler.fox"
+
+; I/O & Config
+ambil "corelib/lib/io.fox"
+ambil "corelib/lib/fall.fox"
+
+; ==============================================================================
+; UTILITY FUNCTIONS
 ; ==============================================================================
 
 ; Math
@@ -17,6 +33,13 @@ tutup_fungsi
 
 fungsi math_max(a, b)
   jika (a > b)
+    kembali a
+  tutup_jika
+  kembali b
+tutup_fungsi
+
+fungsi math_min(a, b)
+  jika (a < b)
     kembali a
   tutup_jika
   kembali b
@@ -35,6 +58,13 @@ tutup_fungsi
 ; IO
 fungsi print_line(ptr)
   __mf_print_asciz(ptr)
-  ; Newline
-  ; TODO: Platform specific newline or just print char 10
+tutup_fungsi
+
+fungsi print_int(n)
+  __mf_print_int(n)
+tutup_fungsi
+
+fungsi println(s)
+  sistem 1, 1, s.buffer, s.panjang
+  sistem 1, 1, "\n", 1
 tutup_fungsi

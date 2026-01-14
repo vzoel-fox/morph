@@ -1,6 +1,6 @@
 # Halaman 7: Runtime Intelligence, Daemon Integration & Math Safety
 
-Dokumen ini merangkum evolusi besar pada infrastruktur runtime MorphFox, fokus pada integrasi sistem (OS), keamanan memori tingkat lanjut, dan aritmatika aman.
+Dokumen ini merangkum evolusi besar pada infrastruktur runtime Morph, fokus pada integrasi sistem (OS), keamanan memori tingkat lanjut, dan aritmatika aman.
 
 ## 1. Allocator Intelligence (V2)
 
@@ -36,7 +36,7 @@ Runtime merespons sinyal POSIX untuk kontrol eksternal:
 
 ## 3. Math Safety (Overflow Protection)
 
-Untuk mencegah bug aritmatika diam-diam, MorphFox mengimplementasikan **Checked Arithmetic** di level assembly.
+Untuk mencegah bug aritmatika diam-diam, Morph mengimplementasikan **Checked Arithmetic** di level assembly.
 
 ### Safe Builtins
 Operasi berikut mengembalikan status error (RDX=1) jika terjadi overflow atau error:

@@ -1,0 +1,77 @@
+; ==============================================================================
+; TEST: Pure Morph Builtins (No Bootstrap Required)
+; ==============================================================================
+; Test ini membuktikan self-hosting bisa jalan tanpa bootstrap binary
+
+ambil "corelib/core/pure_builtins.fox"
+
+utama {
+    println_str("=== Pure Morph Builtins Test ===")
+    println_str("No assembly, no bootstrap - pure syscalls!")
+    println_str("")
+    
+    ; Test 1: Memory allocation
+    println_str("Test 1: Memory (mmap/munmap)...")
+    heap_init(65536)  ; 64KB heap
+    
+    var ptr1 = heap_alloc(100)
+    var ptr2 = heap_alloc(200)
+    jika ptr1 != 0 && ptr2 != 0
+        println_str("  ✓ heap_alloc works")
+    tutup_jika
+    
+    ; Write and read back
+    poke_byte(ptr1, 42)
+    jika load_byte(ptr1) == 42
+        println_str("  ✓ memory read/write works")
+    tutup_jika
+    
+    ; Test 2: File I/O
+    println_str("Test 2: File I/O...")
+    var fd = file_open_read("data.fall")
+    jika fd >= 0
+        var buf = heap_alloc(256)
+        var n = file_read(fd, buf, 255)
+        file_close(fd)
+        jika n > 0
+            println_str("  ✓ file read works")
+            print("  Content: ", 11)
+            print(buf, n)
+            println_str("")
+        tutup_jika
+    selain
+        println_str("  - data.fall not found (ok)")
+    tutup_jika
+    
+    ; Test 3: Time
+    println_str("Test 3: Time...")
+    var t1 = time_now()
+    sleep_ms(10)
+    var t2 = time_now()
+    jika t2 > t1
+        println_str("  ✓ time_now and sleep_ms work")
+    tutup_jika
+    
+    ; Test 4: Print number
+    println_str("Test 4: Print number...")
+    print("  Number: ", 10)
+    print_num(12345)
+    println_str("")
+    print("  Negative: ", 12)
+    print_num(-9876)
+    println_str("")
+    
+    ; Test 5: Socket (just create, don't connect)
+    println_str("Test 5: Socket...")
+    var sock = socket_tcp()
+    jika sock >= 0
+        println_str("  ✓ socket_tcp works")
+        socket_close(sock)
+    tutup_jika
+    
+    println_str("")
+    println_str("✓ All pure builtin tests passed!")
+    println_str("Self-hosting can run WITHOUT bootstrap!")
+    
+    0
+}

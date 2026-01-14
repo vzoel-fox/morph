@@ -1,0 +1,5 @@
+utama {
+    sistem 1, 1, "Testing return parsing\n", 23
+    sistem 1, 1, "Before return\n", 14
+    kembali
+}

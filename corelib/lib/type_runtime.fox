@@ -1,0 +1,149 @@
+; ==============================================================================
+; TYPE RUNTIME - Wrapper untuk Bootstrap type.s
+; ==============================================================================
+; Runtime Type Information (RTTI) untuk struct dan type descriptors
+
+; Type IDs (match bootstrap)
+const TYPEID_I64 = 1
+const TYPEID_PTR = 2
+const TYPEID_STRING = 3
+
+; TypeDescriptor layout (32 bytes)
+const TD_NAME = 0
+const TD_SIZE = 8
+const TD_COUNT = 16
+const TD_FIELDS = 24
+
+; FieldDescriptor layout (32 bytes)
+const FD_NEXT = 0
+const FD_NAME = 8
+const FD_TYPE = 16
+const FD_OFFSET = 24
+
+; ==============================================================================
+; TYPE CREATION (Pure MorphFox - no asm dependency)
+; ==============================================================================
+
+fungsi type_create(name: ptr) -> ptr
+  var td = __mf_mem_alloc(32)
+  jika td == 0
+    kembali 0
+  tutup_jika
+  
+  __mf_poke_i64(td + TD_NAME, name)
+  __mf_poke_i64(td + TD_SIZE, 0)
+  __mf_poke_i64(td + TD_COUNT, 0)
+  __mf_poke_i64(td + TD_FIELDS, 0)
+  
+  kembali td
+tutup_fungsi
+
+fungsi type_add_field(td: ptr, name: ptr, type_id: i64) -> i64
+  ; Alloc field descriptor
+  var fd = __mf_mem_alloc(32)
+  jika fd == 0
+    kembali 0
+  tutup_jika
+  
+  ; Set field metadata
+  __mf_poke_i64(fd + FD_NAME, name)
+  __mf_poke_i64(fd + FD_TYPE, type_id)
+  
+  ; Offset = current size
+  var current_size = __mf_load_i64(td + TD_SIZE)
+  __mf_poke_i64(fd + FD_OFFSET, current_size)
+  
+  ; Update size based on type
+  var field_size = type_sizeof(type_id)
+  __mf_poke_i64(td + TD_SIZE, current_size + field_size)
+  
+  ; Prepend to field list
+  var old_head = __mf_load_i64(td + TD_FIELDS)
+  __mf_poke_i64(fd + FD_NEXT, old_head)
+  __mf_poke_i64(td + TD_FIELDS, fd)
+  
+  ; Increment count
+  var count = __mf_load_i64(td + TD_COUNT)
+  __mf_poke_i64(td + TD_COUNT, count + 1)
+  
+  kembali 1
+tutup_fungsi
+
+fungsi type_get_size(td: ptr) -> i64
+  kembali __mf_load_i64(td + TD_SIZE)
+tutup_fungsi
+
+fungsi type_get_field_count(td: ptr) -> i64
+  kembali __mf_load_i64(td + TD_COUNT)
+tutup_fungsi
+
+fungsi type_sizeof(type_id: i64) -> i64
+  jika type_id == TYPEID_I64
+    kembali 8
+  tutup_jika
+  jika type_id == TYPEID_PTR
+    kembali 8
+  tutup_jika
+  jika type_id == TYPEID_STRING
+    kembali 16  ; ptr + length
+  tutup_jika
+  kembali 8  ; Default
+tutup_fungsi
+
+; ==============================================================================
+; FIELD ACCESS
+; ==============================================================================
+
+fungsi type_get_field_offset(td: ptr, field_name: ptr) -> i64
+  var fd = __mf_load_i64(td + TD_FIELDS)
+  
+  selama fd != 0
+    var name = __mf_load_i64(fd + FD_NAME)
+    jika string_equals_simple(name, field_name)
+      kembali __mf_load_i64(fd + FD_OFFSET)
+    tutup_jika
+    fd = __mf_load_i64(fd + FD_NEXT)
+  tutup_selama
+  
+  kembali -1  ; Not found
+tutup_fungsi
+
+fungsi type_get_field_type(td: ptr, field_name: ptr) -> i64
+  var fd = __mf_load_i64(td + TD_FIELDS)
+  
+  selama fd != 0
+    var name = __mf_load_i64(fd + FD_NAME)
+    jika string_equals_simple(name, field_name)
+      kembali __mf_load_i64(fd + FD_TYPE)
+    tutup_jika
+    fd = __mf_load_i64(fd + FD_NEXT)
+  tutup_selama
+  
+  kembali -1  ; Not found
+tutup_fungsi
+
+; ==============================================================================
+; INSTANCE OPERATIONS
+; ==============================================================================
+
+fungsi type_alloc_instance(td: ptr) -> ptr
+  var size = type_get_size(td)
+  kembali __mf_mem_alloc(size)
+tutup_fungsi
+
+fungsi type_set_field(instance: ptr, td: ptr, field_name: ptr, value: i64) -> i64
+  var offset = type_get_field_offset(td, field_name)
+  jika offset < 0
+    kembali 0
+  tutup_jika
+  __mf_poke_i64(instance + offset, value)
+  kembali 1
+tutup_fungsi
+
+fungsi type_get_field(instance: ptr, td: ptr, field_name: ptr) -> i64
+  var offset = type_get_field_offset(td, field_name)
+  jika offset < 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(instance + offset)
+tutup_fungsi

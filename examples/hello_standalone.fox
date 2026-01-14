@@ -1,0 +1,17 @@
+#!/usr/bin/env morphfox
+; ==============================================================================
+; Example: Hello World dengan Shebang
+; ==============================================================================
+; File ini bisa dijalankan langsung: ./hello.fox
+; Setelah install morphfox ke PATH
+
+utama {
+    print_line("Hello from MorphFox! 🦊")
+    print_line("Running without cloning repo!")
+    0
+}
+
+fungsi print_line(s: String) {
+    sistem 1, 1, s.buffer, s.panjang
+    sistem 1, 1, "\n", 1
+}

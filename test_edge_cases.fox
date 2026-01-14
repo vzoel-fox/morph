@@ -1,0 +1,31 @@
+utama {
+    sistem 1, 1, "=== Testing Edge Cases ===\n", 27
+    
+    // Edge case 1: kembali at EOF (previously caused infinite loop)
+    test_eof_kembali()
+    sistem 1, 1, "EOF test passed\n", 16
+    
+    // Edge case 2: nested jika
+    test_nested_jika()
+    sistem 1, 1, "Nested test passed\n", 19
+    
+    sistem 1, 1, "=== Edge Cases Passed ===\n", 27
+    0
+}
+
+test_eof_kembali {
+    var x = 1
+    jika x == 1
+        kembali
+    tutup_jika
+}
+
+test_nested_jika {
+    var a = 5
+    var b = 10
+    jika a < b
+        jika a == 5
+            sistem 1, 1, "Nested OK\n", 10
+        tutup_jika
+    tutup_jika
+}

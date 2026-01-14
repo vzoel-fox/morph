@@ -1,0 +1,143 @@
+; ==============================================================================
+; CRYPTO - Self-Hosting Wrapper
+; ==============================================================================
+; Wrapper untuk crypto builtins (SHA256, ChaCha20)
+
+; ==============================================================================
+; BUILTIN DECLARATIONS (implemented in bootstrap asm)
+; ==============================================================================
+
+extern fungsi __sha256_init(ctx: ptr) -> void
+extern fungsi __sha256_update(ctx: ptr, data: ptr, len: i64) -> void
+extern fungsi __sha256_final(ctx: ptr, hash: ptr) -> void
+extern fungsi __sha256_hash(data: ptr, len: i64, hash: ptr) -> void
+
+extern fungsi __chacha20_init(ctx: ptr, key: ptr, nonce: ptr) -> void
+extern fungsi __chacha20_encrypt(ctx: ptr, plaintext: ptr, ciphertext: ptr, len: i64) -> void
+extern fungsi __chacha20_decrypt(ctx: ptr, ciphertext: ptr, plaintext: ptr, len: i64) -> void
+
+; ==============================================================================
+; SHA256 API
+; ==============================================================================
+
+; Hash data and return 32-byte digest
+fungsi sha256(data: ptr, len: i64) -> ptr
+  var hash = __mf_mem_alloc(32)
+  __sha256_hash(data, len, hash)
+  kembali hash
+tutup_fungsi
+
+; Hash string
+fungsi sha256_string(s: ptr) -> ptr
+  var len = string_length(s)
+  kembali sha256(s, len)
+tutup_fungsi
+
+; Streaming hash context
+fungsi sha256_new() -> ptr
+  var ctx = __mf_mem_alloc(128)  ; SHA256 context size
+  __sha256_init(ctx)
+  kembali ctx
+tutup_fungsi
+
+fungsi sha256_update(ctx: ptr, data: ptr, len: i64) -> void
+  __sha256_update(ctx, data, len)
+tutup_fungsi
+
+fungsi sha256_finish(ctx: ptr) -> ptr
+  var hash = __mf_mem_alloc(32)
+  __sha256_final(ctx, hash)
+  __mf_mem_free(ctx)
+  kembali hash
+tutup_fungsi
+
+; ==============================================================================
+; CHACHA20 API
+; ==============================================================================
+
+; Create encryption context
+; key: 32 bytes, nonce: 12 bytes
+fungsi chacha20_new(key: ptr, nonce: ptr) -> ptr
+  var ctx = __mf_mem_alloc(64)  ; ChaCha20 context size
+  __chacha20_init(ctx, key, nonce)
+  kembali ctx
+tutup_fungsi
+
+; Encrypt data in-place
+fungsi chacha20_encrypt(ctx: ptr, data: ptr, len: i64) -> ptr
+  var out = __mf_mem_alloc(len)
+  __chacha20_encrypt(ctx, data, out, len)
+  kembali out
+tutup_fungsi
+
+; Decrypt data in-place
+fungsi chacha20_decrypt(ctx: ptr, data: ptr, len: i64) -> ptr
+  var out = __mf_mem_alloc(len)
+  __chacha20_decrypt(ctx, data, out, len)
+  kembali out
+tutup_fungsi
+
+; Free context
+fungsi chacha20_free(ctx: ptr) -> void
+  __mf_mem_free(ctx)
+tutup_fungsi
+
+; ==============================================================================
+; CONVENIENCE FUNCTIONS
+; ==============================================================================
+
+; Simple encrypt with key (generates random nonce)
+fungsi encrypt(data: ptr, len: i64, key: ptr) -> ptr
+  ; Generate nonce (simplified - should use secure random)
+  var nonce = __mf_mem_alloc(12)
+  var i = 0
+  selama i < 12
+    poke_byte(nonce + i, i * 17 + 42)  ; Placeholder - use real random!
+    i = i + 1
+  tutup_selama
+  
+  var ctx = chacha20_new(key, nonce)
+  var encrypted = chacha20_encrypt(ctx, data, len)
+  chacha20_free(ctx)
+  
+  ; Prepend nonce to output
+  var result = __mf_mem_alloc(12 + len)
+  __mf_memcpy(result, nonce, 12)
+  __mf_memcpy(result + 12, encrypted, len)
+  
+  __mf_mem_free(nonce)
+  __mf_mem_free(encrypted)
+  kembali result
+tutup_fungsi
+
+; Simple decrypt (nonce is first 12 bytes)
+fungsi decrypt(data: ptr, len: i64, key: ptr) -> ptr
+  jika len < 12
+    kembali 0
+  tutup_jika
+  
+  var nonce = data
+  var ciphertext = data + 12
+  var cipher_len = len - 12
+  
+  var ctx = chacha20_new(key, nonce)
+  var decrypted = chacha20_decrypt(ctx, ciphertext, cipher_len)
+  chacha20_free(ctx)
+  
+  kembali decrypted
+tutup_fungsi
+
+; Hash password with salt
+fungsi hash_password(password: ptr, salt: ptr) -> ptr
+  var pass_len = string_length(password)
+  var salt_len = string_length(salt)
+  
+  ; Concatenate password + salt
+  var combined = __mf_mem_alloc(pass_len + salt_len)
+  __mf_memcpy(combined, password, pass_len)
+  __mf_memcpy(combined + pass_len, salt, salt_len)
+  
+  var hash = sha256(combined, pass_len + salt_len)
+  __mf_mem_free(combined)
+  kembali hash
+tutup_fungsi

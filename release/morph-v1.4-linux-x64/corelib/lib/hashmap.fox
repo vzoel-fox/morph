@@ -1,0 +1,175 @@
+; ==============================================================================
+; HASHMAP - Hash Table Implementation
+; ==============================================================================
+
+struktur HashMap {
+    buckets: ptr,    ; Array of bucket pointers
+    size: i64,       ; Number of elements
+    capacity: i64    ; Number of buckets
+}
+
+struktur HashEntry {
+    key: ptr,        ; String key
+    value: i64,      ; Value
+    next: ptr        ; Next entry (chaining)
+}
+
+; Simple hash function (djb2)
+fungsi hash_string(key: ptr) -> i64
+    jika (key == 0) kembali 0 tutup_jika
+    
+    var hash = 5381
+    var i = 0
+    var c = mem_load_byte_safe(key + i)
+    
+    selama (c != 0)
+        hash = ((hash * 33) + c) dan 0x7FFFFFFF  ; Keep positive
+        i = i + 1
+        c = mem_load_byte_safe(key + i)
+    tutup_selama
+    
+    kembali hash
+tutup_fungsi
+
+; Create new hashmap
+fungsi hashmap_new() -> ptr
+    var h = mem_alloc_safe(24)  ; sizeof(HashMap)
+    jika (h == 0) kembali 0 tutup_jika
+    
+    var initial_cap = 16
+    var buckets = mem_alloc_safe(initial_cap * 8)  ; Array of pointers
+    jika (buckets == 0)
+        mem_free_safe(h)
+        kembali 0
+    tutup_jika
+    
+    ; Initialize buckets to NULL
+    var i = 0
+    selama (i < initial_cap)
+        mem_store_safe(buckets + (i * 8), 0)
+        i = i + 1
+    tutup_selama
+    
+    mem_store_safe(h + 0, buckets)      ; buckets
+    mem_store_safe(h + 8, 0)            ; size
+    mem_store_safe(h + 16, initial_cap) ; capacity
+    kembali h
+tutup_fungsi
+
+; Insert key-value pair
+fungsi hashmap_insert(h: ptr, key: ptr, value: i64) -> i64
+    jika (h == 0 atau key == 0) kembali -1 tutup_jika
+    
+    var capacity = mem_load_safe(h + 16)
+    var hash = hash_string(key)
+    var bucket_idx = hash % capacity
+    
+    var buckets = mem_load_safe(h + 0)
+    var entry = mem_load_safe(buckets + (bucket_idx * 8))
+    
+    ; Check if key already exists
+    selama (entry != 0)
+        var entry_key = mem_load_safe(entry + 0)
+        jika (string_equals(entry_key, key) == 1)
+            ; Update existing
+            mem_store_safe(entry + 8, value)
+            kembali 0
+        tutup_jika
+        entry = mem_load_safe(entry + 16)  ; next
+    tutup_selama
+    
+    ; Create new entry
+    var new_entry = mem_alloc_safe(24)  ; sizeof(HashEntry)
+    jika (new_entry == 0) kembali -1 tutup_jika
+    
+    ; Copy key string
+    var key_len = string_length(key)
+    var key_copy = mem_alloc_safe(key_len + 1)
+    jika (key_copy == 0)
+        mem_free_safe(new_entry)
+        kembali -1
+    tutup_jika
+    string_copy(key_copy, key)
+    
+    mem_store_safe(new_entry + 0, key_copy)  ; key
+    mem_store_safe(new_entry + 8, value)     ; value
+    mem_store_safe(new_entry + 16, mem_load_safe(buckets + (bucket_idx * 8)))  ; next
+    
+    ; Insert at head of bucket
+    mem_store_safe(buckets + (bucket_idx * 8), new_entry)
+    
+    ; Update size
+    var size = mem_load_safe(h + 8)
+    mem_store_safe(h + 8, size + 1)
+    
+    kembali 0
+tutup_fungsi
+
+; Get value by key
+fungsi hashmap_get(h: ptr, key: ptr) -> i64
+    jika (h == 0 atau key == 0) kembali 0 tutup_jika
+    
+    var capacity = mem_load_safe(h + 16)
+    var hash = hash_string(key)
+    var bucket_idx = hash % capacity
+    
+    var buckets = mem_load_safe(h + 0)
+    var entry = mem_load_safe(buckets + (bucket_idx * 8))
+    
+    selama (entry != 0)
+        var entry_key = mem_load_safe(entry + 0)
+        jika (string_equals(entry_key, key) == 1)
+            kembali mem_load_safe(entry + 8)  ; value
+        tutup_jika
+        entry = mem_load_safe(entry + 16)  ; next
+    tutup_selama
+    
+    kembali 0  ; Not found
+tutup_fungsi
+
+; Check if key exists
+fungsi hashmap_has(h: ptr, key: ptr) -> i64
+    jika (h == 0 atau key == 0) kembali 0 tutup_jika
+    
+    var capacity = mem_load_safe(h + 16)
+    var hash = hash_string(key)
+    var bucket_idx = hash % capacity
+    
+    var buckets = mem_load_safe(h + 0)
+    var entry = mem_load_safe(buckets + (bucket_idx * 8))
+    
+    selama (entry != 0)
+        var entry_key = mem_load_safe(entry + 0)
+        jika (string_equals(entry_key, key) == 1)
+            kembali 1  ; Found
+        tutup_jika
+        entry = mem_load_safe(entry + 16)  ; next
+    tutup_selama
+    
+    kembali 0  ; Not found
+tutup_fungsi
+
+; Free hashmap
+fungsi hashmap_free(h: ptr) -> void
+    jika (h == 0) kembali tutup_jika
+    
+    var capacity = mem_load_safe(h + 16)
+    var buckets = mem_load_safe(h + 0)
+    
+    ; Free all entries
+    var i = 0
+    selama (i < capacity)
+        var entry = mem_load_safe(buckets + (i * 8))
+        selama (entry != 0)
+            var next = mem_load_safe(entry + 16)
+            var key = mem_load_safe(entry + 0)
+            jika (key != 0) mem_free_safe(key) tutup_jika
+            mem_free_safe(entry)
+            entry = next
+        tutup_selama
+        i = i + 1
+    tutup_selama
+    
+    mem_free_safe(buckets)
+    mem_free_safe(h)
+tutup_fungsi

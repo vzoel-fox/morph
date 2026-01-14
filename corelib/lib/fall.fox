@@ -1,0 +1,192 @@
+; ==============================================================================
+; FALL CONFIG PARSER
+; ==============================================================================
+; Parser untuk format .fall (key: value)
+; Format:
+;   key1: value1
+;   key2: value2
+
+ambil "corelib/lib/hashmap.fox"
+ambil "corelib/lib/string.fox"
+
+; ==============================================================================
+; PARSER
+; ==============================================================================
+
+; Parse .fall content into hashmap
+fungsi fall_parse(content: ptr, len: i64) -> ptr
+  var config = hashmap_new()
+  var pos = 0
+  
+  selama pos < len
+    ; Skip whitespace and empty lines
+    selama pos < len
+      var c = load_byte(content + pos)
+      jika c != 32 && c != 10 && c != 13 && c != 9
+        keluar
+      tutup_jika
+      pos = pos + 1
+    tutup_selama
+    
+    jika pos >= len
+      keluar
+    tutup_jika
+    
+    ; Skip comments (#)
+    jika load_byte(content + pos) == 35
+      selama pos < len && load_byte(content + pos) != 10
+        pos = pos + 1
+      tutup_selama
+      lanjut
+    tutup_jika
+    
+    ; Parse key
+    var key_start = pos
+    selama pos < len
+      var c = load_byte(content + pos)
+      jika c == 58 || c == 10  ; ':' or newline
+        keluar
+      tutup_jika
+      pos = pos + 1
+    tutup_selama
+    
+    var key_len = pos - key_start
+    
+    ; Trim trailing whitespace from key
+    selama key_len > 0 && load_byte(content + key_start + key_len - 1) == 32
+      key_len = key_len - 1
+    tutup_selama
+    
+    jika key_len == 0
+      lanjut
+    tutup_jika
+    
+    var key = string_slice_alloc(content, key_start, key_len)
+    
+    ; Skip ':'
+    jika pos < len && load_byte(content + pos) == 58
+      pos = pos + 1
+    tutup_jika
+    
+    ; Skip whitespace after ':'
+    selama pos < len && load_byte(content + pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    ; Parse value (until newline)
+    var val_start = pos
+    selama pos < len
+      var c = load_byte(content + pos)
+      jika c == 10 || c == 13
+        keluar
+      tutup_jika
+      pos = pos + 1
+    tutup_selama
+    
+    var val_len = pos - val_start
+    
+    ; Trim trailing whitespace from value
+    selama val_len > 0 && load_byte(content + val_start + val_len - 1) == 32
+      val_len = val_len - 1
+    tutup_selama
+    
+    var value = string_slice_alloc(content, val_start, val_len)
+    
+    ; Store in hashmap
+    hashmap_set(config, key, value)
+  tutup_selama
+  
+  kembali config
+tutup_fungsi
+
+; ==============================================================================
+; FILE LOADING
+; ==============================================================================
+
+; Load and parse .fall file
+fungsi fall_load(filename: ptr) -> ptr
+  ; Open file
+  var fd = sistem 2, filename, 0, 0  ; open(filename, O_RDONLY)
+  jika fd < 0
+    kembali 0
+  tutup_jika
+  
+  ; Allocate buffer
+  var buffer = __mf_mem_alloc(4096)
+  
+  ; Read file
+  var len = sistem 0, fd, buffer, 4096  ; read(fd, buffer, 4096)
+  
+  ; Close file
+  sistem 3, fd  ; close(fd)
+  
+  jika len <= 0
+    __mf_mem_free(buffer)
+    kembali 0
+  tutup_jika
+  
+  ; Parse content
+  var config = fall_parse(buffer, len)
+  __mf_mem_free(buffer)
+  
+  kembali config
+tutup_fungsi
+
+; ==============================================================================
+; ACCESSORS
+; ==============================================================================
+
+; Get string value
+fungsi fall_get(config: ptr, key: ptr) -> ptr
+  kembali hashmap_get(config, key)
+tutup_fungsi
+
+; Get integer value
+fungsi fall_get_int(config: ptr, key: ptr, default_val: i64) -> i64
+  var val = hashmap_get(config, key)
+  jika val == 0
+    kembali default_val
+  tutup_jika
+  kembali string_to_int(val)
+tutup_fungsi
+
+; Check if key exists
+fungsi fall_has(config: ptr, key: ptr) -> i64
+  kembali hashmap_get(config, key) != 0
+tutup_fungsi
+
+; ==============================================================================
+; HELPERS
+; ==============================================================================
+
+fungsi string_slice_alloc(src: ptr, start: i64, len: i64) -> ptr
+  var s = __mf_mem_alloc(len + 1)
+  __mf_memcpy(s, src + start, len)
+  poke_byte(s + len, 0)
+  kembali s
+tutup_fungsi
+
+fungsi string_to_int(s: ptr) -> i64
+  var result = 0
+  var i = 0
+  var neg = 0
+  
+  jika load_byte(s) == 45  ; '-'
+    neg = 1
+    i = 1
+  tutup_jika
+  
+  selama 1 == 1
+    var c = load_byte(s + i)
+    jika c < 48 || c > 57
+      keluar
+    tutup_jika
+    result = result * 10 + (c - 48)
+    i = i + 1
+  tutup_selama
+  
+  jika neg == 1
+    kembali 0 - result
+  tutup_jika
+  kembali result
+tutup_fungsi

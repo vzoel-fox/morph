@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "Before return\n", 14
+    kembali 42
+}

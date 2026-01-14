@@ -1,0 +1,241 @@
+; ==============================================================================
+; MORPHFOX KERNEL - Internal Implementation (LOCKED)
+; ==============================================================================
+; FILE INI TIDAK DIDISTRIBUSIKAN KE USER
+; Hanya compiled binary yang didistribusikan
+;
+; Setelah compile: rm -rf corelib/internal/
+; User hanya dapat: api.fox + morph binary
+; ==============================================================================
+
+; --- MEMORY IMPLEMENTATION ---
+fungsi __morph_alloc(size: i64) -> ptr
+  var pages = (size + 4095) / 4096
+  var ptr = sistem 9, 0, pages * 4096, 3, 34, -1, 0
+  jika ptr < 0
+    kembali 0
+  tutup_jika
+  kembali ptr
+tutup_fungsi
+
+fungsi __morph_free(ptr: ptr) -> void
+  ; Simplified - real impl tracks size
+  sistem 11, ptr, 4096
+tutup_fungsi
+
+fungsi __morph_realloc(ptr: ptr, old_size: i64, new_size: i64) -> ptr
+  var new_ptr = __morph_alloc(new_size)
+  jika new_ptr == 0
+    kembali 0
+  tutup_jika
+  var copy_size = old_size
+  jika new_size < old_size
+    copy_size = new_size
+  tutup_jika
+  var i = 0
+  selama i < copy_size
+    poke_byte(new_ptr + i, load_byte(ptr + i))
+    i = i + 1
+  tutup_selama
+  __morph_free(ptr)
+  kembali new_ptr
+tutup_fungsi
+
+; --- FILE I/O IMPLEMENTATION ---
+fungsi __morph_open(filename: ptr, mode: i64) -> i64
+  jika mode == 0
+    kembali sistem 2, filename, 0, 0
+  tutup_jika
+  kembali sistem 2, filename, 577, 420
+tutup_fungsi
+
+fungsi __morph_read(fd: i64, buf: ptr, len: i64) -> i64
+  kembali sistem 0, fd, buf, len
+tutup_fungsi
+
+fungsi __morph_write(fd: i64, buf: ptr, len: i64) -> i64
+  kembali sistem 1, fd, buf, len
+tutup_fungsi
+
+fungsi __morph_close(fd: i64) -> void
+  sistem 3, fd
+tutup_fungsi
+
+fungsi __morph_read_file(filename: ptr) -> ptr
+  var fd = sistem 2, filename, 0, 0
+  jika fd < 0
+    kembali 0
+  tutup_jika
+  var buf = __morph_alloc(65536)
+  var len = sistem 0, fd, buf, 65535
+  sistem 3, fd
+  jika len <= 0
+    __morph_free(buf)
+    kembali 0
+  tutup_jika
+  poke_byte(buf + len, 0)
+  kembali buf
+tutup_fungsi
+
+fungsi __morph_write_file(filename: ptr, data: ptr, len: i64) -> i64
+  var fd = sistem 2, filename, 577, 420
+  jika fd < 0
+    kembali -1
+  tutup_jika
+  var written = sistem 1, fd, data, len
+  sistem 3, fd
+  kembali written
+tutup_fungsi
+
+; --- NETWORKING IMPLEMENTATION ---
+fungsi __morph_connect(host: ptr, port: i64) -> i64
+  var fd = sistem 41, 2, 1, 0
+  jika fd < 0
+    kembali fd
+  tutup_jika
+  var addr = __morph_alloc(16)
+  __morph_poke16(addr, 2)
+  __morph_poke16(addr + 2, __morph_htons(port))
+  __morph_resolve(host, addr + 4)
+  var r = sistem 42, fd, addr, 16
+  __morph_free(addr)
+  jika r < 0
+    sistem 3, fd
+    kembali -1
+  tutup_jika
+  kembali fd
+tutup_fungsi
+
+fungsi __morph_send(conn: i64, data: ptr, len: i64) -> i64
+  kembali sistem 44, conn, data, len, 0, 0, 0
+tutup_fungsi
+
+fungsi __morph_recv(conn: i64, buf: ptr, max_len: i64) -> i64
+  kembali sistem 45, conn, buf, max_len, 0, 0, 0
+tutup_fungsi
+
+fungsi __morph_disconnect(conn: i64) -> void
+  sistem 3, conn
+tutup_fungsi
+
+fungsi __morph_http_get(url: ptr) -> ptr
+  ; Simplified HTTP GET
+  kembali 0  ; TODO: Full implementation
+tutup_fungsi
+
+fungsi __morph_http_post(url: ptr, body: ptr, len: i64) -> ptr
+  kembali 0  ; TODO: Full implementation
+tutup_fungsi
+
+; --- CONCURRENCY IMPLEMENTATION ---
+fungsi __morph_spawn(func: ptr) -> i64
+  kembali 0  ; Uses bootstrap scheduler
+tutup_fungsi
+
+fungsi __morph_yield() -> void
+  sistem 24, 0  ; sched_yield
+tutup_fungsi
+
+fungsi __morph_sleep(ms: i64) -> void
+  var ts = __morph_alloc(16)
+  __morph_poke64(ts, ms / 1000)
+  __morph_poke64(ts + 8, (ms % 1000) * 1000000)
+  sistem 35, ts, 0
+  __morph_free(ts)
+tutup_fungsi
+
+; --- CRYPTO IMPLEMENTATION ---
+fungsi __morph_sha256(data: ptr, len: i64) -> ptr
+  kembali 0  ; Uses bootstrap crypto
+tutup_fungsi
+
+fungsi __morph_encrypt(data: ptr, len: i64, key: ptr) -> ptr
+  kembali 0  ; Uses bootstrap crypto
+tutup_fungsi
+
+fungsi __morph_decrypt(data: ptr, len: i64, key: ptr) -> ptr
+  kembali 0  ; Uses bootstrap crypto
+tutup_fungsi
+
+; --- TIME IMPLEMENTATION ---
+fungsi __morph_now() -> i64
+  var ts = __morph_alloc(16)
+  sistem 228, 0, ts
+  var sec = __morph_load64(ts)
+  var nsec = __morph_load64(ts + 8)
+  __morph_free(ts)
+  kembali sec * 1000 + nsec / 1000000
+tutup_fungsi
+
+; --- PRINT IMPLEMENTATION ---
+fungsi __morph_print(s: ptr) -> void
+  var len = 0
+  selama load_byte(s + len) != 0
+    len = len + 1
+  tutup_selama
+  sistem 1, 1, s, len
+tutup_fungsi
+
+fungsi __morph_println(s: ptr) -> void
+  __morph_print(s)
+  sistem 1, 1, "\n", 1
+tutup_fungsi
+
+fungsi __morph_print_int(n: i64) -> void
+  var buf = __morph_alloc(24)
+  var i = 22
+  var neg = 0
+  jika n < 0
+    neg = 1
+    n = 0 - n
+  tutup_jika
+  jika n == 0
+    poke_byte(buf + i, 48)
+    i = i - 1
+  selain
+    selama n > 0
+      poke_byte(buf + i, 48 + (n % 10))
+      n = n / 10
+      i = i - 1
+    tutup_selama
+  tutup_jika
+  jika neg == 1
+    poke_byte(buf + i, 45)
+    i = i - 1
+  tutup_jika
+  sistem 1, 1, buf + i + 1, 22 - i
+  __morph_free(buf)
+tutup_fungsi
+
+; --- PROCESS IMPLEMENTATION ---
+fungsi __morph_exit(code: i64) -> void
+  sistem 60, code
+tutup_fungsi
+
+; --- INTERNAL HELPERS (HIDDEN) ---
+fungsi __morph_poke16(addr: ptr, val: i64) -> void
+  poke_byte(addr, val % 256)
+  poke_byte(addr + 1, val / 256)
+tutup_fungsi
+
+fungsi __morph_poke64(addr: ptr, val: i64) -> void
+  __mf_poke_i64(addr, val)
+tutup_fungsi
+
+fungsi __morph_load64(addr: ptr) -> i64
+  kembali __mf_load_i64(addr)
+tutup_fungsi
+
+fungsi __morph_htons(port: i64) -> i64
+  var hi = port / 256
+  var lo = port % 256
+  kembali lo * 256 + hi
+tutup_fungsi
+
+fungsi __morph_resolve(host: ptr, out: ptr) -> void
+  ; Simplified - hardcode localhost for now
+  poke_byte(out, 127)
+  poke_byte(out + 1, 0)
+  poke_byte(out + 2, 0)
+  poke_byte(out + 3, 1)
+tutup_fungsi

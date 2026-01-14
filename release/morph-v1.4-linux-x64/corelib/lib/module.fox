@@ -1,0 +1,425 @@
+; ==============================================================================
+; MODULE SYSTEM - Enhanced Path and Symbol Resolution
+; ==============================================================================
+
+struktur Module {
+    name: ptr,          ; Module name
+    path: ptr,          ; File path
+    symbols: ptr,       ; HashMap of exported symbols
+    loaded: i64,        ; Load status (0=not loaded, 1=loaded, -1=error)
+    dependencies: ptr,  ; Vector of dependency names
+    exports: ptr        ; Vector of exported symbol names
+}
+
+struktur Symbol {
+    name: ptr,          ; Symbol name
+    type: i64,          ; Symbol type (function, variable, constant)
+    address: i64,       ; Memory address or value
+    module: ptr,        ; Parent module
+    exported: i64       ; Is this symbol exported? (1=yes, 0=no)
+}
+
+; Symbol types
+const SYMBOL_FUNCTION = 1
+const SYMBOL_VARIABLE = 2
+const SYMBOL_CONSTANT = 3
+const SYMBOL_STRUCTURE = 4
+const SYMBOL_MODULE = 5
+
+; Module load states
+const MODULE_NOT_LOADED = 0
+const MODULE_LOADED = 1
+const MODULE_ERROR = -1
+
+; Global module registry
+var module_registry = 0      ; HashMap of loaded modules
+var module_search_paths = 0  ; Vector of search paths
+var module_init_done = 0     ; Initialization flag
+
+; Initialize module system
+fungsi module_init() -> i64
+    jika (module_init_done == 1) kembali 0 tutup_jika
+    
+    module_registry = hashmap_new()
+    jika (module_registry == 0) kembali -1 tutup_jika
+    
+    module_search_paths = vector_new()
+    jika (module_search_paths == 0)
+        hashmap_free(module_registry)
+        module_registry = 0
+        kembali -1
+    tutup_jika
+    
+    ; Add default search paths
+    module_add_search_path("corelib/lib")
+    module_add_search_path("corelib/core")
+    module_add_search_path("src")
+    module_add_search_path(".")
+    
+    module_init_done = 1
+    kembali 0
+tutup_fungsi
+    
+    kembali 0
+tutup_fungsi
+
+; Add search path
+fungsi module_add_search_path(path: ptr) -> i64
+    jika (module_search_paths == 0) kembali -1 tutup_jika
+    
+    var path_copy = mem_alloc_safe(string_length(path) + 1)
+    jika (path_copy == 0) kembali -1 tutup_jika
+    
+    string_copy(path_copy, path)
+    vector_push(module_search_paths, path_copy)
+    kembali 0
+tutup_fungsi
+
+; Find module file in search paths
+fungsi module_find_file(module_name: ptr) -> ptr
+    jika (module_search_paths == 0) kembali 0 tutup_jika
+    
+    var path_count = vector_length(module_search_paths)
+    var i = 0
+    
+    selama (i < path_count)
+        var search_path = vector_get(module_search_paths, i)
+        
+        ; Build full path: search_path/module_name.fox
+        var full_path_len = string_length(search_path) + 1 + string_length(module_name) + 4 + 1
+        var full_path = mem_alloc_safe(full_path_len)
+        jika (full_path == 0)
+            i = i + 1
+            lanjut
+        tutup_jika
+        
+        ; Construct path
+        string_copy(full_path, search_path)
+        var len = string_length(full_path)
+        mem_store_byte_safe(full_path + len, 47)  ; '/'
+        string_copy(full_path + len + 1, module_name)
+        len = string_length(full_path)
+        string_copy(full_path + len, ".fox")
+        
+        ; Check if file exists (simplified - assume it exists for now)
+        kembali full_path
+        
+        i = i + 1
+    tutup_selama
+    
+    kembali 0
+tutup_fungsi
+
+; Create new module
+fungsi module_new(name: ptr, path: ptr) -> ptr
+    var module = mem_alloc_safe(48)  ; sizeof(Module) - increased size
+    jika (module == 0) kembali 0 tutup_jika
+    
+    ; Copy name
+    var name_len = string_length(name)
+    var name_copy = mem_alloc_safe(name_len + 1)
+    jika (name_copy == 0)
+        mem_free_safe(module)
+        kembali 0
+    tutup_jika
+    string_copy(name_copy, name)
+    
+    ; Copy path
+    var path_len = string_length(path)
+    var path_copy = mem_alloc_safe(path_len + 1)
+    jika (path_copy == 0)
+        mem_free_safe(name_copy)
+        mem_free_safe(module)
+        kembali 0
+    tutup_jika
+    string_copy(path_copy, path)
+    
+    ; Create symbol table
+    var symbols = hashmap_new()
+    jika (symbols == 0)
+        mem_free_safe(path_copy)
+        mem_free_safe(name_copy)
+        mem_free_safe(module)
+        kembali 0
+    tutup_jika
+    
+    ; Create dependencies vector
+    var deps = vector_new()
+    jika (deps == 0)
+        hashmap_free(symbols)
+        mem_free_safe(path_copy)
+        mem_free_safe(name_copy)
+        mem_free_safe(module)
+        kembali 0
+    tutup_jika
+    
+    ; Create exports vector
+    var exports = vector_new()
+    jika (exports == 0)
+        vector_free(deps)
+        hashmap_free(symbols)
+        mem_free_safe(path_copy)
+        mem_free_safe(name_copy)
+        mem_free_safe(module)
+        kembali 0
+    tutup_jika
+    
+    ; Initialize module
+    mem_store_safe(module + 0, name_copy)         ; name
+    mem_store_safe(module + 8, path_copy)         ; path
+    mem_store_safe(module + 16, symbols)          ; symbols
+    mem_store_safe(module + 24, MODULE_NOT_LOADED) ; loaded
+    mem_store_safe(module + 32, deps)             ; dependencies
+    mem_store_safe(module + 40, exports)          ; exports
+    
+    kembali module
+tutup_fungsi
+
+; Add symbol to module with export flag
+fungsi module_add_symbol_ex(module: ptr, name: ptr, type: i64, address: i64, exported: i64) -> i64
+    jika (module == 0) kembali -1 tutup_jika
+    
+    var symbols = mem_load_safe(module + 16)
+    jika (symbols == 0) kembali -1 tutup_jika
+    
+    ; Create symbol
+    var symbol = mem_alloc_safe(40)  ; sizeof(Symbol) - increased size
+    jika (symbol == 0) kembali -1 tutup_jika
+    
+    ; Copy name
+    var name_len = string_length(name)
+    var name_copy = mem_alloc_safe(name_len + 1)
+    jika (name_copy == 0)
+        mem_free_safe(symbol)
+        kembali -1
+    tutup_jika
+    string_copy(name_copy, name)
+    
+    ; Initialize symbol
+    mem_store_safe(symbol + 0, name_copy)    ; name
+    mem_store_safe(symbol + 8, type)         ; type
+    mem_store_safe(symbol + 16, address)     ; address
+    mem_store_safe(symbol + 24, module)      ; module
+    mem_store_safe(symbol + 32, exported)    ; exported
+    
+    ; Add to symbol table
+    hashmap_insert(symbols, name, symbol)
+    
+    ; Add to exports if exported
+    jika (exported == 1)
+        var exports = mem_load_safe(module + 40)
+        jika (exports != 0)
+            vector_push(exports, name_copy)
+        tutup_jika
+    tutup_jika
+    
+    kembali 0
+tutup_fungsi
+
+; Add exported symbol (convenience function)
+fungsi module_add_symbol(module: ptr, name: ptr, type: i64, address: i64) -> i64
+    kembali module_add_symbol_ex(module, name, type, address, 1)
+tutup_fungsi
+
+; Add private symbol
+fungsi module_add_private_symbol(module: ptr, name: ptr, type: i64, address: i64) -> i64
+    kembali module_add_symbol_ex(module, name, type, address, 0)
+tutup_fungsi
+
+; Load module by name with enhanced error handling
+fungsi module_load(module_name: ptr) -> ptr
+    jika (module_init_done == 0) module_init() tutup_jika
+    
+    ; Check if already loaded
+    jika (hashmap_has(module_registry, module_name) == 1)
+        var existing = hashmap_get(module_registry, module_name)
+        var status = mem_load_safe(existing + 24)
+        jika (status == MODULE_LOADED) kembali existing tutup_jika
+        jika (status == MODULE_ERROR) kembali 0 tutup_jika
+    tutup_jika
+    
+    ; Find module file
+    var module_path = module_find_file(module_name)
+    jika (module_path == 0) kembali 0 tutup_jika
+    
+    ; Create module
+    var module = module_new(module_name, module_path)
+    jika (module == 0)
+        mem_free_safe(module_path)
+        kembali 0
+    tutup_jika
+    
+    ; Register module (before loading to prevent cycles)
+    hashmap_insert(module_registry, module_name, module)
+    
+    ; Load module content (simplified - would parse .fox file)
+    var load_result = module_load_content(module)
+    jika (load_result == 0)
+        ; Mark as loaded
+        mem_store_safe(module + 24, MODULE_LOADED)
+    lain
+        ; Mark as error
+        mem_store_safe(module + 24, MODULE_ERROR)
+        mem_free_safe(module_path)
+        kembali 0
+    tutup_jika
+    
+    mem_free_safe(module_path)
+    kembali module
+tutup_fungsi
+
+; Load module content (placeholder for actual file parsing)
+fungsi module_load_content(module: ptr) -> i64
+    jika (module == 0) kembali -1 tutup_jika
+    
+    var name = mem_load_safe(module + 0)
+    
+    ; Simulate loading standard modules
+    jika (string_equals(name, "std") == 1)
+        module_add_symbol(module, "string_length", SYMBOL_FUNCTION, 0x1000)
+        module_add_symbol(module, "string_equals", SYMBOL_FUNCTION, 0x1001)
+        module_add_symbol(module, "string_concat", SYMBOL_FUNCTION, 0x1002)
+        module_add_symbol(module, "vector_new", SYMBOL_FUNCTION, 0x2000)
+        module_add_symbol(module, "vector_push", SYMBOL_FUNCTION, 0x2001)
+        module_add_symbol(module, "vector_get", SYMBOL_FUNCTION, 0x2002)
+        module_add_symbol(module, "hashmap_new", SYMBOL_FUNCTION, 0x3000)
+        module_add_symbol(module, "hashmap_insert", SYMBOL_FUNCTION, 0x3001)
+        module_add_symbol(module, "hashmap_get", SYMBOL_FUNCTION, 0x3002)
+        module_add_symbol(module, "STDLIB_VERSION", SYMBOL_CONSTANT, 21100)
+        kembali 0
+    tutup_jika
+    
+    jika (string_equals(name, "math") == 1)
+        module_add_symbol(module, "pow", SYMBOL_FUNCTION, 0x4000)
+        module_add_symbol(module, "sqrt", SYMBOL_FUNCTION, 0x4001)
+        module_add_symbol(module, "abs", SYMBOL_FUNCTION, 0x4002)
+        module_add_symbol(module, "max", SYMBOL_FUNCTION, 0x4003)
+        module_add_symbol(module, "min", SYMBOL_FUNCTION, 0x4004)
+        module_add_symbol(module, "gcd", SYMBOL_FUNCTION, 0x4005)
+        module_add_symbol(module, "factorial", SYMBOL_FUNCTION, 0x4006)
+        module_add_symbol(module, "is_prime", SYMBOL_FUNCTION, 0x4007)
+        module_add_symbol(module, "MATH_PI", SYMBOL_CONSTANT, 3141592653589793)
+        kembali 0
+    tutup_jika
+    
+    jika (string_equals(name, "bitwise") == 1)
+        module_add_symbol(module, "bit_and", SYMBOL_FUNCTION, 0x5000)
+        module_add_symbol(module, "bit_or", SYMBOL_FUNCTION, 0x5001)
+        module_add_symbol(module, "bit_xor", SYMBOL_FUNCTION, 0x5002)
+        module_add_symbol(module, "popcount", SYMBOL_FUNCTION, 0x5003)
+        module_add_symbol(module, "clz", SYMBOL_FUNCTION, 0x5004)
+        module_add_symbol(module, "ctz", SYMBOL_FUNCTION, 0x5005)
+        module_add_symbol(module, "hash_djb2", SYMBOL_FUNCTION, 0x5006)
+        module_add_symbol(module, "random", SYMBOL_FUNCTION, 0x5007)
+        kembali 0
+    tutup_jika
+    
+    ; Unknown module - would normally parse .fox file
+    kembali 0
+tutup_fungsi
+
+; Get exported symbols only
+fungsi module_get_exports(module: ptr) -> ptr
+    jika (module == 0) kembali 0 tutup_jika
+    kembali mem_load_safe(module + 40)  ; exports vector
+tutup_fungsi
+
+; Check if symbol is exported
+fungsi module_is_symbol_exported(module: ptr, symbol_name: ptr) -> i64
+    var symbol = module_get_symbol(module, symbol_name)
+    jika (symbol == 0) kembali 0 tutup_jika
+    
+    kembali mem_load_safe(symbol + 32)  ; exported flag
+tutup_fungsi
+
+; Get module dependencies
+fungsi module_get_dependencies(module: ptr) -> ptr
+    jika (module == 0) kembali 0 tutup_jika
+    kembali mem_load_safe(module + 32)  ; dependencies vector
+tutup_fungsi
+
+; Add dependency to module
+fungsi module_add_dependency(module: ptr, dep_name: ptr) -> i64
+    jika (module == 0) kembali -1 tutup_jika
+    
+    var deps = mem_load_safe(module + 32)
+    jika (deps == 0) kembali -1 tutup_jika
+    
+    ; Copy dependency name
+    var name_len = string_length(dep_name)
+    var name_copy = mem_alloc_safe(name_len + 1)
+    jika (name_copy == 0) kembali -1 tutup_jika
+    string_copy(name_copy, dep_name)
+    
+    vector_push(deps, name_copy)
+    kembali 0
+tutup_fungsi
+
+; Get symbol from module
+fungsi module_get_symbol(module: ptr, symbol_name: ptr) -> ptr
+    jika (module == 0) kembali 0 tutup_jika
+    
+    var symbols = mem_load_safe(module + 16)
+    jika (symbols == 0) kembali 0 tutup_jika
+    
+    jika (hashmap_has(symbols, symbol_name) == 0) kembali 0 tutup_jika
+    
+    kembali hashmap_get(symbols, symbol_name)
+tutup_fungsi
+
+; Import symbol from module
+fungsi module_import(module_name: ptr, symbol_name: ptr) -> ptr
+    var module = module_load(module_name)
+    jika (module == 0) kembali 0 tutup_jika
+    
+    kembali module_get_symbol(module, symbol_name)
+tutup_fungsi
+
+; List all symbols in module
+fungsi module_list_symbols(module: ptr) -> ptr
+    jika (module == 0) kembali 0 tutup_jika
+    
+    var symbols = mem_load_safe(module + 16)
+    jika (symbols == 0) kembali 0 tutup_jika
+    
+    ; Return the hashmap (caller can iterate)
+    kembali symbols
+tutup_fungsi
+
+; Check if module is loaded
+fungsi module_is_loaded(module_name: ptr) -> i64
+    jika (module_registry == 0) kembali 0 tutup_jika
+    
+    kembali hashmap_has(module_registry, module_name)
+tutup_fungsi
+
+; Get module info
+fungsi module_get_info(module_name: ptr) -> ptr
+    jika (module_registry == 0) kembali 0 tutup_jika
+    
+    jika (hashmap_has(module_registry, module_name) == 0) kembali 0 tutup_jika
+    
+    kembali hashmap_get(module_registry, module_name)
+tutup_fungsi
+
+; Cleanup module system
+fungsi module_cleanup() -> void
+    jika (module_registry != 0)
+        hashmap_free(module_registry)
+        module_registry = 0
+    tutup_jika
+    
+    jika (module_search_paths != 0)
+        ; Free all path strings
+        var count = vector_length(module_search_paths)
+        var i = 0
+        selama (i < count)
+            var path = vector_get(module_search_paths, i)
+            jika (path != 0) mem_free_safe(path) tutup_jika
+            i = i + 1
+        tutup_selama
+        
+        vector_free(module_search_paths)
+        module_search_paths = 0
+    tutup_jika
+tutup_fungsi

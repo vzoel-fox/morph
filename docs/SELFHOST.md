@@ -1,8 +1,8 @@
-# MorphFox Self-Host Roadmap
+# Morph Self-Host Roadmap
 
 ## Overview
 
-Self-hosting adalah proses menulis compiler MorphFox dalam bahasa MorphFox sendiri.
+Self-hosting adalah proses menulis compiler Morph dalam bahasa Morph sendiri.
 
 ## Arsitektur Bootstrap
 
@@ -11,7 +11,7 @@ Stage 0: Assembly (bootstrap/asm/)
     └── lexer.s, parser.s, compiler.s, executor.s
     └── Menghasilkan bin/morph (native binary)
 
-Stage 1: MorphFox (src/selfhost.fox)
+Stage 1: Morph (src/selfhost.fox)
     └── Lexer, Parser, Compiler dalam sintaks .fox
     └── Dikompilasi oleh Stage 0
     └── Menghasilkan morph_stage1
@@ -64,7 +64,7 @@ Stage 2: Self-Compile
 | 13 | OP_DIV | Bagi |
 | 99 | OP_EXIT | Keluar |
 
-## Sintaks MorphFox
+## Sintaks Morph
 
 ```fox
 ambil "path/file.fox"           ; Full import

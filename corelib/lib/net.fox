@@ -1,0 +1,106 @@
+; ==============================================================================
+; NETWORKING - Self-Hosting Wrapper
+; ==============================================================================
+; Wrapper untuk networking builtins di bootstrap
+
+; Socket types
+const SOCK_STREAM = 1
+const SOCK_DGRAM = 2
+
+; Address families
+const AF_INET = 2
+const AF_INET6 = 10
+
+; ==============================================================================
+; BUILTIN DECLARATIONS (implemented in bootstrap asm)
+; ==============================================================================
+
+extern fungsi __net_socket(domain: i64, type: i64, protocol: i64) -> i64
+extern fungsi __net_connect(fd: i64, addr: ptr, len: i64) -> i64
+extern fungsi __net_bind(fd: i64, addr: ptr, len: i64) -> i64
+extern fungsi __net_listen(fd: i64, backlog: i64) -> i64
+extern fungsi __net_accept(fd: i64, addr: ptr, len: ptr) -> i64
+extern fungsi __net_send(fd: i64, buf: ptr, len: i64, flags: i64) -> i64
+extern fungsi __net_recv(fd: i64, buf: ptr, len: i64, flags: i64) -> i64
+extern fungsi __net_close(fd: i64) -> i64
+extern fungsi __dns_resolve(hostname: ptr, out_ip: ptr) -> i64
+
+; ==============================================================================
+; HIGH-LEVEL API
+; ==============================================================================
+
+; Create TCP socket
+fungsi tcp_socket() -> i64
+  kembali __net_socket(AF_INET, SOCK_STREAM, 0)
+tutup_fungsi
+
+; Create UDP socket
+fungsi udp_socket() -> i64
+  kembali __net_socket(AF_INET, SOCK_DGRAM, 0)
+tutup_fungsi
+
+; Connect to host:port
+fungsi tcp_connect(host: ptr, port: i64) -> i64
+  var fd = tcp_socket()
+  jika fd < 0
+    kembali fd
+  tutup_jika
+  
+  ; Build sockaddr_in
+  var addr = __mf_mem_alloc(16)
+  __mf_poke_i64(addr, AF_INET)  ; sin_family
+  
+  ; Resolve hostname
+  var ip = __mf_mem_alloc(4)
+  jika __dns_resolve(host, ip) < 0
+    __net_close(fd)
+    kembali -1
+  tutup_jika
+  
+  ; Set IP and port
+  __mf_poke_i64(addr + 4, __mf_load_i64(ip))  ; sin_addr
+  poke_port(addr + 2, port)  ; sin_port (network byte order)
+  
+  jika __net_connect(fd, addr, 16) < 0
+    __net_close(fd)
+    kembali -1
+  tutup_jika
+  
+  kembali fd
+tutup_fungsi
+
+; Send data
+fungsi tcp_send(fd: i64, data: ptr, len: i64) -> i64
+  kembali __net_send(fd, data, len, 0)
+tutup_fungsi
+
+; Receive data
+fungsi tcp_recv(fd: i64, buf: ptr, max_len: i64) -> i64
+  kembali __net_recv(fd, buf, max_len, 0)
+tutup_fungsi
+
+; Close socket
+fungsi tcp_close(fd: i64) -> i64
+  kembali __net_close(fd)
+tutup_fungsi
+
+; ==============================================================================
+; HELPERS
+; ==============================================================================
+
+; Convert port to network byte order (big-endian)
+fungsi poke_port(addr: ptr, port: i64) -> void
+  var hi = port / 256
+  var lo = port - (hi * 256)
+  poke_byte(addr, hi)
+  poke_byte(addr + 1, lo)
+tutup_fungsi
+
+; DNS resolve hostname to IP string
+fungsi resolve_host(hostname: ptr) -> ptr
+  var ip = __mf_mem_alloc(4)
+  jika __dns_resolve(hostname, ip) < 0
+    kembali 0
+  tutup_jika
+  kembali ip
+tutup_fungsi

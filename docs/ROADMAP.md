@@ -2,7 +2,7 @@
 
 ## Vision
 
-Transform MorphFox from Assembly-bootstrapped language to fully self-hosting compiler where the compiler is written in MorphFox itself.
+Transform Morph from Assembly-bootstrapped language to fully self-hosting compiler where the compiler is written in Morph itself.
 
 ## Milestones
 
@@ -98,7 +98,7 @@ Transform MorphFox from Assembly-bootstrapped language to fully self-hosting com
 
 ### Milestone 1.5: Type Checker Implementation ✅ COMPLETED
 
-**Goal**: Implement static type checking for MorphFox AST
+**Goal**: Implement static type checking for Morph AST
 
 **Status**: COMPLETED
 **Priority**: HIGH (Foundation for self-hosting)
@@ -128,7 +128,7 @@ Transform MorphFox from Assembly-bootstrapped language to fully self-hosting com
 - Integration with compiler pipeline
 
 **Success Criteria**: ✅ ALL COMPLETED
-- [x] Type checker validates MorphFox programs
+- [x] Type checker validates Morph programs
 - [x] Symbol table tracks variables and functions
 - [x] Error reporting provides clear messages
 - [x] Test suite covers all type checking scenarios
@@ -138,7 +138,7 @@ Transform MorphFox from Assembly-bootstrapped language to fully self-hosting com
 
 ### Milestone 2: Lexer Implementation (Phase 2 Start)
 
-**Goal**: Write tokenizer in MorphFox
+**Goal**: Write tokenizer in Morph
 
 **Status**: Not Started
 **Priority**: HIGH
@@ -191,7 +191,7 @@ fungsi lexer_advance(l: ptr) -> void
 - [ ] Track line/column for error reporting
 
 **Success Criteria**:
-- [ ] Lexer can tokenize valid MorphFox programs
+- [ ] Lexer can tokenize valid Morph programs
 - [ ] Test suite passes (compare with bootstrap lexer output)
 - [ ] Error reporting for invalid tokens
 
@@ -199,7 +199,7 @@ fungsi lexer_advance(l: ptr) -> void
 
 ### Milestone 3: Parser Implementation
 
-**Goal**: Write parser in MorphFox
+**Goal**: Write parser in Morph
 
 **Status**: Not Started
 **Priority**: HIGH
@@ -244,7 +244,7 @@ fungsi parser_match(p: ptr, type: i64) -> i64
 - [ ] Operator precedence
 
 **Success Criteria**:
-- [ ] Parser can parse valid MorphFox programs
+- [ ] Parser can parse valid Morph programs
 - [ ] AST matches bootstrap parser output (structural equivalence)
 - [ ] Error reporting with line/column numbers
 - [ ] Handles syntax errors gracefully
@@ -253,7 +253,7 @@ fungsi parser_match(p: ptr, type: i64) -> i64
 
 ### Milestone 4: Code Generator Implementation
 
-**Goal**: Write RPN bytecode generator in MorphFox
+**Goal**: Write RPN bytecode generator in Morph
 
 **Status**: Not Started
 **Priority**: HIGH

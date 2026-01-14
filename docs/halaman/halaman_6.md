@@ -6,7 +6,7 @@
 ---
 
 ## 1. Pendahuluan
-Sesi ini menandai tonggak sejarah penting dalam evolusi MorphFox. Kami berhasil merealisasikan visi **"Interpreted for Human, Readable for AI"** melalui pemisahan tegas antara **Intent (Niat)** dan **Execution (Eksekusi)**.
+Sesi ini menandai tonggak sejarah penting dalam evolusi Morph. Kami berhasil merealisasikan visi **"Interpreted for Human, Readable for AI"** melalui pemisahan tegas antara **Intent (Niat)** dan **Execution (Eksekusi)**.
 
 Sebelumnya, kami mencoba melompat langsung dari Token ke RPN. Kami menyadari ini melanggar prinsip "Readable for AI", karena RPN terlalu abstrak dan kehilangan konteks struktural. Solusinya adalah **IntentAST**.
 
@@ -61,6 +61,6 @@ Script `test_compiler_exec` berhasil menjalankan alur penuh: `Source "10 + 20" -
 ---
 
 ## 5. Kesimpulan
-Kami kini memiliki "Jantung" yang berdetak. MorphFox bukan lagi sekadar Lexer, tapi sudah menjadi Bahasa Pemrograman yang dapat mengeksekusi logika matematika sederhana melalui pipeline yang terstruktur dan aman.
+Kami kini memiliki "Jantung" yang berdetak. Morph bukan lagi sekadar Lexer, tapi sudah menjadi Bahasa Pemrograman yang dapat mengeksekusi logika matematika sederhana melalui pipeline yang terstruktur dan aman.
 
 *Dokumentasi ini dibuat otomatis oleh Jules.*

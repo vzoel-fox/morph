@@ -1,8 +1,8 @@
-# Type Checker - MorphFox Self-Hosting Compiler
+# Type Checker - Morph Self-Hosting Compiler
 
 ## Overview
 
-Type checker untuk MorphFox compiler yang melakukan static type checking pada AST dan menghasilkan typed AST dengan error reporting.
+Type checker untuk Morph compiler yang melakukan static type checking pada AST dan menghasilkan typed AST dengan error reporting.
 
 ## Type System
 

@@ -7,7 +7,7 @@
 
 ## 1. Pendahuluan
 
-Halaman ini mendokumentasikan penyelesaian gap kritis, implementasi fitur global variable, dan langkah-langkah pengerasan sistem (hardening) untuk meningkatkan stabilitas dan keamanan runtime MorphFox.
+Halaman ini mendokumentasikan penyelesaian gap kritis, implementasi fitur global variable, dan langkah-langkah pengerasan sistem (hardening) untuk meningkatkan stabilitas dan keamanan runtime Morph.
 
 ---
 
@@ -76,7 +76,7 @@ Untuk memenuhi standar stabilitas produksi, kami telah menerapkan langkah-langka
 
 ## 5. Status Paritas
 
-Dengan perubahan ini, MorphFox mencapai tingkat paritas yang lebih tinggi:
+Dengan perubahan ini, Morph mencapai tingkat paritas yang lebih tinggi:
 
 | Fitur | Linux (Native) | Windows (Native) | Status |
 | :--- | :--- | :--- | :--- |

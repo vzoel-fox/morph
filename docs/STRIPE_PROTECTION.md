@@ -1,8 +1,8 @@
-# MorphFox v1.4 - Stripe Protection & Multi-Extension Support
+# Morph v1.4 - Stripe Protection & Multi-Extension Support
 
 ## Overview
 
-MorphFox v1.4 introduces advanced security features and multi-extension support to prevent assembly codegen leakage and support multiple source file formats.
+Morph v1.4 introduces advanced security features and multi-extension support to prevent assembly codegen leakage and support multiple source file formats.
 
 ## 🔒 Stripe Protection
 
@@ -32,7 +32,7 @@ fungsi stripe_protect_assembly(asm_code: ptr, length: i64) -> ptr
 
 | Extension | Type | Description |
 |-----------|------|-------------|
-| `.fox` | Source | MorphFox source code |
+| `.fox` | Source | Morph source code |
 | `.elsa` | Source | Enhanced Language Syntax Alternative |
 | `.morph` | Binary | Compiled output (stripe-protected) |
 
@@ -126,7 +126,7 @@ Extension detection by suffix matching:
 ### Test Files
 - `tests/test_file_extensions.fox` - Extension detection
 - `tests/test_stripe_protection.fox` - Encoding/decoding
-- `test_input.fox` - MorphFox source
+- `test_input.fox` - Morph source
 - `test_input.elsa` - ELSA source
 
 ### Validation

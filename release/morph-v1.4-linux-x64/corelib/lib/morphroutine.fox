@@ -1,0 +1,65 @@
+ambil "corelib/core/runtime.fox"
+ambil "corelib/lib/memory.fox"
+
+; ==============================================================================
+; STANDARD LIBRARY - MORPHROUTINE MODULE
+; ==============================================================================
+
+; MorphRoutine wrapper with error handling
+tipe MorphRoutine = ptr
+
+; Create new routine
+fungsi mr_spawn(func_ptr: ptr, stack_size: i64) -> MorphRoutine
+  jika (func_ptr == 0 atau stack_size < 4096)
+    kembali 0
+  tutup_jika
+  
+  var routine = __mf_mr_create(func_ptr, stack_size)
+  jika (routine == 0)
+    ; TODO: Log creation failure
+    kembali 0
+  tutup_jika
+  
+  kembali routine
+tutup_fungsi
+
+; Yield control with value
+fungsi mr_yield(value: i64) -> i64
+  kembali __mf_mr_yield(value)
+tutup_fungsi
+
+; Resume routine
+fungsi mr_resume(routine: MorphRoutine) -> i64
+  jika (routine == 0)
+    kembali -1
+  tutup_jika
+  kembali __mf_mr_resume(routine)
+tutup_fungsi
+
+; Get current routine
+fungsi mr_current() -> MorphRoutine
+  kembali __mf_mr_current()
+tutup_fungsi
+
+; Destroy routine
+fungsi mr_destroy(routine: MorphRoutine) -> void
+  jika (routine == 0)
+    kembali
+  tutup_jika
+  __mf_mr_destroy(routine)
+tutup_fungsi
+
+; Sleep for milliseconds (cooperative)
+fungsi mr_sleep(ms: i64) -> void
+  __mf_timer_sleep(ms)
+tutup_fungsi
+
+; Get current timestamp
+fungsi mr_now() -> i64
+  kembali __mf_timer_now()
+tutup_fungsi
+
+; Simple task scheduler
+fungsi mr_schedule() -> void
+  __mf_mr_schedule()
+tutup_fungsi

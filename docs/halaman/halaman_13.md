@@ -1,7 +1,7 @@
 # Halaman 13: Morph as WASM & Hybrid Architecture
 
 ## Pendahuluan
-Halaman ini mendokumentasikan evolusi strategis MorphFox menuju platform WebAssembly (WASM). Tujuannya adalah memungkinkan MorphFox berjalan secara *native* di dalam browser, memanipulasi DOM secara langsung, dan mempertahankan filosofi "Assembly First" tanpa bergantung pada *toolchain* eksternal yang berat (seperti Emscripten).
+Halaman ini mendokumentasikan evolusi strategis Morph menuju platform WebAssembly (WASM). Tujuannya adalah memungkinkan Morph berjalan secara *native* di dalam browser, memanipulasi DOM secara langsung, dan mempertahankan filosofi "Assembly First" tanpa bergantung pada *toolchain* eksternal yang berat (seperti Emscripten).
 
 ## Arsitektur "Hybrid"
 Untuk mengatasi tantangan *relokasi pointer* dan kompleksitas kompilasi di lingkungan browser, kami mengadopsi arsitektur "Hybrid":
@@ -54,4 +54,4 @@ Sistem *Intent* diperluas untuk manipulasi DOM (Range 100+):
 *   `105`: Get Element By ID
 
 ## Kesimpulan
-Arsitektur ini membuktikan fleksibilitas desain "Intent-Based" MorphFox. Dengan memisahkan Lexer (Low-level), Compiler (Logic/Bridge), dan Executor (Low-level), kita dapat beradaptasi dengan lingkungan Web tanpa mengubah kontrak dasar bahasa.
+Arsitektur ini membuktikan fleksibilitas desain "Intent-Based" Morph. Dengan memisahkan Lexer (Low-level), Compiler (Logic/Bridge), dan Executor (Low-level), kita dapat beradaptasi dengan lingkungan Web tanpa mengubah kontrak dasar bahasa.

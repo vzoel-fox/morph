@@ -1,0 +1,13 @@
+; Test fungsi with parameter
+
+utama {
+    sistem 1, 1, "Testing fungsi with param\n", 26
+    var result = test_param(42)
+    sistem 1, 1, "Done\n", 5
+    0
+}
+
+fungsi test_param(x: i64) -> i64
+    sistem 1, 1, "In function with param\n", 23
+    x
+tutup_fungsi

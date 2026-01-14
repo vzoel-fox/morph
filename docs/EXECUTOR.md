@@ -1,4 +1,4 @@
-# RPN Stack VM Executor - MorphFox Self-Hosting
+# RPN Stack VM Executor - Morph Self-Hosting
 
 ## Overview
 

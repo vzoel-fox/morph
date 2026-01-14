@@ -1,15 +1,16 @@
-# MorphFox Tutorial Series
+# Morph Tutorial Series
 
-Welcome to MorphFox! This tutorial series will guide you through learning the MorphFox programming language from basics to advanced features.
+Welcome to Morph! This tutorial series will guide you through learning the Morph programming language from basics to advanced features.
 
-## 🦊 What is MorphFox?
+## 🦊 What is Morph?
 
-MorphFox is a modern systems programming language featuring:
+Morph is a modern systems programming language featuring:
+- **Clean API** for memory, I/O, and networking
 - **RPN-based runtime** for blazing fast execution
 - **Custom memory management** with arenas and pools
 - **MorphRoutines** for lightweight concurrency
 - **Advanced type system** with generics and unions
-- **Real-time performance** with predictable behavior
+- **Elsa** interactive documentation format
 
 ## 📚 Tutorial Structure
 
@@ -19,13 +20,14 @@ MorphFox is a modern systems programming language featuring:
 - Arithmetic operations
 - Simple functions
 - Control flow (if/else, loops)
+- Using standard library
 
-### Tutorial 2: Advanced Features
+### Tutorial 2: Memory & Data Structures
 **File:** `tutorial2.md`
-- Memory management (arenas, allocators)
-- Data structures and structs
-- MorphRoutines (lightweight threads)
-- Performance optimization
+- Memory allocation with clean API
+- Vector and HashMap
+- Custom structs
+- File I/O
 
 ### Tutorial 3: Type System
 **File:** `tutorial3.md`
@@ -48,18 +50,30 @@ MorphFox is a modern systems programming language featuring:
 - Networking and I/O
 - Production deployment
 
+### Tutorial 6: Tools & Configuration
+**File:** `tutorial6.md`
+- Star: Config runner
+- Fall: Configuration format
+- Building applications
+- Deployment
+
+### Tutorial 7: Elsa Documentation
+**File:** `tutorial7.md`
+- Elsa format basics
+- Interactive code blocks
+- Graphics and charts
+- Building documentation
+
 ## 🚀 Quick Start
 
-1. **Install MorphFox compiler:**
+1. **Install Morph:**
    ```bash
-   git clone https://github.com/vzoel-fox/morph.git
-   cd morph
-   ./scripts/build_selfhost.sh
+   curl -sSL https://raw.githubusercontent.com/vzoel-fox/morph/main/install.sh | bash
    ```
 
 2. **Run your first program:**
    ```bash
-   ./bin/morph examples/hello.fox
+   morph examples/hello.fox
    ```
 
 3. **Follow the tutorials:**
@@ -67,24 +81,34 @@ MorphFox is a modern systems programming language featuring:
 
 ## 🎯 Learning Path
 
-**Beginner** → Tutorial 1-2 (Variables, functions, basic memory)
+**Beginner** → Tutorial 1-2 (Variables, functions, memory)
 **Intermediate** → Tutorial 3-4 (Types, concurrency)
-**Advanced** → Tutorial 5 (Real-world applications)
+**Advanced** → Tutorial 5-7 (Applications, tools, docs)
 
 ## 💡 Key Concepts
 
-- **RPN Runtime**: Stack-based execution for performance
-- **Arena Allocation**: Batch memory management
+- **Clean API**: `alloc()`, `free()`, `println()` - no raw syscalls
+- **Data Structures**: Vector, HashMap built-in
 - **MorphRoutines**: Cooperative lightweight threads
 - **Type Safety**: Advanced static type checking
-- **Zero GC**: Manual memory control for predictability
+- **Fall Config**: Simple key-value configuration
+- **Elsa Docs**: Interactive documentation
+
+## 📁 File Extensions
+
+| Extension | Description |
+|-----------|-------------|
+| `.fox` | Morph source code |
+| `.morph` | Compiled bytecode |
+| `.fall` | Configuration file |
+| `.elsa` | Interactive documentation |
 
 ## 🔗 Resources
 
 - **Documentation**: `../docs/`
 - **Examples**: `../examples/`
 - **Tests**: `../tests/`
-- **Source Code**: `../src/`
+- **Tools**: `../tools/`
 
 ## 🤝 Community
 
@@ -96,4 +120,4 @@ MorphFox is a modern systems programming language featuring:
 
 **Ready to start?** Begin with [Tutorial 1: Getting Started](tutorial1.md)
 
-Happy coding with MorphFox! 🦊🚀
+Happy coding with Morph! 🦊🚀

@@ -110,7 +110,7 @@ tutup_fungsi
 fungsi utama() -> i64
   ; Initialize stdlib
   var version = stdlib_version()
-  var msg_ver = "MorphFox Stdlib v"
+  var msg_ver = "Morph Stdlib v"
   print(msg_ver, 17)
   __mf_print_int(version)
   var newline = "\n"

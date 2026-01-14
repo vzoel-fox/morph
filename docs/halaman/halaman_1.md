@@ -2,7 +2,7 @@
 
 **Status: Dalam Pengembangan**
 
-Dokumen ini menjelaskan implementasi teknis dari lapisan paling bawah MorphFox: Manajemen Memori dan Abstraksi Runtime.
+Dokumen ini menjelaskan implementasi teknis dari lapisan paling bawah Morph: Manajemen Memori dan Abstraksi Runtime.
 
 ## 1. Single Source of Truth (SSOT)
 Segala definisi dimulai dari kontrak deskriptif di folder `corelib/core/`.

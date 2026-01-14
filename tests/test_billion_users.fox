@@ -1,7 +1,7 @@
 ; ==============================================================================
 ; EXTREME STRESS TEST: 1 BILLION USERS REAL-TIME OPERATIONS
 ; ==============================================================================
-; Test MorphFox RPN runtime dengan 1 milyar user concurrent operations:
+; Test Morph RPN runtime dengan 1 milyar user concurrent operations:
 ; - Receive data, Send data, Delete data, Backup data, Restore data
 
 ambil "../corelib/lib/morphroutine.fox"
@@ -334,7 +334,7 @@ fungsi test_resource_cleanup() -> void
     print_number_simple(cleanup_time)
     sistem 1, 1, " ms (instant batch deallocation)\n", 33
     
-    sistem 1, 1, "\n🔥 MORPHFOX REAL-TIME ADVANTAGES:\n", 35
+    sistem 1, 1, "\n🔥 MORPH REAL-TIME ADVANTAGES:\n", 35
     sistem 1, 1, "• RPN stack processing: BLAZING FAST\n", 38
     sistem 1, 1, "• Arena allocation: ZERO FRAGMENTATION\n", 39
     sistem 1, 1, "• Batch cleanup: INSTANT DEALLOCATION\n", 38

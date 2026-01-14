@@ -1,0 +1,291 @@
+; ==============================================================================
+; BRAINLIB: CSS SELECTOR ENGINE
+; ==============================================================================
+; Query DOM dengan CSS selectors: tag, #id, .class, [attr]
+
+ambil "brainlib/html.fox"
+
+; Selector types
+const SEL_TAG = 1
+const SEL_ID = 2
+const SEL_CLASS = 3
+const SEL_ATTR = 4
+const SEL_DESCENDANT = 5
+const SEL_CHILD = 6
+
+; Selector structure
+const SEL_TYPE = 0
+const SEL_VALUE = 8
+const SEL_NEXT = 16
+
+; ==============================================================================
+; SELECTOR PARSING
+; ==============================================================================
+
+; Parse selector string: "div.class#id" or "div > p"
+fungsi selector_parse(sel_str: ptr) -> ptr
+  var pos = 0
+  var first = 0
+  var last = 0
+  
+  selama peek_byte(sel_str, pos) != 0
+    ; Skip whitespace
+    selama peek_byte(sel_str, pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    var c = peek_byte(sel_str, pos)
+    jika c == 0
+      keluar
+    tutup_jika
+    
+    var sel = __mf_mem_alloc(24)
+    
+    ; Check combinator
+    jika c == 62  ; '>'
+      __mf_poke_i64(sel + SEL_TYPE, SEL_CHILD)
+      pos = pos + 1
+    selain jika c == 35  ; '#'
+      pos = pos + 1
+      var start = pos
+      selama is_ident_char(peek_byte(sel_str, pos))
+        pos = pos + 1
+      tutup_selama
+      __mf_poke_i64(sel + SEL_TYPE, SEL_ID)
+      __mf_poke_i64(sel + SEL_VALUE, string_slice_new(sel_str, start, pos - start))
+    selain jika c == 46  ; '.'
+      pos = pos + 1
+      var start = pos
+      selama is_ident_char(peek_byte(sel_str, pos))
+        pos = pos + 1
+      tutup_selama
+      __mf_poke_i64(sel + SEL_TYPE, SEL_CLASS)
+      __mf_poke_i64(sel + SEL_VALUE, string_slice_new(sel_str, start, pos - start))
+    selain jika c == 91  ; '['
+      pos = pos + 1
+      var start = pos
+      selama peek_byte(sel_str, pos) != 93 && peek_byte(sel_str, pos) != 0
+        pos = pos + 1
+      tutup_selama
+      __mf_poke_i64(sel + SEL_TYPE, SEL_ATTR)
+      __mf_poke_i64(sel + SEL_VALUE, string_slice_new(sel_str, start, pos - start))
+      jika peek_byte(sel_str, pos) == 93
+        pos = pos + 1
+      tutup_jika
+    selain
+      ; Tag name
+      var start = pos
+      selama is_ident_char(peek_byte(sel_str, pos))
+        pos = pos + 1
+      tutup_selama
+      jika pos > start
+        __mf_poke_i64(sel + SEL_TYPE, SEL_TAG)
+        __mf_poke_i64(sel + SEL_VALUE, string_slice_new(sel_str, start, pos - start))
+      selain
+        pos = pos + 1  ; Skip unknown char
+        lanjut
+      tutup_jika
+    tutup_jika
+    
+    ; Link selector
+    jika first == 0
+      first = sel
+    selain
+      __mf_poke_i64(last + SEL_NEXT, sel)
+    tutup_jika
+    last = sel
+  tutup_selama
+  
+  kembali first
+tutup_fungsi
+
+fungsi is_ident_char(c: i64) -> i64
+  jika c >= 97 && c <= 122  ; a-z
+    kembali 1
+  tutup_jika
+  jika c >= 65 && c <= 90   ; A-Z
+    kembali 1
+  tutup_jika
+  jika c >= 48 && c <= 57   ; 0-9
+    kembali 1
+  tutup_jika
+  jika c == 45 || c == 95   ; - or _
+    kembali 1
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; SELECTOR MATCHING
+; ==============================================================================
+
+; Check if node matches single selector part
+fungsi selector_match_part(node: ptr, sel: ptr) -> i64
+  jika node == 0 || sel == 0
+    kembali 0
+  tutup_jika
+  
+  var sel_type = __mf_load_i64(sel + SEL_TYPE)
+  var sel_value = __mf_load_i64(sel + SEL_VALUE)
+  
+  jika sel_type == SEL_TAG
+    var tag = node_get_tag(node)
+    kembali string_equals_simple(tag, sel_value)
+  tutup_jika
+  
+  jika sel_type == SEL_ID
+    var id = node_get_id(node)
+    jika id == 0
+      kembali 0
+    tutup_jika
+    kembali string_equals_simple(id, sel_value)
+  tutup_jika
+  
+  jika sel_type == SEL_CLASS
+    var cls = node_get_class(node)
+    jika cls == 0
+      kembali 0
+    tutup_jika
+    ; Check if class contains value (space-separated)
+    kembali class_contains(cls, sel_value)
+  tutup_jika
+  
+  jika sel_type == SEL_ATTR
+    var attr = node_get_attr(node, sel_value)
+    kembali attr != 0
+  tutup_jika
+  
+  kembali 0
+tutup_fungsi
+
+; Check if class string contains target class
+fungsi class_contains(cls: ptr, target: ptr) -> i64
+  ; Simple check - exact match or space-separated
+  jika string_equals_simple(cls, target)
+    kembali 1
+  tutup_jika
+  
+  ; TODO: Parse space-separated classes
+  kembali 0
+tutup_fungsi
+
+; Match full selector chain against node
+fungsi selector_match(node: ptr, sel: ptr) -> i64
+  var current = sel
+  var n = node
+  
+  selama current != 0 && n != 0
+    var sel_type = __mf_load_i64(current + SEL_TYPE)
+    
+    jika sel_type == SEL_CHILD
+      ; Next selector must match parent
+      n = __mf_load_i64(n + NODE_PARENT)
+      current = __mf_load_i64(current + SEL_NEXT)
+      lanjut
+    tutup_jika
+    
+    jika sel_type == SEL_DESCENDANT
+      ; Search ancestors
+      current = __mf_load_i64(current + SEL_NEXT)
+      jika current == 0
+        kembali 1
+      tutup_jika
+      
+      n = __mf_load_i64(n + NODE_PARENT)
+      selama n != 0
+        jika selector_match_part(n, current)
+          keluar
+        tutup_jika
+        n = __mf_load_i64(n + NODE_PARENT)
+      tutup_selama
+      
+      jika n == 0
+        kembali 0
+      tutup_jika
+      lanjut
+    tutup_jika
+    
+    ; Regular selector part
+    jika selector_match_part(n, current) == 0
+      kembali 0
+    tutup_jika
+    
+    current = __mf_load_i64(current + SEL_NEXT)
+  tutup_selama
+  
+  kembali current == 0
+tutup_fungsi
+
+; ==============================================================================
+; QUERY FUNCTIONS
+; ==============================================================================
+
+; Query single element
+fungsi query_selector(root: ptr, sel_str: ptr) -> ptr
+  var sel = selector_parse(sel_str)
+  kembali query_selector_impl(root, sel)
+tutup_fungsi
+
+fungsi query_selector_impl(node: ptr, sel: ptr) -> ptr
+  jika node == 0
+    kembali 0
+  tutup_jika
+  
+  jika selector_match(node, sel)
+    kembali node
+  tutup_jika
+  
+  ; Search children
+  var child = __mf_load_i64(node + NODE_FIRST_CHILD)
+  selama child != 0
+    var result = query_selector_impl(child, sel)
+    jika result != 0
+      kembali result
+    tutup_jika
+    child = __mf_load_i64(child + NODE_NEXT_SIBLING)
+  tutup_selama
+  
+  kembali 0
+tutup_fungsi
+
+; Query all matching elements
+fungsi query_selector_all(root: ptr, sel_str: ptr) -> ptr
+  var sel = selector_parse(sel_str)
+  var results = vector_new()
+  query_selector_all_impl(root, sel, results)
+  kembali results
+tutup_fungsi
+
+fungsi query_selector_all_impl(node: ptr, sel: ptr, results: ptr) -> void
+  jika node == 0
+    kembali
+  tutup_jika
+  
+  jika selector_match(node, sel)
+    vector_push(results, node)
+  tutup_jika
+  
+  ; Search children
+  var child = __mf_load_i64(node + NODE_FIRST_CHILD)
+  selama child != 0
+    query_selector_all_impl(child, sel, results)
+    child = __mf_load_i64(child + NODE_NEXT_SIBLING)
+  tutup_selama
+tutup_fungsi
+
+; Shorthand: getElementById
+fungsi get_element_by_id(root: ptr, id: ptr) -> ptr
+  var sel_str = string_concat("#", id)
+  kembali query_selector(root, sel_str)
+tutup_fungsi
+
+; Shorthand: getElementsByClassName
+fungsi get_elements_by_class(root: ptr, cls: ptr) -> ptr
+  var sel_str = string_concat(".", cls)
+  kembali query_selector_all(root, sel_str)
+tutup_fungsi
+
+; Shorthand: getElementsByTagName
+fungsi get_elements_by_tag(root: ptr, tag: ptr) -> ptr
+  kembali query_selector_all(root, tag)
+tutup_fungsi

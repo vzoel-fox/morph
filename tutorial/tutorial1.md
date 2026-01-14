@@ -1,6 +1,6 @@
-# Tutorial 1: Getting Started with MorphFox
+# Tutorial 1: Getting Started with Morph
 
-Welcome to your first MorphFox tutorial! Let's learn the basics.
+Welcome to your first Morph tutorial! Let's learn the basics.
 
 ## 🎯 What You'll Learn
 
@@ -8,14 +8,17 @@ Welcome to your first MorphFox tutorial! Let's learn the basics.
 - Arithmetic operations  
 - Simple functions
 - Control flow (if/else, loops)
+- Using standard library
 
 ## 📝 Your First Program
 
 Create a file called `hello.fox`:
 
-```morphfox
+```morph
+ambil "corelib/api.fox"
+
 utama {
-    sistem 1, 1, "Hello, MorphFox!\n", 17
+    println("Hello, Morph!")
     kembali 0
 }
 ```
@@ -27,18 +30,20 @@ Run it:
 
 ## 🔢 Variables and Types
 
-MorphFox has several basic types:
+Morph has several basic types:
 
-```morphfox
+```morph
+ambil "corelib/api.fox"
+
 utama {
     ; Integer variables
     var age = 25
     var year = 2026
     
     ; Print variables
-    sistem 1, 1, "Age: ", 5
-    print_number(age)
-    sistem 1, 1, "\n", 1
+    print("Age: ")
+    print_int(age)
+    println("")
     
     kembali 0
 }
@@ -48,7 +53,7 @@ utama {
 
 All basic math operations are supported:
 
-```morphfox
+```morph
 utama {
     var a = 10
     var b = 5
@@ -67,7 +72,7 @@ utama {
 
 Define reusable code with functions:
 
-```morphfox
+```morph
 ; Function definition
 fungsi add_numbers(x: i64, y: i64) -> i64
     kembali x + y
@@ -89,16 +94,18 @@ utama {
 
 ### If/Else Statements
 
-```morphfox
+```morph
+ambil "corelib/api.fox"
+
 utama {
     var number = 42
     
     jika number > 40
-        sistem 1, 1, "Number is greater than 40\n", 27
+        println("Number is greater than 40")
     lain jika number == 40
-        sistem 1, 1, "Number is exactly 40\n", 22
+        println("Number is exactly 40")
     lain
-        sistem 1, 1, "Number is less than 40\n", 24
+        println("Number is less than 40")
     tutup_jika
     
     kembali 0
@@ -107,55 +114,46 @@ utama {
 
 ### Loops
 
-```morphfox
+```morph
+ambil "corelib/api.fox"
+
 utama {
     ; While loop
     var i = 1
     selama i <= 5
-        print_number(i)
-        sistem 1, 1, " ", 1
+        print_int(i)
+        print(" ")
         i = i + 1
     tutup_selama
     
-    sistem 1, 1, "\n", 1
+    println("")
     kembali 0
 }
 ```
 
-## 🛠️ Helper Functions
+## 📚 Using Standard Library
 
-You'll need this helper function for printing numbers:
+MorphFox provides a clean API through `corelib/api.fox`:
 
-```morphfox
-fungsi print_number(n: i64)
-    jika n == 0
-        sistem 1, 1, "0", 1
-        kembali
-    tutup_jika
+```morph
+ambil "corelib/api.fox"
+
+utama {
+    ; Memory allocation
+    var buffer = alloc(1024)
     
-    jika n < 0
-        sistem 1, 1, "-", 1
-        n = 0 - n
-    tutup_jika
+    ; File I/O
+    var content = read_file("data.txt")
     
-    var digits = 0
-    var temp = n
-    selama temp > 0
-        digits = digits + 1
-        temp = temp / 10
-    tutup_selama
+    ; Print
+    println("Hello World")
+    print_int(42)
     
-    var buffer = __mf_mem_alloc(digits + 1)
-    var i = digits - 1
-    selama n > 0
-        var digit = n % 10
-        __mf_poke_i8(buffer + i, 48 + digit)
-        n = n / 10
-        i = i - 1
-    tutup_selama
+    ; Cleanup
+    free(buffer)
     
-    sistem 1, 1, buffer, digits
-tutup_fungsi
+    kembali 0
+}
 ```
 
 ## 🎮 Practice Exercises
@@ -174,10 +172,13 @@ tutup_fungsi
 - **`selama`**: While loops
 - **`kembali`**: Return from function
 - **`tutup_jika/tutup_selama/tutup_fungsi`**: Close blocks
+- **`ambil`**: Import library
 
 ## ✅ Complete Example
 
-```morphfox
+```morph
+ambil "corelib/api.fox"
+
 fungsi factorial(n: i64) -> i64
     jika n <= 1
         kembali 1
@@ -186,16 +187,16 @@ fungsi factorial(n: i64) -> i64
 tutup_fungsi
 
 utama {
-    sistem 1, 1, "🦊 MorphFox Calculator\n", 23
+    println("🦊 MorphFox Calculator")
     
     var num = 5
     var fact = factorial(num)
     
-    sistem 1, 1, "Factorial of ", 13
-    print_number(num)
-    sistem 1, 1, " is ", 4
-    print_number(fact)
-    sistem 1, 1, "\n", 1
+    print("Factorial of ")
+    print_int(num)
+    print(" is ")
+    print_int(fact)
+    println("")
     
     kembali 0
 }
@@ -203,9 +204,4 @@ utama {
 
 ## 🚀 Next Steps
 
-Ready for more? Continue to [Tutorial 2: Advanced Features](tutorial2.md)
-
-- Memory management
-- Data structures
-- MorphRoutines
-- Performance optimization
+Ready for more? Continue to [Tutorial 2: Memory & Data Structures](tutorial2.md)

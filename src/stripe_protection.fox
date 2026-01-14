@@ -3,7 +3,7 @@
 ; ==============================================================================
 ; Prevents bootstrap assembly codegen from leaking
 
-const STRIPE_KEY = 0x4D4F5250484658  ; "MORPHFX"
+const STRIPE_KEY = 0x584F464C454F5A56  ; "VZOELFOX" - BOOTSTRAP COMPATIBLE
 const STRIPE_MASK = 0xA5A5A5A5A5A5A5A5
 
 fungsi stripe_encode(data: ptr, length: i64) -> i64

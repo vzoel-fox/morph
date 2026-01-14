@@ -1,0 +1,15 @@
+; Test jika with parentheses inside fungsi
+
+utama {
+    sistem 1, 1, "Test jika with parens\n", 22
+    var result = func_with_jika(5)
+    sistem 1, 1, "Done\n", 5
+    0
+}
+
+fungsi func_with_jika(x: i64) -> i64
+    jika (x == 5)
+        sistem 1, 1, "x is 5\n", 7
+    tutup_jika
+    1
+tutup_fungsi

@@ -1,0 +1,243 @@
+; ==============================================================================
+; IMPORT SYSTEM - Clean Import Syntax
+; ==============================================================================
+
+; Import syntax:
+; gunakan std                    ; Import all from std module
+; gunakan std.string_length      ; Import specific symbol
+; gunakan std.{string_length, vector_new}  ; Import multiple symbols
+; gunakan math sebagai m         ; Import with alias
+
+struktur ImportContext {
+    current_module: ptr,    ; Current module being processed
+    imported_symbols: ptr,  ; HashMap of imported symbols
+    aliases: ptr           ; HashMap of module aliases
+}
+
+var import_context = 0
+
+; Initialize import system
+fungsi import_init() -> i64
+    jika (import_context != 0) kembali 0 tutup_jika
+    
+    import_context = mem_alloc_safe(24)  ; sizeof(ImportContext)
+    jika (import_context == 0) kembali -1 tutup_jika
+    
+    var imported_symbols = hashmap_new()
+    var aliases = hashmap_new()
+    
+    jika (imported_symbols == 0 atau aliases == 0)
+        jika (imported_symbols != 0) hashmap_free(imported_symbols) tutup_jika
+        jika (aliases != 0) hashmap_free(aliases) tutup_jika
+        mem_free_safe(import_context)
+        import_context = 0
+        kembali -1
+    tutup_jika
+    
+    mem_store_safe(import_context + 0, 0)                ; current_module
+    mem_store_safe(import_context + 8, imported_symbols) ; imported_symbols
+    mem_store_safe(import_context + 16, aliases)         ; aliases
+    
+    ; Initialize module system
+    module_init()
+    
+    kembali 0
+tutup_fungsi
+
+; Import entire module
+fungsi import_module(module_name: ptr) -> i64
+    jika (import_context == 0) import_init() tutup_jika
+    
+    var module = module_load(module_name)
+    jika (module == 0) kembali -1 tutup_jika
+    
+    var imported_symbols = mem_load_safe(import_context + 8)
+    var module_symbols = module_list_symbols(module)
+    
+    ; TODO: Iterate through all symbols and add to imported_symbols
+    ; For now, just mark module as imported
+    hashmap_insert(imported_symbols, module_name, module)
+    
+    kembali 0
+tutup_fungsi
+
+; Import specific symbol
+fungsi import_symbol(module_name: ptr, symbol_name: ptr) -> i64
+    jika (import_context == 0) import_init() tutup_jika
+    
+    var symbol = module_import(module_name, symbol_name)
+    jika (symbol == 0) kembali -1 tutup_jika
+    
+    var imported_symbols = mem_load_safe(import_context + 8)
+    hashmap_insert(imported_symbols, symbol_name, symbol)
+    
+    kembali 0
+tutup_fungsi
+
+; Import module with alias
+fungsi import_module_as(module_name: ptr, alias: ptr) -> i64
+    jika (import_context == 0) import_init() tutup_jika
+    
+    var module = module_load(module_name)
+    jika (module == 0) kembali -1 tutup_jika
+    
+    var aliases = mem_load_safe(import_context + 16)
+    hashmap_insert(aliases, alias, module)
+    
+    kembali 0
+tutup_fungsi
+
+; Resolve symbol (check imports and aliases)
+fungsi import_resolve_symbol(name: ptr) -> ptr
+    jika (import_context == 0) kembali 0 tutup_jika
+    
+    var imported_symbols = mem_load_safe(import_context + 8)
+    
+    ; Check direct imports
+    jika (hashmap_has(imported_symbols, name) == 1)
+        kembali hashmap_get(imported_symbols, name)
+    tutup_jika
+    
+    ; Check for qualified names (module.symbol)
+    var dot_pos = string_find_char(name, 46)  ; '.'
+    jika (dot_pos > 0)
+        var module_name = string_substring(name, 0, dot_pos)
+        var symbol_name = string_substring(name, dot_pos + 1, string_length(name))
+        
+        ; Check aliases first
+        var aliases = mem_load_safe(import_context + 16)
+        jika (hashmap_has(aliases, module_name) == 1)
+            var module = hashmap_get(aliases, module_name)
+            var symbol = module_get_symbol(module, symbol_name)
+            mem_free_safe(module_name)
+            mem_free_safe(symbol_name)
+            kembali symbol
+        tutup_jika
+        
+        ; Check direct module access
+        var symbol = module_import(module_name, symbol_name)
+        mem_free_safe(module_name)
+        mem_free_safe(symbol_name)
+        kembali symbol
+    tutup_jika
+    
+    kembali 0
+tutup_fungsi
+
+; Parse and execute import statement
+fungsi import_parse_statement(statement: ptr) -> i64
+    ; Parse different import patterns:
+    ; "gunakan std"
+    ; "gunakan std.string_length"
+    ; "gunakan math sebagai m"
+    
+    ; Simple tokenization (split by spaces)
+    var tokens = vector_new()
+    jika (tokens == 0) kembali -1 tutup_jika
+    
+    ; TODO: Proper tokenization
+    ; For now, handle simple cases
+    
+    ; Check for "sebagai" (as) keyword
+    var as_pos = string_find_substring(statement, "sebagai")
+    jika (as_pos > 0)
+        ; Extract module name and alias
+        var module_part = string_substring(statement, 7, as_pos - 1)  ; Skip "gunakan "
+        var alias_part = string_substring(statement, as_pos + 8, string_length(statement))
+        
+        ; Trim whitespace (simplified)
+        var result = import_module_as(module_part, alias_part)
+        
+        mem_free_safe(module_part)
+        mem_free_safe(alias_part)
+        vector_free(tokens)
+        kembali result
+    tutup_jika
+    
+    ; Check for dot notation
+    var module_start = 7  ; Skip "gunakan "
+    var module_end = string_length(statement)
+    var module_name = string_substring(statement, module_start, module_end)
+    
+    var dot_pos = string_find_char(module_name, 46)  ; '.'
+    jika (dot_pos > 0)
+        ; Specific symbol import
+        var mod_name = string_substring(module_name, 0, dot_pos)
+        var sym_name = string_substring(module_name, dot_pos + 1, string_length(module_name))
+        
+        var result = import_symbol(mod_name, sym_name)
+        
+        mem_free_safe(mod_name)
+        mem_free_safe(sym_name)
+        mem_free_safe(module_name)
+        vector_free(tokens)
+        kembali result
+    tutup_jika
+    
+    ; Whole module import
+    var result = import_module(module_name)
+    mem_free_safe(module_name)
+    vector_free(tokens)
+    kembali result
+tutup_fungsi
+
+; Helper function to find substring
+fungsi string_find_substring(haystack: ptr, needle: ptr) -> i64
+    var hay_len = string_length(haystack)
+    var needle_len = string_length(needle)
+    
+    jika (needle_len > hay_len) kembali -1 tutup_jika
+    
+    var i = 0
+    selama (i <= (hay_len - needle_len))
+        var j = 0
+        var match = 1
+        
+        selama (j < needle_len)
+            jika (mem_load_byte_safe(haystack + i + j) != mem_load_byte_safe(needle + j))
+                match = 0
+                keluar
+            tutup_jika
+            j = j + 1
+        tutup_selama
+        
+        jika (match == 1) kembali i tutup_jika
+        i = i + 1
+    tutup_selama
+    
+    kembali -1
+tutup_fungsi
+
+; Get import statistics
+fungsi import_get_stats() -> ptr
+    jika (import_context == 0) kembali 0 tutup_jika
+    
+    ; Return simple stats structure
+    var stats = mem_alloc_safe(16)
+    jika (stats == 0) kembali 0 tutup_jika
+    
+    var imported_symbols = mem_load_safe(import_context + 8)
+    var aliases = mem_load_safe(import_context + 16)
+    
+    ; TODO: Count symbols and aliases
+    mem_store_safe(stats + 0, 0)  ; symbol_count
+    mem_store_safe(stats + 8, 0)  ; alias_count
+    
+    kembali stats
+tutup_fungsi
+
+; Cleanup import system
+fungsi import_cleanup() -> void
+    jika (import_context == 0) kembali tutup_jika
+    
+    var imported_symbols = mem_load_safe(import_context + 8)
+    var aliases = mem_load_safe(import_context + 16)
+    
+    jika (imported_symbols != 0) hashmap_free(imported_symbols) tutup_jika
+    jika (aliases != 0) hashmap_free(aliases) tutup_jika
+    
+    mem_free_safe(import_context)
+    import_context = 0
+    
+    module_cleanup()
+tutup_fungsi

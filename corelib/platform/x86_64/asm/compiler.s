@@ -217,8 +217,14 @@ compile_chain:
     jmp .cd_done
 
 .c_if:
+    # SAFETY: Check if node is valid
+    testq %rbx, %rbx
+    jz .cd_done
+
     # Cond (Child)
     movq INTENT_OFFSET_CHILD(%rbx), %rdi
+    testq %rdi, %rdi
+    jz .cd_done
     call compile_dispatch # Dispatch only (don't follow siblings)
 
     # JmpFalse Placeholder
@@ -228,9 +234,14 @@ compile_chain:
 
     # True Block (Cond->Next)
     movq INTENT_OFFSET_CHILD(%rbx), %rax
+    testq %rax, %rax
+    jz .c_if_end
     movq INTENT_OFFSET_NEXT(%rax), %rdi
+    testq %rdi, %rdi
+    jz .c_if_skip_true
     call compile_dispatch # It's a SHARD_BLOCK, so it calls chain
 
+.c_if_skip_true:
     # Jmp Placeholder (Skip Else)
     movq %r15, %r11
     movq $OP_JMP, 0(%r14, %r15, 1)
@@ -239,20 +250,16 @@ compile_chain:
     # Patch JmpFalse
     movq %r15, %rax
     subq %r10, %rax
-    subq $16, %rax # Relative from End of JMP instruction?
-    # Executor logic: addq %rdx, %r15. %r15 is at end of JMP.
-    # So Offset = Target - EndOfJmp.
-    # Current %r15 is Target (Start of Else).
-    # EndOfJmp was R10 + 16.
-    # So (R15) - (R10+16)
-    # Wait, my logic above: subq $16, %rax.
-    # R10 = Start of Jmp. R10+16 = End.
-    # R15 - (R10 + 16) = R15 - R10 - 16. Correct.
+    subq $16, %rax
     movq %rax, 8(%r14, %r10, 1)
 
     # False Block (Cond->Next->Next)
     movq INTENT_OFFSET_CHILD(%rbx), %rax
+    testq %rax, %rax
+    jz .c_if_end
     movq INTENT_OFFSET_NEXT(%rax), %rcx
+    testq %rcx, %rcx
+    jz .c_if_end
     movq INTENT_OFFSET_NEXT(%rcx), %rdi
     testq %rdi, %rdi
     jz .c_if_end
@@ -269,11 +276,17 @@ compile_chain:
     jmp .cd_done
 
 .c_while:
+    # SAFETY: Check if node is valid
+    testq %rbx, %rbx
+    jz .cd_done
+
     # Start Label
     movq %r15, %r10
 
     # Cond
     movq INTENT_OFFSET_CHILD(%rbx), %rdi
+    testq %rdi, %rdi
+    jz .cd_done
     call compile_dispatch
 
     # JmpFalse Placeholder
@@ -283,9 +296,14 @@ compile_chain:
 
     # Block (Cond->Next)
     movq INTENT_OFFSET_CHILD(%rbx), %rax
+    testq %rax, %rax
+    jz .c_while_end
     movq INTENT_OFFSET_NEXT(%rax), %rdi
+    testq %rdi, %rdi
+    jz .c_while_end
     call compile_dispatch
 
+.c_while_end:
     # Loop Back
     movq $OP_JMP, 0(%r14, %r15, 1)
     movq %r10, %rax

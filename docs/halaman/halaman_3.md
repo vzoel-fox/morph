@@ -54,4 +54,4 @@ Kita meninggalkan asumsi hardcoded `4096` bytes per page.
 ---
 
 **Kesimpulan:**
-Dengan fondasi memori yang disiplin ini (Header, Alignment, Padding, Arena, Pool), MorphFox siap melangkah ke tahap selanjutnya: Implementasi Struktur Data Kompleks (String & Symbol Table).
+Dengan fondasi memori yang disiplin ini (Header, Alignment, Padding, Arena, Pool), Morph siap melangkah ke tahap selanjutnya: Implementasi Struktur Data Kompleks (String & Symbol Table).

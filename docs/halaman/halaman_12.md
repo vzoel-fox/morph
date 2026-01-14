@@ -7,9 +7,9 @@
 
 ## 1. Pendahuluan
 
-Halaman ini menandai tonggak sejarah penting dalam proyek MorphFox: **Penyelesaian Arsitektur "Bytecode as Glue"**.
+Halaman ini menandai tonggak sejarah penting dalam proyek Morph: **Penyelesaian Arsitektur "Bytecode as Glue"**.
 
-Hingga titik ini, VM memiliki kemampuan komputasi (RPN) dan concurrency (MorphRoutines), namun terisolasi dari dunia luar. Dengan implementasi dispatch `OP_SYSCALL` untuk **Network** dan **Graphics**, MorphFox kini benar-benar berdaulat—mampu berbicara langsung dengan Kernel (Linux) dan WinAPI (Windows) tanpa perantara library C eksternal.
+Hingga titik ini, VM memiliki kemampuan komputasi (RPN) dan concurrency (MorphRoutines), namun terisolasi dari dunia luar. Dengan implementasi dispatch `OP_SYSCALL` untuk **Network** dan **Graphics**, Morph kini benar-benar berdaulat—mampu berbicara langsung dengan Kernel (Linux) dan WinAPI (Windows) tanpa perantara library C eksternal.
 
 Selain itu, halaman ini mendokumentasikan penyelesaian paritas fitur maintenance (Daemon Cleaner) di Windows, memastikan siklus hidup aplikasi terjamin di kedua OS utama.
 
@@ -36,7 +36,7 @@ File `executor.s` (Linux) dan `executor.asm` (Windows) kini memiliki tabel dispa
 | | `SYS_INTENT_EVENT_POLL` (22) | `__mf_window_poll` | Non-blocking event loop (Input). |
 
 ### B. Dampak Arsitektural
-1.  **System Sovereignty:** Code MorphFox (.fox) kini dapat membuat Web Server atau Game Engine tanpa ketergantungan eksternal.
+1.  **System Sovereignty:** Code Morph (.fox) kini dapat membuat Web Server atau Game Engine tanpa ketergantungan eksternal.
 2.  **Platform Agnostic:** Logika IO yang sama berjalan di Linux (via Syscalls) dan Windows (via WinAPI) tanpa perubahan kode sumber di level userland.
 3.  **Strict Boundary:** `OP_SYSCALL` tetap menjadi satu-satunya "Effect Boundary", menjaga determinisme di sisa pipeline eksekusi.
 

@@ -26,7 +26,7 @@
 
 #### **4. Self-Host Architecture**
 - **Complete Lexer**: Token generation in WASM
-- **Parser Integration**: MorphFox syntax → DOM operations
+- **Parser Integration**: Morph syntax → DOM operations
 - **Code Generation**: RPN → WASM bytecode
 - **Runtime System**: Stack management and execution
 

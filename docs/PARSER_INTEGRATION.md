@@ -1,4 +1,4 @@
-# Parser Integration - MorphFox Self-Hosting Compiler
+# Parser Integration - Morph Self-Hosting Compiler
 
 ## Overview
 
@@ -9,7 +9,7 @@ Parser telah diintegrasikan dengan stripe protection dan multi-extension support
 ### 1. Multi-Extension Support
 ```morph
 ; Parser dapat handle berbagai format input
-parser_new_with_file(source, length, "program.fox")   ; MorphFox
+parser_new_with_file(source, length, "program.fox")   ; Morph
 parser_new_with_file(source, length, "program.elsa")  ; ELSA
 ```
 
@@ -23,7 +23,7 @@ parser_validate_extensions(parser)  ; Validate .fox/.elsa
 ### 3. Enhanced Import Handling
 ```morph
 ; Import dengan extension awareness
-ambil "module.fox"   ; Standard MorphFox
+ambil "module.fox"   ; Standard Morph
 ambil "lib.elsa"     ; ELSA format
 ambil "../core/std.fox"  ; Relative paths
 ```

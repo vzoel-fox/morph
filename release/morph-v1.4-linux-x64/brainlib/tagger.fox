@@ -1,0 +1,120 @@
+; ==============================================================================
+; TAGGER.FOX - Path Index Registry (like __init__.py)
+; ==============================================================================
+; This file indexes all paths and assigns IDs to symbols
+; Other files use "Ambil ID" to import specific symbols
+
+; Path imports (lowercase ambil)
+ambil "corelib/lib/string.fox"
+ambil "corelib/lib/vector.fox"
+ambil "corelib/lib/hashmap.fox"
+ambil "corelib/lib/math.fox"
+ambil "corelib/lib/bitwise.fox"
+ambil "corelib/lib/fixed_point.fox"
+ambil "corelib/lib/module.fox"
+ambil "corelib/lib/import.fox"
+
+; Symbol ID Registry:
+; 
+; STRING OPERATIONS (1-8):
+; 1  = string_length
+; 2  = string_equals
+; 3  = string_copy
+; 4  = string_concat
+; 5  = string_substring
+; 6  = string_find_char
+; 7  = i64_to_string
+; 8  = string_to_i64
+;
+; VECTOR OPERATIONS (9-14):
+; 9  = vector_new
+; 10 = vector_push
+; 11 = vector_get
+; 12 = vector_set
+; 13 = vector_length
+; 14 = vector_free
+;
+; HASHMAP OPERATIONS (15-19):
+; 15 = hashmap_new
+; 16 = hashmap_insert
+; 17 = hashmap_get
+; 18 = hashmap_has
+; 19 = hashmap_free
+;
+; MATH OPERATIONS (20-35):
+; 20 = pow
+; 21 = sqrt
+; 22 = abs
+; 23 = max
+; 24 = min
+; 25 = gcd
+; 26 = lcm
+; 27 = factorial
+; 28 = fibonacci
+; 29 = is_prime
+; 30 = mod_pow
+; 31 = lerp
+; 32 = clamp
+; 33 = add_safe
+; 34 = mul_safe
+; 35 = MATH_PI
+;
+; BITWISE OPERATIONS (36-50):
+; 36 = bit_and
+; 37 = bit_or
+; 38 = bit_xor
+; 39 = bit_not
+; 40 = bit_shl
+; 41 = bit_shr
+; 42 = popcount
+; 43 = clz
+; 44 = ctz
+; 45 = bit_reverse
+; 46 = is_power_of_2
+; 47 = next_power_of_2
+; 48 = hash_djb2
+; 49 = hash_fnv1a
+; 50 = random
+;
+; FIXED POINT OPERATIONS (51-65):
+; 51 = fixed_from_int
+; 52 = fixed_to_int
+; 53 = fixed_make
+; 54 = fixed_add
+; 55 = fixed_sub
+; 56 = fixed_mul
+; 57 = fixed_div
+; 58 = fixed_sqrt
+; 59 = fixed_sin
+; 60 = fixed_cos
+; 61 = fixed_abs
+; 62 = fixed_floor
+; 63 = fixed_ceil
+; 64 = fixed_to_string
+; 65 = FIXED_SCALE
+;
+; MODULE SYSTEM (66-80):
+; 66 = module_init
+; 67 = module_new
+; 68 = module_load
+; 69 = module_add_symbol
+; 70 = module_get_symbol
+; 71 = module_is_loaded
+; 72 = module_cleanup
+; 73 = import_init
+; 74 = import_module
+; 75 = import_symbol
+; 76 = import_module_as
+; 77 = import_resolve_symbol
+; 78 = import_cleanup
+; 79 = tagger_init
+; 80 = tagger_get_id
+
+; This file serves as the central registry
+; User files can now use: Ambil 1, Ambil 20, etc.
+; Instead of: ambil "long/path/to/file.fox"
+
+fungsi tagger_info() -> i64
+    sistem 1, 1, "Tagger system loaded - 80 symbols indexed\n", 43
+    kembali 80
+tutup_fungsi

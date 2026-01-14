@@ -1,0 +1,7 @@
+utama {
+    var x = 42
+    jika x == 42
+        sistem 1, 1, "Test passed\n", 12
+    tutup_jika
+    0
+}

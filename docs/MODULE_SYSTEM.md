@@ -2,7 +2,7 @@
 
 ## Overview
 
-Module System v2.1.1 menyediakan sistem import yang clean dan modern untuk MorphFox. Sistem ini menggunakan path resolution dan symbol management, menggantikan sistem link-based yang lama dengan syntax yang lebih readable dan maintainable.
+Module System v2.1.1 menyediakan sistem import yang clean dan modern untuk Morph. Sistem ini menggunakan path resolution dan symbol management, menggantikan sistem link-based yang lama dengan syntax yang lebih readable dan maintainable.
 
 ## New Import Syntax
 
@@ -251,4 +251,4 @@ tutup_fungsi
 
 **Status**: ✅ READY FOR COMPILER INTEGRATION
 
-The module system provides a solid foundation for modern, maintainable MorphFox code with clean import syntax and efficient symbol resolution.
+The module system provides a solid foundation for modern, maintainable Morph code with clean import syntax and efficient symbol resolution.

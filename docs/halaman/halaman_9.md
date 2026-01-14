@@ -1,13 +1,13 @@
 # Halaman 9: MorphRoutines & Cooperative Concurrency
 
 **Status:** Stabil (Linux/Windows Parity Achieved)
-**Versi:** MorphFox Runtime v0.7
+**Versi:** Morph Runtime v0.7
 
-Dokumen ini merangkum implementasi **MorphRoutines**, sistem *Green Threads* (User-Level Threads) yang memungkinkan eksekusi konkuren ringan di dalam MorphFox VM.
+Dokumen ini merangkum implementasi **MorphRoutines**, sistem *Green Threads* (User-Level Threads) yang memungkinkan eksekusi konkuren ringan di dalam Morph VM.
 
 ## 1. Filosofi "Workers move to Units"
 
-Berbeda dengan model threading tradisional di mana kode "berjalan di atas thread", MorphFox mengadopsi pendekatan di mana **Worker (Executor)** mengunjungi **Unit (Routine)**.
+Berbeda dengan model threading tradisional di mana kode "berjalan di atas thread", Morph mengadopsi pendekatan di mana **Worker (Executor)** mengunjungi **Unit (Routine)**.
 - **MorphRoutine:** Struktur data pasif yang menyimpan State (Stack Pointer, Status, Fragment Ptr).
 - **Executor:** Mesin loop tunggal yang mengambil Routine dari antrian, menjalankannya sampai *Yield*, lalu menyimpannya kembali.
 

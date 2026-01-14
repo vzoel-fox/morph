@@ -1,6 +1,6 @@
 # Tutorial 4: Concurrency with MorphRoutines
 
-Master concurrent programming with MorphFox's lightweight MorphRoutines!
+Master concurrent programming with Morph's lightweight MorphRoutines!
 
 ## 🎯 What You'll Learn
 
@@ -11,7 +11,7 @@ Master concurrent programming with MorphFox's lightweight MorphRoutines!
 
 ## 🔄 MorphRoutines Overview
 
-MorphRoutines are MorphFox's lightweight concurrency primitive:
+MorphRoutines are Morph's lightweight concurrency primitive:
 
 - **Cooperative scheduling**: Explicit yielding
 - **Low overhead**: ~64 bytes per routine
@@ -20,7 +20,7 @@ MorphRoutines are MorphFox's lightweight concurrency primitive:
 
 ## 🚀 Basic MorphRoutine Usage
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Simple worker routine
@@ -71,7 +71,7 @@ utama {
 
 ## 🏭 Producer-Consumer Pattern
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Shared buffer (simple implementation)
@@ -193,7 +193,7 @@ utama {
 
 ## ⚡ Parallel Processing
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Parallel computation task
@@ -286,7 +286,7 @@ utama {
 
 ## 🎯 Real-Time Task Scheduling
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Task priorities
@@ -400,7 +400,7 @@ utama {
 
 ## 🔧 Performance Monitoring
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Performance monitoring routine
@@ -492,7 +492,7 @@ utama {
 
 ## ✅ Complete Example: Concurrent Web Server Simulation
 
-```morphfox
+```morph
 ambil "../corelib/lib/morphroutine.fox"
 
 ; Request processing simulation

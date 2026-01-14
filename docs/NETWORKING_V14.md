@@ -1,8 +1,8 @@
-# MorphFox v1.4 - Advanced Networking Support
+# Morph v1.4 - Advanced Networking Support
 
 ## Overview
 
-MorphFox v1.4 introduces comprehensive networking capabilities to the bootstrap compiler, providing foundation for advanced network protocols in the self-hosting compiler.
+Morph v1.4 introduces comprehensive networking capabilities to the bootstrap compiler, providing foundation for advanced network protocols in the self-hosting compiler.
 
 ## New Networking Modules
 
@@ -16,7 +16,7 @@ MorphFox v1.4 introduces comprehensive networking capabilities to the bootstrap 
 
 **Features:**
 - HTTP/1.1 support
-- User-Agent: MorphFox/1.4
+- User-Agent: Morph/1.4
 - Connection management
 - Response parsing
 - Error handling
@@ -143,7 +143,7 @@ call __mf_tls_send
 
 ## Integration with Self-Hosting Compiler
 
-These networking primitives will be available in the self-hosting MorphFox compiler through wrapper functions:
+These networking primitives will be available in the self-hosting Morph compiler through wrapper functions:
 
 ```morph
 # HTTP wrapper (future)

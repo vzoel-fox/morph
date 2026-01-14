@@ -21,7 +21,7 @@ fungsi test_routine_func() -> void
 tutup_fungsi
 
 fungsi utama() -> i64
-  var msg_start = "=== MorphFox Stdlib Test ===\n"
+  var msg_start = "=== Morph Stdlib Test ===\n"
   println(msg_start, 29)
   
   ; Test 1: Memory operations

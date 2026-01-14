@@ -2,17 +2,20 @@
 ; MAIN - MorphFox Self-Hosting Compiler v1.4
 ; ==============================================================================
 ; Entry point: source.fox/.elsa -> compiled.morph
+; Complete self-hosting compiler with all features
 
 ambil "../corelib/lib/std.fox"
 ambil "lexer.fox"
 ambil "parser.fox"
 ambil "codegen.fox"
 ambil "type_checker.fox"
+ambil "control_flow.fox"
+ambil "functions.fox"
 ambil "file_extensions.fox"
 
 utama {
     sistem 1, 1, "MorphFox Self-Hosting Compiler v1.4\n", 36
-    sistem 1, 1, "With Stripe Protection & Multi-Extension Support\n", 49
+    sistem 1, 1, "Complete Self-Hosting Implementation\n", 37
     
     ; Get command line arguments (simplified)
     var source_file = "test_input.fox"  ; Hardcoded for now

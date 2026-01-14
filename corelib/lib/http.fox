@@ -1,0 +1,117 @@
+; ==============================================================================
+; HTTP CLIENT - Self-Hosting Wrapper
+; ==============================================================================
+; Simple HTTP/1.1 client wrapper
+
+ambil "corelib/lib/net.fox"
+ambil "corelib/lib/string.fox"
+
+; HTTP methods
+const HTTP_GET = 1
+const HTTP_POST = 2
+const HTTP_PUT = 3
+const HTTP_DELETE = 4
+
+; Response structure
+const RESP_STATUS = 0
+const RESP_HEADERS = 8
+const RESP_BODY = 16
+const RESP_BODY_LEN = 24
+const RESP_SIZE = 32
+
+; ==============================================================================
+; BUILTIN DECLARATIONS
+; ==============================================================================
+
+extern fungsi __http_request(method: i64, url: ptr, headers: ptr, body: ptr, body_len: i64) -> ptr
+extern fungsi __http_get(url: ptr) -> ptr
+extern fungsi __http_post(url: ptr, body: ptr, body_len: i64) -> ptr
+
+; ==============================================================================
+; HIGH-LEVEL API
+; ==============================================================================
+
+; Simple GET request
+fungsi http_get(url: ptr) -> ptr
+  kembali __http_get(url)
+tutup_fungsi
+
+; Simple POST request
+fungsi http_post(url: ptr, body: ptr, len: i64) -> ptr
+  kembali __http_post(url, body, len)
+tutup_fungsi
+
+; Get response status code
+fungsi http_status(resp: ptr) -> i64
+  jika resp == 0
+    kembali -1
+  tutup_jika
+  kembali __mf_load_i64(resp + RESP_STATUS)
+tutup_fungsi
+
+; Get response body
+fungsi http_body(resp: ptr) -> ptr
+  jika resp == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(resp + RESP_BODY)
+tutup_fungsi
+
+; Get response body length
+fungsi http_body_len(resp: ptr) -> i64
+  jika resp == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(resp + RESP_BODY_LEN)
+tutup_fungsi
+
+; Free response
+fungsi http_free(resp: ptr) -> void
+  jika resp != 0
+    var body = __mf_load_i64(resp + RESP_BODY)
+    jika body != 0
+      __mf_mem_free(body)
+    tutup_jika
+    __mf_mem_free(resp)
+  tutup_jika
+tutup_fungsi
+
+; ==============================================================================
+; CONVENIENCE FUNCTIONS
+; ==============================================================================
+
+; GET and return body as string (caller must free)
+fungsi fetch(url: ptr) -> ptr
+  var resp = http_get(url)
+  jika resp == 0
+    kembali 0
+  tutup_jika
+  
+  var status = http_status(resp)
+  jika status < 200 || status >= 300
+    http_free(resp)
+    kembali 0
+  tutup_jika
+  
+  var body = http_body(resp)
+  var len = http_body_len(resp)
+  
+  ; Copy body (response will be freed)
+  var result = __mf_mem_alloc(len + 1)
+  __mf_memcpy(result, body, len)
+  poke_byte(result + len, 0)  ; Null terminate
+  
+  http_free(resp)
+  kembali result
+tutup_fungsi
+
+; Check if URL is reachable
+fungsi http_ping(url: ptr) -> i64
+  var resp = http_get(url)
+  jika resp == 0
+    kembali 0
+  tutup_jika
+  var status = http_status(resp)
+  http_free(resp)
+  kembali status >= 200 && status < 400
+tutup_fungsi

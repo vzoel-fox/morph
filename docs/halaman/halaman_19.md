@@ -5,11 +5,11 @@
 **Phase: Bootstrap → Self-Hosting Transition**
 **Tag: v1.2-bootstrap**
 
-Dokumen ini mendokumentasikan pembekuan bootstrap compiler MorphFox dan pembentukan foundation untuk compiler self-hosting.
+Dokumen ini mendokumentasikan pembekuan bootstrap compiler Morph dan pembentukan foundation untuk compiler self-hosting.
 
 ## 1. Ringkasan Eksekutif
 
-MorphFox v1.2 telah mencapai maturity sebagai bootstrap compiler dengan 99 Assembly files dan support penuh untuk 3 platforms (Linux/Windows/WASM). Untuk mencapai self-hosting, kami membekukan bootstrap compiler dan memindahkan development aktif ke repository **morph** yang baru.
+Morph v1.2 telah mencapai maturity sebagai bootstrap compiler dengan 99 Assembly files dan support penuh untuk 3 platforms (Linux/Windows/WASM). Untuk mencapai self-hosting, kami membekukan bootstrap compiler dan memindahkan development aktif ke repository **morph** yang baru.
 
 ### Key Achievements:
 - ✅ **Bootstrap compiler frozen** at v1.2-bootstrap tag
@@ -25,7 +25,7 @@ MorphFox v1.2 telah mencapai maturity sebagai bootstrap compiler dengan 99 Assem
 | Metric | Value | Location |
 |--------|-------|----------|
 | **Assembly files** | 99 files | `corelib/platform/x86_64/asm/`, `asm_win/` |
-| **MorphFox core libs** | 22 files | `corelib/core/*.fox`, `corelib/lib/*.fox` |
+| **Morph core libs** | 22 files | `corelib/core/*.fox`, `corelib/lib/*.fox` |
 | **Total size** | ~14MB | Including docs, tests, build artifacts |
 | **Binary size** | 81KB | `tools/morph` (Linux x86-64) |
 | **WASM bundle** | 18KB | `build/morph_merged.wat` |
@@ -71,7 +71,7 @@ MorphFox v1.2 telah mencapai maturity sebagai bootstrap compiler dengan 99 Assem
 ### 3.2 morph Repository (Self-Hosting)
 
 **Status**: ACTIVE - Phase 2 Development
-**Purpose**: Self-hosting compiler written in MorphFox
+**Purpose**: Self-hosting compiler written in Morph
 **Initial commit**: Bootstrap freeze + Intent Tree foundation
 
 **Directory Structure**:
@@ -84,7 +84,7 @@ morph/
 │   ├── core/               # Type definitions, builtins, Intent spec
 │   ├── lib/                # Standard library, memory helpers
 │   └── platform/           # Platform implementations (Assembly)
-├── src/                    # Self-hosting compiler (MorphFox code)
+├── src/                    # Self-hosting compiler (Morph code)
 │   ├── intent_builder.fox  # Intent Tree builder API
 │   └── (future: lexer.fox, parser.fox, codegen.fox)
 ├── docs/
@@ -102,7 +102,7 @@ morph/
 **Original Plan** (Full Compiler Rewrite):
 ```
 Timeline: 11-19 weeks
-Approach: Rewrite all components in MorphFox
+Approach: Rewrite all components in Morph
   - M1: Standard library (2-4 weeks)
   - M2: Lexer (1-2 weeks)
   - M3: Parser (2-3 weeks)
@@ -117,7 +117,7 @@ Approach: Rewrite all components in MorphFox
 Timeline: 4 weeks
 Approach: Modular - Replace Intent Tree builder only
   Phase 1: Bootstrap (Assembly) - FROZEN ✅
-  Phase 2: Intent Tree (MorphFox) - CURRENT 🚧
+  Phase 2: Intent Tree (Morph) - CURRENT 🚧
   Phase 3: Full Self-Hosting - FUTURE 🎯
 ```
 
@@ -126,7 +126,7 @@ Approach: Modular - Replace Intent Tree builder only
 **Advantages**:
 1. **Modular**: Well-defined intermediate representation
 2. **Testable**: Can validate tree structure independently
-3. **Incremental**: Mix Assembly components with MorphFox
+3. **Incremental**: Mix Assembly components with Morph
 4. **Foundation**: Makes other components easier after
 5. **Fast**: 4 weeks vs 11-19 weeks (3x faster)
 
@@ -177,7 +177,7 @@ Intent Tree builder needs direct memory operations:
 - Read/write node fields (Type, Next, Child, Data A/B)
 - Build tree structure in memory
 
-**Problem**: MorphFox v0 doesn't have direct memory access from high-level code.
+**Problem**: Morph v0 doesn't have direct memory access from high-level code.
 
 **Solution**: Expose memory primitives as builtins.
 
@@ -262,7 +262,7 @@ __mf_poke_i64:
 
 ## 6. Intent Tree Builder API
 
-### 6.1 Design (MorphFox)
+### 6.1 Design (Morph)
 
 Created `morph/src/intent_builder.fox` with high-level API:
 
@@ -332,9 +332,9 @@ var module = intent_new_module(func)
 ### 7.3 Future (Phase 3)
 
 After Intent Tree self-hosting works:
-1. Rewrite lexer in MorphFox
-2. Rewrite parser in MorphFox
-3. Rewrite codegen in MorphFox
+1. Rewrite lexer in Morph
+2. Rewrite parser in Morph
+3. Rewrite codegen in Morph
 4. Full self-hosting (morph compiles itself)
 5. Retire bootstrap compiler
 
@@ -381,7 +381,7 @@ Implementing builtins for all platforms simultaneously:
 
 ## 10. Conclusion
 
-MorphFox v1.2-bootstrap represents a mature, production-ready compiler with:
+Morph v1.2-bootstrap represents a mature, production-ready compiler with:
 - 99 Assembly files
 - 3 platform support
 - Memory safety v1.2

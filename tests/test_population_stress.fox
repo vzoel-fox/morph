@@ -1,7 +1,7 @@
 ; ==============================================================================
 ; STRESS TEST: 1 MILLION POPULATION CENSUS - RPN RUNTIME
 ; ==============================================================================
-; Test MorphFox RPN runtime dengan 1 juta data penduduk
+; Test Morph RPN runtime dengan 1 juta data penduduk
 ; Input: nama, umur, jenis_kelamin per record
 
 ambil "../corelib/lib/morphroutine.fox"
@@ -212,7 +212,7 @@ fungsi show_performance_metrics() -> void
     print_number_simple(memory_per_record)
     sistem 1, 1, " bytes\n", 7
     
-    sistem 1, 1, "\n🔥 MORPHFOX RPN RUNTIME VERDICT:\n", 34
+    sistem 1, 1, "\n🔥 MORPH RPN RUNTIME VERDICT:\n", 34
     
     jika records_per_second > 100000
         sistem 1, 1, "✅ EXCELLENT: >100K records/sec\n", 33

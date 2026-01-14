@@ -2,7 +2,7 @@
 
 ## Overview
 
-MorphFox v1.4 mengimplementasikan sistem kompilasi advanced dengan **RPN (Reverse Polish Notation)** dan **Intent Tree (AST SSA)** untuk optimasi dan keamanan maksimal.
+Morph v1.4 mengimplementasikan sistem kompilasi advanced dengan **RPN (Reverse Polish Notation)** dan **Intent Tree (AST SSA)** untuk optimasi dan keamanan maksimal.
 
 ## 🏗️ Architecture
 

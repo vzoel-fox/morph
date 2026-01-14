@@ -1,5 +1,5 @@
 ; ==============================================================================
-; TYPE SYSTEM ANALYSIS - MorphFox v1.4
+; TYPE SYSTEM ANALYSIS - Morph v1.4
 ; ==============================================================================
 ; Comprehensive analysis of current type system status
 
@@ -7,7 +7,7 @@ ambil "../src/type_checker.fox"
 ambil "../corelib/core/types.fox"
 
 utama {
-    sistem 1, 1, "🔍 MorphFox Type System Analysis v1.4\n", 39
+    sistem 1, 1, "🔍 Morph Type System Analysis v1.4\n", 39
     sistem 1, 1, "=====================================\n", 37
     
     ; Current Type System Overview
@@ -76,7 +76,7 @@ utama {
     
     ; Comparison with Modern Languages
     sistem 1, 1, "\n📈 Comparison with Modern Languages:\n", 37
-    sistem 1, 1, "MorphFox: Basic static typing (5 types)\n", 40
+    sistem 1, 1, "Morph: Basic static typing (5 types)\n", 40
     sistem 1, 1, "Rust:     Advanced (ownership, lifetimes, generics)\n", 52
     sistem 1, 1, "Go:       Simple static (structs, interfaces)\n", 47
     sistem 1, 1, "C:        Basic static (structs, unions, pointers)\n", 52

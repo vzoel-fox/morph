@@ -1,0 +1,70 @@
+ambil "corelib/core/types.fox"
+
+; ==============================================================================
+; MEMORY BUILTINS (SSOT v1.2 - Memory Safety Enhanced)
+; ==============================================================================
+; Functions defined in Assembly with v1.2 safety guarantees
+
+; Memory Safety Error Codes
+const ERR_DIV_ZERO = 104
+const ERR_INVALID_FRAGMENT = 105
+const ERR_FRAGMENT_BOUNDS = 106
+const ERR_FRAGMENT_TYPE = 107
+const ERR_FRAGMENT_STACK = 108
+const ERR_FRAGMENT_EXEC = 109
+const ERR_NULL_DEREF = 110
+const ERR_OUT_OF_BOUNDS = 111
+const ERR_STACK_OVERFLOW = 112
+const ERR_NET_BUFFER_OVERFLOW = 115
+const ERR_NET_PACKET_SIZE = 116
+const ERR_NET_PROTOCOL = 117
+
+; Debug
+fungsi __mf_print_int(val: i64) -> void
+fungsi __mf_print_int_raw(val: i64) -> void
+fungsi __mf_print_str(ptr: ptr, len: i64) -> void
+fungsi __mf_print_asciz(ptr: ptr) -> void
+
+; Math (Safe with overflow detection)
+fungsi __mf_add_checked(a: i64, b: i64) -> i64 ; Returns result, sets error flag
+fungsi __mf_sub_checked(a: i64, b: i64) -> i64
+fungsi __mf_mul_checked(a: i64, b: i64) -> i64
+fungsi __mf_div_checked(a: i64, b: i64) -> i64 ; Exit 104 on div by zero
+
+; Math (Complex)
+fungsi __mf_abs(val: i64) -> i64
+fungsi __mf_sqrt(val: i64) -> i64
+fungsi __mf_pow(base: i64, exp: i64) -> i64
+
+; Memory Operations (Enhanced Safety)
+fungsi __mf_memcpy(dest: ptr, src: ptr, size: i64) -> ptr
+fungsi __mf_mem_alloc(size: i64) -> ptr ; NULL check, size validation
+fungsi __mf_mem_free(ptr: ptr, size: i64) -> void ; Magic validation, Exit 110/111
+fungsi __mf_load_i64(addr: ptr) -> i64 ; NULL check, Exit 110
+fungsi __mf_poke_i64(addr: ptr, value: i64) -> void ; NULL check, Exit 110
+fungsi __mf_load_byte(addr: ptr) -> i64 ; NULL check, Exit 110
+fungsi __mf_poke_byte(addr: ptr, value: i64) -> void ; NULL check, Exit 110
+
+; Memory Validation
+fungsi __mf_validate_ptr(ptr: ptr) -> i64 ; Returns 1 if valid, 0 if invalid
+fungsi __mf_check_bounds(ptr: ptr, size: i64) -> i64 ; Bounds checking
+
+; Allocator Management (SSOT Compliant)
+fungsi __mf_arena_create(size: i64) -> ptr
+fungsi __mf_arena_alloc(arena: ptr, size: i64) -> ptr
+fungsi __mf_arena_reset(arena: ptr) -> void
+fungsi __mf_arena_usage(arena: ptr) -> i64
+fungsi __mf_arena_capacity(arena: ptr) -> i64
+
+fungsi __mf_pool_create(obj_size: i64, capacity: i64) -> ptr
+fungsi __mf_pool_alloc(pool: ptr) -> ptr
+fungsi __mf_pool_free(pool: ptr, obj: ptr) -> void
+
+; Crypto (SHA-256)
+fungsi __mf_sha256_init(ctx: ptr) -> void
+fungsi __mf_sha256_update(ctx: ptr, data: ptr, len: i64) -> void
+fungsi __mf_sha256_final(ctx: ptr, digest: ptr) -> void
+
+; Crypto (ChaCha20)
+fungsi __mf_chacha20_block(key: ptr, nonce: ptr, counter: i64, out: ptr) -> void
+fungsi __mf_chacha20_xor_stream(key: ptr, nonce: ptr, counter: i64, input: ptr, output: ptr, len: i64) -> void

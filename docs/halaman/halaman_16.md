@@ -5,7 +5,7 @@
 
 ## 1. Pendahuluan
 
-Halaman ini merangkum sesi "Sprint Akhir" yang bertujuan untuk menutup semua celah teknis (technical gaps), menyamakan fitur antar platform (parity), memperkuat keamanan (hardening), dan menyiapkan fondasi untuk lingkungan virtual di Web. Dengan selesainya tahap ini, **Core Runtime MorphFox v1.1 dinyatakan BEKU (Frozen)**.
+Halaman ini merangkum sesi "Sprint Akhir" yang bertujuan untuk menutup semua celah teknis (technical gaps), menyamakan fitur antar platform (parity), memperkuat keamanan (hardening), dan menyiapkan fondasi untuk lingkungan virtual di Web. Dengan selesainya tahap ini, **Core Runtime Morph v1.1 dinyatakan BEKU (Frozen)**.
 
 ## 2. Rekapitulasi Perubahan Besar
 
@@ -34,7 +34,7 @@ Script build otomatis telah disiapkan untuk menghasilkan binary tunggal yang ind
 
 ## 4. Kesimpulan
 
-MorphFox v1.1 kini berdiri di atas tiga pilar yang kokoh:
+Morph v1.1 kini berdiri di atas tiga pilar yang kokoh:
 1.  **Paritas:** Linux, Windows, dan Web memiliki kemampuan dasar yang setara.
 2.  **Keamanan:** Runtime dilindungi dari Stack Overflow dan Integer Overflow.
 3.  **Portabilitas:** Bytecode RPN bersifat universal.

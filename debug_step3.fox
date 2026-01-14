@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "Testing return with value\n", 26
+    kembali 42
+}

@@ -5,15 +5,15 @@
 **Timeline: 4 weeks**
 **Repository: morph**
 
-Dokumen ini mendokumentasikan implementasi Phase 2: Intent Tree self-hosting menggunakan MorphFox.
+Dokumen ini mendokumentasikan implementasi Phase 2: Intent Tree self-hosting menggunakan Morph.
 
 ## 1. Overview
 
-Setelah bootstrap compiler dibekukan di v1.2-bootstrap, kita memulai Phase 2 dengan fokus pada **Intent Tree builder** yang ditulis dalam MorphFox sendiri.
+Setelah bootstrap compiler dibekukan di v1.2-bootstrap, kita memulai Phase 2 dengan fokus pada **Intent Tree builder** yang ditulis dalam Morph sendiri.
 
 ### 1.1 Goals
 
-- ✅ Implement Intent Tree builder API in MorphFox
+- ✅ Implement Intent Tree builder API in Morph
 - ⏳ Test memory builtins dengan real use cases
 - ⏳ Create simple Intent nodes (48 bytes)
 - ⏳ Build small Intent trees
@@ -28,7 +28,7 @@ Current State:
                                   Bootstrap binary
 
 Target State (Phase 2):
-  Lexer (Asm) → Parser (Asm) → Intent Builder (MorphFox) → Codegen (Asm)
+  Lexer (Asm) → Parser (Asm) → Intent Builder (Morph) → Codegen (Asm)
                                        ↓
                               Self-hosting component!
 ```
@@ -302,8 +302,8 @@ Source Code (.fox)
       ↓
   Parser (Asm) ────→  Token stream
       ↓
-  Intent Builder  ──→  Intent Tree (MorphFox-built)
-  (MorphFox)
+  Intent Builder  ──→  Intent Tree (Morph-built)
+  (Morph)
       ↓
   Compiler (Asm) ──→  RPN Bytecode
       ↓
@@ -322,7 +322,7 @@ Source Code (.fox)
    - Same Type/Next/Child/Data layout
 
 3. **Verification**
-   - Compare MorphFox-built tree with Assembly-built tree
+   - Compare Morph-built tree with Assembly-built tree
    - Check byte-for-byte equivalence
    - Validate with existing test suite
 
@@ -330,7 +330,7 @@ Source Code (.fox)
 
 ### 5.1 Challenge: No String Type
 
-**Problem**: MorphFox v0 only has i64 and ptr. No proper string manipulation.
+**Problem**: Morph v0 only has i64 and ptr. No proper string manipulation.
 
 **Solution**:
 - Use raw pointers for string literals
@@ -387,7 +387,7 @@ Test small trees:
 
 Compare with Assembly parser:
 - [ ] Parse simple.fox with Assembly → tree1
-- [ ] Build tree manually with MorphFox → tree2
+- [ ] Build tree manually with Morph → tree2
 - [ ] Compare tree1 and tree2 structure
 - [ ] Verify byte-for-byte match
 

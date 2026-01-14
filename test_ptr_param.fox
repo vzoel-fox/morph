@@ -1,0 +1,13 @@
+; Test fungsi with ptr parameter
+
+utama {
+    sistem 1, 1, "Testing ptr param\n", 18
+    var result = test_ptr("hello")
+    sistem 1, 1, "Done\n", 5
+    0
+}
+
+fungsi test_ptr(s: ptr) -> i64
+    sistem 1, 1, "Got ptr\n", 8
+    1
+tutup_fungsi

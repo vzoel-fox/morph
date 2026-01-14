@@ -1,0 +1,11 @@
+; Test jika in utama only
+
+utama {
+    sistem 1, 1, "Test jika in utama\n", 19
+    var x = 5
+    jika (x == 5)
+        sistem 1, 1, "x is 5\n", 7
+    tutup_jika
+    sistem 1, 1, "Done\n", 5
+    0
+}

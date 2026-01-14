@@ -1,0 +1,198 @@
+; ==============================================================================
+; STRING - String Operations Library
+; ==============================================================================
+
+; Get string length (null-terminated)
+fungsi string_length(s: ptr) -> i64
+    jika (s == 0) kembali 0 tutup_jika
+    
+    var len = 0
+    selama (mem_load_byte_safe(s + len) != 0)
+        len = len + 1
+    tutup_selama
+    kembali len
+tutup_fungsi
+
+; Compare two strings for equality
+fungsi string_equals(a: ptr, b: ptr) -> i64
+    jika (a == 0 atau b == 0) kembali 0 tutup_jika
+    jika (a == b) kembali 1 tutup_jika
+    
+    var i = 0
+    selama (1 == 1)
+        var ca = mem_load_byte_safe(a + i)
+        var cb = mem_load_byte_safe(b + i)
+        
+        jika (ca != cb) kembali 0 tutup_jika
+        jika (ca == 0) kembali 1 tutup_jika  ; Both ended
+        
+        i = i + 1
+    tutup_selama
+    kembali 0
+tutup_fungsi
+
+; Copy string from src to dst
+fungsi string_copy(dst: ptr, src: ptr) -> i64
+    jika (dst == 0 atau src == 0) kembali -1 tutup_jika
+    
+    var i = 0
+    selama (1 == 1)
+        var c = mem_load_byte_safe(src + i)
+        mem_store_byte_safe(dst + i, c)
+        jika (c == 0) keluar tutup_jika
+        i = i + 1
+    tutup_selama
+    kembali i
+tutup_fungsi
+
+; Concatenate two strings (allocates new string)
+fungsi string_concat(a: ptr, b: ptr) -> ptr
+    jika (a == 0 atau b == 0) kembali 0 tutup_jika
+    
+    var len_a = string_length(a)
+    var len_b = string_length(b)
+    var total_len = len_a + len_b + 1  ; +1 for null terminator
+    
+    var result = mem_alloc_safe(total_len)
+    jika (result == 0) kembali 0 tutup_jika
+    
+    ; Copy first string
+    var i = 0
+    selama (i < len_a)
+        var c = mem_load_byte_safe(a + i)
+        mem_store_byte_safe(result + i, c)
+        i = i + 1
+    tutup_selama
+    
+    ; Copy second string
+    var j = 0
+    selama (j < len_b)
+        var c = mem_load_byte_safe(b + j)
+        mem_store_byte_safe(result + len_a + j, c)
+        j = j + 1
+    tutup_selama
+    
+    ; Null terminator
+    mem_store_byte_safe(result + len_a + len_b, 0)
+    kembali result
+tutup_fungsi
+
+; Get substring (allocates new string)
+fungsi string_substring(s: ptr, start: i64, end: i64) -> ptr
+    jika (s == 0) kembali 0 tutup_jika
+    var len = string_length(s)
+    
+    jika (start < 0) start = 0 tutup_jika
+    jika (end > len) end = len tutup_jika
+    jika (start >= end) kembali 0 tutup_jika
+    
+    var sub_len = end - start
+    var result = mem_alloc_safe(sub_len + 1)
+    jika (result == 0) kembali 0 tutup_jika
+    
+    var i = 0
+    selama (i < sub_len)
+        var c = mem_load_byte_safe(s + start + i)
+        mem_store_byte_safe(result + i, c)
+        i = i + 1
+    tutup_selama
+    
+    mem_store_byte_safe(result + sub_len, 0)
+    kembali result
+tutup_fungsi
+
+; Find character in string (returns index or -1)
+fungsi string_find_char(s: ptr, c: i64) -> i64
+    jika (s == 0) kembali -1 tutup_jika
+    
+    var i = 0
+    selama (1 == 1)
+        var ch = mem_load_byte_safe(s + i)
+        jika (ch == 0) kembali -1 tutup_jika  ; End of string
+        jika (ch == c) kembali i tutup_jika   ; Found
+        i = i + 1
+    tutup_selama
+    kembali -1
+tutup_fungsi
+
+; Convert integer to string (allocates new string)
+fungsi i64_to_string(n: i64) -> ptr
+    ; Handle zero
+    jika (n == 0)
+        var result = mem_alloc_safe(2)
+        jika (result == 0) kembali 0 tutup_jika
+        mem_store_byte_safe(result + 0, 48)  ; '0'
+        mem_store_byte_safe(result + 1, 0)   ; null
+        kembali result
+    tutup_jika
+    
+    ; Handle negative
+    var is_negative = 0
+    jika (n < 0)
+        is_negative = 1
+        n = 0 - n  ; Make positive
+    tutup_jika
+    
+    ; Count digits
+    var temp = n
+    var digit_count = 0
+    selama (temp > 0)
+        digit_count = digit_count + 1
+        temp = temp / 10
+    tutup_selama
+    
+    var total_len = digit_count + is_negative + 1  ; +1 for null
+    var result = mem_alloc_safe(total_len)
+    jika (result == 0) kembali 0 tutup_jika
+    
+    ; Add negative sign
+    var pos = 0
+    jika (is_negative == 1)
+        mem_store_byte_safe(result + pos, 45)  ; '-'
+        pos = pos + 1
+    tutup_jika
+    
+    ; Convert digits (reverse order)
+    var i = digit_count - 1
+    selama (i >= 0)
+        var digit = n % 10
+        mem_store_byte_safe(result + pos + i, 48 + digit)  ; '0' + digit
+        n = n / 10
+        i = i - 1
+    tutup_selama
+    
+    ; Null terminator
+    mem_store_byte_safe(result + total_len - 1, 0)
+    kembali result
+tutup_fungsi
+
+; Convert string to integer
+fungsi string_to_i64(s: ptr) -> i64
+    jika (s == 0) kembali 0 tutup_jika
+    
+    var result = 0
+    var i = 0
+    var is_negative = 0
+    
+    ; Check for negative sign
+    var first_char = mem_load_byte_safe(s + i)
+    jika (first_char == 45)  ; '-'
+        is_negative = 1
+        i = i + 1
+    tutup_jika
+    
+    ; Convert digits
+    selama (1 == 1)
+        var c = mem_load_byte_safe(s + i)
+        jika (c < 48 atau c > 57) keluar tutup_jika  ; Not a digit
+        
+        result = result * 10 + (c - 48)
+        i = i + 1
+    tutup_selama
+    
+    jika (is_negative == 1)
+        result = 0 - result
+    tutup_jika
+    
+    kembali result
+tutup_fungsi

@@ -1,0 +1,277 @@
+; ==============================================================================
+; CONTROL FLOW - Complete Implementation
+; ==============================================================================
+; Full control flow support: if/else, while, for, switch, break, continue
+
+ambil "codegen.fox"
+
+; Control flow context for nested loops
+const CF_TYPE = 0
+const CF_START_LABEL = 8
+const CF_END_LABEL = 16
+const CF_PARENT = 24
+const CF_SIZE = 32
+
+const CF_LOOP = 1
+const CF_SWITCH = 2
+
+var __cf_current = 0
+
+; ==============================================================================
+; LOOP CONTEXT MANAGEMENT
+; ==============================================================================
+
+fungsi cf_push_loop(gen: ptr) -> ptr
+  var ctx = __mf_mem_alloc(CF_SIZE)
+  __mf_poke_i64(ctx + CF_TYPE, CF_LOOP)
+  __mf_poke_i64(ctx + CF_START_LABEL, codegen_new_label(gen))
+  __mf_poke_i64(ctx + CF_END_LABEL, codegen_new_label(gen))
+  __mf_poke_i64(ctx + CF_PARENT, __cf_current)
+  __cf_current = ctx
+  kembali ctx
+tutup_fungsi
+
+fungsi cf_pop() -> void
+  jika __cf_current != 0
+    __cf_current = __mf_load_i64(__cf_current + CF_PARENT)
+  tutup_jika
+tutup_fungsi
+
+fungsi cf_get_loop() -> ptr
+  var ctx = __cf_current
+  selama ctx != 0
+    jika __mf_load_i64(ctx + CF_TYPE) == CF_LOOP
+      kembali ctx
+    tutup_jika
+    ctx = __mf_load_i64(ctx + CF_PARENT)
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; IF/ELSE GENERATION
+; ==============================================================================
+
+fungsi gen_if(gen: ptr, cond: ptr, then_block: ptr, else_block: ptr) -> i64
+  var else_label = codegen_new_label(gen)
+  var end_label = codegen_new_label(gen)
+  
+  ; Evaluate condition
+  codegen_expr(gen, cond)
+  
+  ; Jump to else if false
+  codegen_emit(gen, OP_JZ, else_label)
+  
+  ; Then block
+  codegen_block(gen, then_block)
+  
+  ; Jump over else
+  jika else_block != 0
+    codegen_emit(gen, OP_JMP, end_label)
+  tutup_jika
+  
+  ; Else label
+  codegen_emit_label(gen, else_label)
+  
+  ; Else block
+  jika else_block != 0
+    codegen_block(gen, else_block)
+    codegen_emit_label(gen, end_label)
+  tutup_jika
+  
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; WHILE LOOP GENERATION
+; ==============================================================================
+
+fungsi gen_while(gen: ptr, cond: ptr, body: ptr) -> i64
+  var ctx = cf_push_loop(gen)
+  var start_label = __mf_load_i64(ctx + CF_START_LABEL)
+  var end_label = __mf_load_i64(ctx + CF_END_LABEL)
+  
+  ; Start label (continue target)
+  codegen_emit_label(gen, start_label)
+  
+  ; Evaluate condition
+  codegen_expr(gen, cond)
+  
+  ; Exit if false
+  codegen_emit(gen, OP_JZ, end_label)
+  
+  ; Body
+  codegen_block(gen, body)
+  
+  ; Loop back
+  codegen_emit(gen, OP_JMP, start_label)
+  
+  ; End label (break target)
+  codegen_emit_label(gen, end_label)
+  
+  cf_pop()
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; FOR LOOP GENERATION
+; ==============================================================================
+
+fungsi gen_for(gen: ptr, init: ptr, cond: ptr, update: ptr, body: ptr) -> i64
+  ; Init
+  jika init != 0
+    codegen_stmt(gen, init)
+  tutup_jika
+  
+  var ctx = cf_push_loop(gen)
+  var start_label = __mf_load_i64(ctx + CF_START_LABEL)
+  var end_label = __mf_load_i64(ctx + CF_END_LABEL)
+  var update_label = codegen_new_label(gen)
+  
+  ; Start label
+  codegen_emit_label(gen, start_label)
+  
+  ; Condition
+  jika cond != 0
+    codegen_expr(gen, cond)
+    codegen_emit(gen, OP_JZ, end_label)
+  tutup_jika
+  
+  ; Body
+  codegen_block(gen, body)
+  
+  ; Update label (continue jumps here)
+  codegen_emit_label(gen, update_label)
+  
+  ; Update
+  jika update != 0
+    codegen_stmt(gen, update)
+  tutup_jika
+  
+  ; Loop back
+  codegen_emit(gen, OP_JMP, start_label)
+  
+  ; End label
+  codegen_emit_label(gen, end_label)
+  
+  cf_pop()
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; BREAK/CONTINUE
+; ==============================================================================
+
+fungsi gen_break(gen: ptr) -> i64
+  var ctx = cf_get_loop()
+  jika ctx == 0
+    kembali 0  ; Error: break outside loop
+  tutup_jika
+  
+  var end_label = __mf_load_i64(ctx + CF_END_LABEL)
+  codegen_emit(gen, OP_JMP, end_label)
+  kembali 1
+tutup_fungsi
+
+fungsi gen_continue(gen: ptr) -> i64
+  var ctx = cf_get_loop()
+  jika ctx == 0
+    kembali 0  ; Error: continue outside loop
+  tutup_jika
+  
+  var start_label = __mf_load_i64(ctx + CF_START_LABEL)
+  codegen_emit(gen, OP_JMP, start_label)
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; BLOCK GENERATION
+; ==============================================================================
+
+fungsi codegen_block(gen: ptr, block: ptr) -> i64
+  jika block == 0
+    kembali 0
+  tutup_jika
+  
+  var children = __mf_load_i64(block + AST_CHILDREN)
+  jika children == 0
+    kembali 0
+  tutup_jika
+  
+  var len = vector_length(children)
+  var i = 0
+  selama i < len
+    var stmt = vector_get(children, i)
+    codegen_stmt(gen, stmt)
+    i = i + 1
+  tutup_selama
+  
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; LOGICAL OPERATORS (Short-circuit)
+; ==============================================================================
+
+fungsi gen_and(gen: ptr, left: ptr, right: ptr) -> i64
+  var false_label = codegen_new_label(gen)
+  var end_label = codegen_new_label(gen)
+  
+  ; Evaluate left
+  codegen_expr(gen, left)
+  codegen_emit(gen, OP_JZ, false_label)
+  
+  ; Evaluate right
+  codegen_expr(gen, right)
+  codegen_emit(gen, OP_JMP, end_label)
+  
+  ; False case
+  codegen_emit_label(gen, false_label)
+  codegen_emit(gen, OP_LIT, 0)
+  
+  ; End
+  codegen_emit_label(gen, end_label)
+  kembali 1
+tutup_fungsi
+
+fungsi gen_or(gen: ptr, left: ptr, right: ptr) -> i64
+  var true_label = codegen_new_label(gen)
+  var end_label = codegen_new_label(gen)
+  
+  ; Evaluate left
+  codegen_expr(gen, left)
+  codegen_emit(gen, OP_JNZ, true_label)
+  
+  ; Evaluate right
+  codegen_expr(gen, right)
+  codegen_emit(gen, OP_JMP, end_label)
+  
+  ; True case
+  codegen_emit_label(gen, true_label)
+  codegen_emit(gen, OP_LIT, 1)
+  
+  ; End
+  codegen_emit_label(gen, end_label)
+  kembali 1
+tutup_fungsi
+
+; ==============================================================================
+; TERNARY OPERATOR
+; ==============================================================================
+
+fungsi gen_ternary(gen: ptr, cond: ptr, then_expr: ptr, else_expr: ptr) -> i64
+  var else_label = codegen_new_label(gen)
+  var end_label = codegen_new_label(gen)
+  
+  codegen_expr(gen, cond)
+  codegen_emit(gen, OP_JZ, else_label)
+  
+  codegen_expr(gen, then_expr)
+  codegen_emit(gen, OP_JMP, end_label)
+  
+  codegen_emit_label(gen, else_label)
+  codegen_expr(gen, else_expr)
+  
+  codegen_emit_label(gen, end_label)
+  kembali 1
+tutup_fungsi

@@ -1,0 +1,321 @@
+; ==============================================================================
+; ENHANCED MEMORY SAFETY & EXCEPTION SYSTEM (v1.3)
+; ==============================================================================
+; Foundation untuk Phase 2 self-hosting compiler
+
+ambil "corelib/core/builtins_v12.fox"
+
+; ==============================================================================
+; EXCEPTION HANDLING SYSTEM
+; ==============================================================================
+
+; Exception Types
+const EXC_NONE = 0
+const EXC_MEMORY = 1
+const EXC_BOUNDS = 2
+const EXC_NULL_PTR = 3
+const EXC_STACK_OVERFLOW = 4
+const EXC_DIV_ZERO = 5
+const EXC_TYPE_ERROR = 6
+const EXC_IO_ERROR = 7
+const EXC_PARSE_ERROR = 8
+
+; Global Exception State
+var g_exception_code = 0
+var g_exception_message = 0
+var g_exception_file = 0
+var g_exception_line = 0
+
+; Exception Context Stack (for nested try/catch)
+const MAX_EXCEPTION_DEPTH = 32
+var g_exception_stack = 0
+var g_exception_depth = 0
+
+struktur ExceptionFrame {
+    code: i64,
+    message: ptr,
+    file: ptr,
+    line: i64,
+    handler: ptr  ; Function pointer to exception handler
+}
+
+; Initialize exception system
+fungsi exception_init() -> void
+    g_exception_code = EXC_NONE
+    g_exception_message = 0
+    g_exception_file = 0
+    g_exception_line = 0
+    
+    ; Allocate exception stack
+    g_exception_stack = __mf_mem_alloc(MAX_EXCEPTION_DEPTH * 40) ; 40 bytes per frame
+    g_exception_depth = 0
+tutup_fungsi
+
+; Throw exception with context
+fungsi exception_throw(code: i64, message: ptr, file: ptr, line: i64) -> void
+    g_exception_code = code
+    g_exception_message = message
+    g_exception_file = file
+    g_exception_line = line
+    
+    ; Print error info
+    __mf_print_asciz("EXCEPTION: ")
+    __mf_print_asciz(message)
+    __mf_print_asciz(" at ")
+    __mf_print_asciz(file)
+    __mf_print_asciz(":")
+    __mf_print_int(line)
+    __mf_print_asciz("\n")
+    
+    ; Exit with error code (for now, later implement proper unwinding)
+    sistem 60, code, 0, 0  ; sys_exit
+tutup_fungsi
+
+; Check if exception occurred
+fungsi exception_occurred() -> i64
+    kembali g_exception_code
+tutup_fungsi
+
+; Clear exception state
+fungsi exception_clear() -> void
+    g_exception_code = EXC_NONE
+    g_exception_message = 0
+    g_exception_file = 0
+    g_exception_line = 0
+tutup_fungsi
+
+; ==============================================================================
+; ENHANCED MEMORY MANAGEMENT
+; ==============================================================================
+
+; Memory Block Header (for tracking allocations)
+struktur MemBlock {
+    magic: i64,      ; Magic number for validation
+    size: i64,       ; Allocated size
+    file: ptr,       ; Source file of allocation
+    line: i64,       ; Source line of allocation
+    next: ptr        ; Next block in allocation list
+}
+
+const MEM_MAGIC = 0x4D4F5250484D454D  ; "MEMMORPH"
+const MEM_HEADER_SIZE = 40
+
+; Global allocation tracking
+var g_alloc_list = 0
+var g_total_allocated = 0
+var g_alloc_count = 0
+
+; Safe memory allocation with tracking
+fungsi mem_alloc_tracked(size: i64, file: ptr, line: i64) -> ptr
+    ; Validate size
+    jika (size <= 0) {
+        exception_throw(EXC_MEMORY, "Invalid allocation size", file, line)
+        kembali 0
+    }
+    
+    ; Allocate with header
+    var total_size = size + MEM_HEADER_SIZE
+    var raw_ptr = __mf_mem_alloc(total_size)
+    
+    jika (raw_ptr == 0) {
+        exception_throw(EXC_MEMORY, "Memory allocation failed", file, line)
+        kembali 0
+    }
+    
+    ; Initialize header
+    var header = raw_ptr
+    __mf_poke_i64(header + 0, MEM_MAGIC)
+    __mf_poke_i64(header + 8, size)
+    __mf_poke_i64(header + 16, file)
+    __mf_poke_i64(header + 24, line)
+    __mf_poke_i64(header + 32, g_alloc_list)
+    
+    ; Update global tracking
+    g_alloc_list = header
+    g_total_allocated = g_total_allocated + size
+    g_alloc_count = g_alloc_count + 1
+    
+    ; Return user pointer (after header)
+    kembali raw_ptr + MEM_HEADER_SIZE
+tutup_fungsi
+
+; Safe memory deallocation with validation
+fungsi mem_free_tracked(ptr: ptr, file: ptr, line: i64) -> void
+    jika (ptr == 0) {
+        exception_throw(EXC_NULL_PTR, "Attempt to free NULL pointer", file, line)
+        kembali
+    }
+    
+    ; Get header
+    var header = ptr - MEM_HEADER_SIZE
+    var magic = __mf_load_i64(header + 0)
+    
+    jika (magic != MEM_MAGIC) {
+        exception_throw(EXC_MEMORY, "Invalid memory block or double free", file, line)
+        kembali
+    }
+    
+    ; Get size and update tracking
+    var size = __mf_load_i64(header + 8)
+    g_total_allocated = g_total_allocated - size
+    g_alloc_count = g_alloc_count - 1
+    
+    ; Clear magic (prevent double free)
+    __mf_poke_i64(header + 0, 0)
+    
+    ; Free the block
+    __mf_mem_free(header, size + MEM_HEADER_SIZE)
+tutup_fungsi
+
+; Bounds-checked memory access
+fungsi mem_load_safe(ptr: ptr, offset: i64, file: ptr, line: i64) -> i64
+    jika (ptr == 0) {
+        exception_throw(EXC_NULL_PTR, "NULL pointer dereference", file, line)
+        kembali 0
+    }
+    
+    ; Get header and validate
+    var header = ptr - MEM_HEADER_SIZE
+    var magic = __mf_load_i64(header + 0)
+    
+    jika (magic != MEM_MAGIC) {
+        exception_throw(EXC_MEMORY, "Invalid memory access", file, line)
+        kembali 0
+    }
+    
+    ; Check bounds
+    var size = __mf_load_i64(header + 8)
+    jika (offset < 0 || offset >= size) {
+        exception_throw(EXC_BOUNDS, "Memory access out of bounds", file, line)
+        kembali 0
+    }
+    
+    kembali __mf_load_i64(ptr + offset)
+tutup_fungsi
+
+; Bounds-checked memory write
+fungsi mem_store_safe(ptr: ptr, offset: i64, value: i64, file: ptr, line: i64) -> void
+    jika (ptr == 0) {
+        exception_throw(EXC_NULL_PTR, "NULL pointer dereference", file, line)
+        kembali
+    }
+    
+    ; Get header and validate
+    var header = ptr - MEM_HEADER_SIZE
+    var magic = __mf_load_i64(header + 0)
+    
+    jika (magic != MEM_MAGIC) {
+        exception_throw(EXC_MEMORY, "Invalid memory access", file, line)
+        kembali
+    }
+    
+    ; Check bounds
+    var size = __mf_load_i64(header + 8)
+    jika (offset < 0 || offset >= size) {
+        exception_throw(EXC_BOUNDS, "Memory access out of bounds", file, line)
+        kembali
+    }
+    
+    __mf_poke_i64(ptr + offset, value)
+tutup_fungsi
+
+; ==============================================================================
+; SAFE ARITHMETIC OPERATIONS
+; ==============================================================================
+
+fungsi add_safe(a: i64, b: i64, file: ptr, line: i64) -> i64
+    var result = __mf_add_checked(a, b)
+    jika (exception_occurred()) {
+        exception_throw(EXC_MEMORY, "Integer overflow in addition", file, line)
+        kembali 0
+    }
+    kembali result
+tutup_fungsi
+
+fungsi div_safe(a: i64, b: i64, file: ptr, line: i64) -> i64
+    jika (b == 0) {
+        exception_throw(EXC_DIV_ZERO, "Division by zero", file, line)
+        kembali 0
+    }
+    kembali a / b
+tutup_fungsi
+
+; ==============================================================================
+; MEMORY DEBUGGING & DIAGNOSTICS
+; ==============================================================================
+
+; Print memory usage statistics
+fungsi mem_print_stats() -> void
+    __mf_print_asciz("=== MEMORY STATISTICS ===\n")
+    __mf_print_asciz("Total allocated: ")
+    __mf_print_int(g_total_allocated)
+    __mf_print_asciz(" bytes\n")
+    __mf_print_asciz("Active allocations: ")
+    __mf_print_int(g_alloc_count)
+    __mf_print_asciz("\n")
+tutup_fungsi
+
+; Check for memory leaks
+fungsi mem_check_leaks() -> i64
+    jika (g_alloc_count > 0) {
+        __mf_print_asciz("WARNING: Memory leaks detected!\n")
+        __mf_print_asciz("Leaked allocations: ")
+        __mf_print_int(g_alloc_count)
+        __mf_print_asciz("\n")
+        
+        ; Print leak details
+        var current = g_alloc_list
+        selama (current != 0) {
+            var file = __mf_load_i64(current + 16)
+            var line = __mf_load_i64(current + 24)
+            var size = __mf_load_i64(current + 8)
+            
+            __mf_print_asciz("  Leak: ")
+            __mf_print_int(size)
+            __mf_print_asciz(" bytes at ")
+            __mf_print_asciz(file)
+            __mf_print_asciz(":")
+            __mf_print_int(line)
+            __mf_print_asciz("\n")
+            
+            current = __mf_load_i64(current + 32)
+        }
+        
+        kembali g_alloc_count
+    }
+    
+    __mf_print_asciz("No memory leaks detected.\n")
+    kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; CONVENIENCE MACROS (for easier usage)
+; ==============================================================================
+
+; These would be implemented as compiler macros in Phase 2
+; For now, we define them as functions with __FILE__ and __LINE__ simulation
+
+var current_file = "unknown"
+var current_line = 0
+
+fungsi set_debug_location(file: ptr, line: i64) -> void
+    current_file = file
+    current_line = line
+tutup_fungsi
+
+; Convenience wrappers
+fungsi mem_alloc(size: i64) -> ptr
+    kembali mem_alloc_tracked(size, current_file, current_line)
+tutup_fungsi
+
+fungsi mem_free(ptr: ptr) -> void
+    mem_free_tracked(ptr, current_file, current_line)
+tutup_fungsi
+
+fungsi mem_load(ptr: ptr, offset: i64) -> i64
+    kembali mem_load_safe(ptr, offset, current_file, current_line)
+tutup_fungsi
+
+fungsi mem_store(ptr: ptr, offset: i64, value: i64) -> void
+    mem_store_safe(ptr, offset, value, current_file, current_line)
+tutup_fungsi

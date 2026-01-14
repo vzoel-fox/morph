@@ -1,0 +1,195 @@
+; ==============================================================================
+; FIXED_POINT - Fixed Point Arithmetic (Q16.16 format)
+; ==============================================================================
+; Simulates floating point using 64-bit integers
+; Upper 48 bits: integer part, Lower 16 bits: fractional part
+
+const FIXED_SCALE = 65536  ; 2^16
+const FIXED_MASK = 65535   ; 2^16 - 1
+
+; Convert integer to fixed point
+fungsi fixed_from_int(x: i64) -> i64
+    kembali x * FIXED_SCALE
+tutup_fungsi
+
+; Convert fixed point to integer (truncate)
+fungsi fixed_to_int(x: i64) -> i64
+    kembali x / FIXED_SCALE
+tutup_fungsi
+
+; Create fixed point from integer and fractional parts
+fungsi fixed_make(integer: i64, frac_1000: i64) -> i64
+    ; frac_1000 is fractional part * 1000 (e.g., 500 = 0.5)
+    var int_part = integer * FIXED_SCALE
+    var frac_part = (frac_1000 * FIXED_SCALE) / 1000
+    kembali int_part + frac_part
+tutup_fungsi
+
+; Fixed point addition
+fungsi fixed_add(a: i64, b: i64) -> i64
+    kembali a + b
+tutup_fungsi
+
+; Fixed point subtraction
+fungsi fixed_sub(a: i64, b: i64) -> i64
+    kembali a - b
+tutup_fungsi
+
+; Fixed point multiplication
+fungsi fixed_mul(a: i64, b: i64) -> i64
+    kembali (a * b) / FIXED_SCALE
+tutup_fungsi
+
+; Fixed point division
+fungsi fixed_div(a: i64, b: i64) -> i64
+    jika (b == 0) kembali 0 tutup_jika
+    kembali (a * FIXED_SCALE) / b
+tutup_fungsi
+
+; Fixed point square root
+fungsi fixed_sqrt(x: i64) -> i64
+    jika (x <= 0) kembali 0 tutup_jika
+    
+    var result = 0
+    var bit = 1073741824 * FIXED_SCALE  ; Highest bit
+    
+    selama (bit > x)
+        bit = bit >> 2
+    tutup_selama
+    
+    selama (bit != 0)
+        jika (x >= result + bit)
+            x = x - result - bit
+            result = (result >> 1) + bit
+        lain
+            result = result >> 1
+        tutup_jika
+        bit = bit >> 2
+    tutup_selama
+    
+    kembali result
+tutup_fungsi
+
+; Fixed point sine (using Taylor series approximation)
+fungsi fixed_sin(x: i64) -> i64
+    ; Normalize to -2π to 2π range
+    var pi2 = fixed_make(6, 283)  ; 2π ≈ 6.283
+    selama (x > pi2)
+        x = x - pi2
+    tutup_selama
+    selama (x < (0 - pi2))
+        x = x + pi2
+    tutup_selama
+    
+    ; Taylor series: sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...
+    var result = x
+    var term = x
+    var x_squared = fixed_mul(x, x)
+    
+    ; x³/3!
+    term = fixed_mul(term, x_squared)
+    term = fixed_div(term, fixed_from_int(6))
+    result = result - term
+    
+    ; x⁵/5!
+    term = fixed_mul(term, x_squared)
+    term = fixed_div(term, fixed_from_int(20))
+    result = result + term
+    
+    ; x⁷/7!
+    term = fixed_mul(term, x_squared)
+    term = fixed_div(term, fixed_from_int(42))
+    result = result - term
+    
+    kembali result
+tutup_fungsi
+
+; Fixed point cosine
+fungsi fixed_cos(x: i64) -> i64
+    var pi_half = fixed_make(1, 571)  ; π/2 ≈ 1.571
+    kembali fixed_sin(x + pi_half)
+tutup_fungsi
+
+; Fixed point absolute value
+fungsi fixed_abs(x: i64) -> i64
+    jika (x < 0) kembali 0 - x tutup_jika
+    kembali x
+tutup_fungsi
+
+; Fixed point floor
+fungsi fixed_floor(x: i64) -> i64
+    jika (x >= 0)
+        kembali (x / FIXED_SCALE) * FIXED_SCALE
+    lain
+        var int_part = x / FIXED_SCALE
+        jika ((x % FIXED_SCALE) != 0)
+            int_part = int_part - 1
+        tutup_jika
+        kembali int_part * FIXED_SCALE
+    tutup_jika
+tutup_fungsi
+
+; Fixed point ceiling
+fungsi fixed_ceil(x: i64) -> i64
+    jika (x >= 0)
+        var int_part = x / FIXED_SCALE
+        jika ((x % FIXED_SCALE) != 0)
+            int_part = int_part + 1
+        tutup_jika
+        kembali int_part * FIXED_SCALE
+    lain
+        kembali (x / FIXED_SCALE) * FIXED_SCALE
+    tutup_jika
+tutup_fungsi
+
+; Convert fixed point to string representation
+fungsi fixed_to_string(x: i64) -> ptr
+    var int_part = x / FIXED_SCALE
+    var frac_part = x % FIXED_SCALE
+    jika (frac_part < 0) frac_part = 0 - frac_part tutup_jika
+    
+    var int_str = i64_to_string(int_part)
+    jika (int_str == 0) kembali 0 tutup_jika
+    
+    var int_len = string_length(int_str)
+    
+    ; Calculate fractional digits (3 decimal places)
+    var frac_1000 = (frac_part * 1000) / FIXED_SCALE
+    var frac_str = i64_to_string(frac_1000)
+    jika (frac_str == 0)
+        mem_free_safe(int_str)
+        kembali 0
+    tutup_jika
+    
+    var frac_len = string_length(frac_str)
+    var total_len = int_len + 1 + 3 + 1  ; int + '.' + 3digits + null
+    
+    var result = mem_alloc_safe(total_len)
+    jika (result == 0)
+        mem_free_safe(int_str)
+        mem_free_safe(frac_str)
+        kembali 0
+    tutup_jika
+    
+    ; Copy integer part
+    string_copy(result, int_str)
+    
+    ; Add decimal point
+    mem_store_byte_safe(result + int_len, 46)  ; '.'
+    
+    ; Pad fractional part with zeros if needed
+    var pos = int_len + 1
+    var pad_zeros = 3 - frac_len
+    var i = 0
+    selama (i < pad_zeros)
+        mem_store_byte_safe(result + pos + i, 48)  ; '0'
+        i = i + 1
+    tutup_selama
+    
+    ; Copy fractional digits
+    string_copy(result + pos + pad_zeros, frac_str)
+    
+    mem_free_safe(int_str)
+    mem_free_safe(frac_str)
+    kembali result
+tutup_fungsi

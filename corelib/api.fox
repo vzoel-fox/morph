@@ -1,0 +1,175 @@
+; ==============================================================================
+; MORPHFOX STANDARD API - Public Interface
+; ==============================================================================
+; Ini adalah API publik yang dilihat user.
+; Implementasi internal TERSEMBUNYI di compiled binary.
+;
+; User cukup: ambil "std.fox"
+; ==============================================================================
+
+; ==============================================================================
+; MEMORY
+; ==============================================================================
+
+; Allocate memory (returns pointer or 0 on failure)
+fungsi alloc(size: i64) -> ptr
+  kembali __morph_alloc(size)
+tutup_fungsi
+
+; Free memory
+fungsi free(ptr: ptr) -> void
+  __morph_free(ptr)
+tutup_fungsi
+
+; Reallocate memory
+fungsi realloc(ptr: ptr, old_size: i64, new_size: i64) -> ptr
+  kembali __morph_realloc(ptr, old_size, new_size)
+tutup_fungsi
+
+; ==============================================================================
+; FILE I/O
+; ==============================================================================
+
+; Open file for reading
+fungsi open(filename: ptr) -> i64
+  kembali __morph_open(filename, 0)
+tutup_fungsi
+
+; Open file for writing (create/truncate)
+fungsi create(filename: ptr) -> i64
+  kembali __morph_open(filename, 1)
+tutup_fungsi
+
+; Read from file
+fungsi read(fd: i64, buf: ptr, len: i64) -> i64
+  kembali __morph_read(fd, buf, len)
+tutup_fungsi
+
+; Write to file
+fungsi write(fd: i64, buf: ptr, len: i64) -> i64
+  kembali __morph_write(fd, buf, len)
+tutup_fungsi
+
+; Close file
+fungsi close(fd: i64) -> void
+  __morph_close(fd)
+tutup_fungsi
+
+; Read entire file
+fungsi read_file(filename: ptr) -> ptr
+  kembali __morph_read_file(filename)
+tutup_fungsi
+
+; Write entire file
+fungsi write_file(filename: ptr, data: ptr, len: i64) -> i64
+  kembali __morph_write_file(filename, data, len)
+tutup_fungsi
+
+; ==============================================================================
+; NETWORKING
+; ==============================================================================
+
+; Connect to host:port, returns connection handle
+fungsi connect(host: ptr, port: i64) -> i64
+  kembali __morph_connect(host, port)
+tutup_fungsi
+
+; Send data
+fungsi send(conn: i64, data: ptr, len: i64) -> i64
+  kembali __morph_send(conn, data, len)
+tutup_fungsi
+
+; Receive data
+fungsi recv(conn: i64, buf: ptr, max_len: i64) -> i64
+  kembali __morph_recv(conn, buf, max_len)
+tutup_fungsi
+
+; Close connection
+fungsi disconnect(conn: i64) -> void
+  __morph_disconnect(conn)
+tutup_fungsi
+
+; HTTP GET request
+fungsi http_get(url: ptr) -> ptr
+  kembali __morph_http_get(url)
+tutup_fungsi
+
+; HTTP POST request
+fungsi http_post(url: ptr, body: ptr, len: i64) -> ptr
+  kembali __morph_http_post(url, body, len)
+tutup_fungsi
+
+; ==============================================================================
+; CONCURRENCY
+; ==============================================================================
+
+; Spawn new routine
+fungsi spawn(func: ptr) -> i64
+  kembali __morph_spawn(func)
+tutup_fungsi
+
+; Yield to other routines
+fungsi yield() -> void
+  __morph_yield()
+tutup_fungsi
+
+; Sleep for milliseconds
+fungsi sleep(ms: i64) -> void
+  __morph_sleep(ms)
+tutup_fungsi
+
+; ==============================================================================
+; CRYPTO
+; ==============================================================================
+
+; Hash data with SHA256
+fungsi sha256(data: ptr, len: i64) -> ptr
+  kembali __morph_sha256(data, len)
+tutup_fungsi
+
+; Encrypt data
+fungsi encrypt(data: ptr, len: i64, key: ptr) -> ptr
+  kembali __morph_encrypt(data, len, key)
+tutup_fungsi
+
+; Decrypt data
+fungsi decrypt(data: ptr, len: i64, key: ptr) -> ptr
+  kembali __morph_decrypt(data, len, key)
+tutup_fungsi
+
+; ==============================================================================
+; TIME
+; ==============================================================================
+
+; Get current timestamp (milliseconds)
+fungsi now() -> i64
+  kembali __morph_now()
+tutup_fungsi
+
+; ==============================================================================
+; PRINT
+; ==============================================================================
+
+; Print string
+fungsi print(s: ptr) -> void
+  __morph_print(s)
+tutup_fungsi
+
+; Print string with newline
+fungsi println(s: ptr) -> void
+  __morph_println(s)
+tutup_fungsi
+
+; Print integer
+fungsi print_int(n: i64) -> void
+  __morph_print_int(n)
+tutup_fungsi
+
+; ==============================================================================
+; PROCESS
+; ==============================================================================
+
+; Exit program
+fungsi exit(code: i64) -> void
+  __morph_exit(code)
+tutup_fungsi

@@ -12,7 +12,7 @@ Halaman ini mendokumentasikan upgrade besar pada platform WebAssembly (WASM) unt
 ## 2. WASM Runtime v1.1
 
 ### A. Memory Allocator
-`runtime.wat` telah ditulis ulang untuk mendukung struktur memori standar MorphFox:
+`runtime.wat` telah ditulis ulang untuk mendukung struktur memori standar Morph:
 *   **Header 8-Byte:** Menyimpan ukuran alokasi, kompatibel dengan logika pointer Native.
 *   **Alignment 16-Byte:** Menjamin akses memori yang efisien dan aman.
 *   **Bump Pointer:** Strategi alokasi linear sederhana namun cepat.
@@ -48,4 +48,4 @@ Sistem syscall menghubungkan dunia "Virtual" RPN dengan API Browser nyata:
 
 ---
 
-*Dokumen ini menandai kesiapan ekosistem MorphFox untuk deployment hybrid.*
+*Dokumen ini menandai kesiapan ekosistem Morph untuk deployment hybrid.*

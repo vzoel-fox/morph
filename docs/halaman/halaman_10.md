@@ -7,7 +7,7 @@
 
 ## 1. Pendahuluan
 
-Halaman ini mendokumentasikan dua pencapaian besar dalam evolusi MorphFox Runtime menuju kemandirian sistem (System Sovereignty):
+Halaman ini mendokumentasikan dua pencapaian besar dalam evolusi Morph Runtime menuju kemandirian sistem (System Sovereignty):
 1.  **Native Daemon Cleaner:** Transisi dari pengelolaan resource berbasis Bash script eksternal menjadi proses assembly murni yang terintegrasi.
 2.  **Windows Parity:** Pencapaian kesetaraan fitur penuh antara Linux dan Windows, khususnya pada komponen kritis seperti Green Threads (MorphRoutines) dan Type System.
 
@@ -69,4 +69,4 @@ Perubahan ini menambah file-file berikut ke dalam Single Source of Truth (SSOT):
 
 ## 5. Kesimpulan
 
-Dengan selesainya Native Daemon dan Windows Parity, MorphFox Runtime kini memiliki fondasi yang kokoh dan agnostik-platform. Langkah selanjutnya adalah memperluas kapabilitas Daemon ke Windows dan memperkaya fitur monitoring memori (Memory Pressure Handling).
+Dengan selesainya Native Daemon dan Windows Parity, Morph Runtime kini memiliki fondasi yang kokoh dan agnostik-platform. Langkah selanjutnya adalah memperluas kapabilitas Daemon ke Windows dan memperkaya fitur monitoring memori (Memory Pressure Handling).

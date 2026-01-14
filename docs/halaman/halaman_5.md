@@ -6,7 +6,7 @@
 ---
 
 ## 1. Pendahuluan
-Sesi ini berfokus pada transisi dari infrastruktur dasar (Lexer minimal) menuju infrastruktur yang mampu menangani sintaks bahasa MorphFox yang sesungguhnya. Kami juga meletakkan dasar untuk "Otak" sistem yaitu Type System dan RPN Mapping.
+Sesi ini berfokus pada transisi dari infrastruktur dasar (Lexer minimal) menuju infrastruktur yang mampu menangani sintaks bahasa Morph yang sesungguhnya. Kami juga meletakkan dasar untuk "Otak" sistem yaitu Type System dan RPN Mapping.
 
 ## 2. Pencapaian Utama
 

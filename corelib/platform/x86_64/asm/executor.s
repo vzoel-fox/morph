@@ -6,6 +6,10 @@
 .include "corelib/platform/x86_64/asm/rpn_gas.inc"
 .include "corelib/platform/x86_64/asm/syscalls.inc"
 
+# SAFETY: Store CallStack in memory instead of R10 (caller-saved register)
+.section .data
+    __executor_callstack: .quad 0
+
 .section .text
 .global executor_run_with_stack
 .global executor_exec_label
@@ -70,7 +74,9 @@ executor_run_with_stack:
     popq %rdi
     testq %rax, %rax
     jz .err_stack_alloc_failed
-    movq %rax, %r10     # R10 = CallStack Ptr
+    # SAFETY: Store CallStack in memory (R10 can be clobbered by function calls)
+    leaq __executor_callstack(%rip), %rcx
+    movq %rax, (%rcx)
 
     movq 8(%r12), %r13  # Code Ptr
     movq 16(%r12), %r14 # Code Size
@@ -221,9 +227,9 @@ executor_run_with_stack:
     movq 0(%rbx), %r8   # SP
     leaq (%r8, %rcx, 8), %r9
 
-    # Check Bounds
-    movq 8(%rbx), %r10
-    cmpq %r10, %r9
+    # Check Bounds (use rax instead of r10 to preserve CallStack)
+    movq 8(%rbx), %rax
+    cmpq %rax, %r9
     jge .pick_fail
 
     movq (%r9), %rdx
@@ -255,8 +261,9 @@ executor_run_with_stack:
     movq 0(%rbx), %r8
     leaq (%r8, %rcx, 8), %r9
 
-    movq 8(%rbx), %r10
-    cmpq %r10, %r9
+    # Use rax instead of r10 to preserve CallStack
+    movq 8(%rbx), %rax
+    cmpq %rax, %r9
     jge .poke_fail
 
     movq %r11, (%r9)
@@ -890,6 +897,7 @@ glue_pre_syscall:
     # Args: Addr(0), Len, Prot, Flags, FD, Offset(0)
     # Stack Order: [Addr, Len, Prot, Flags, FD, Offset]
     # Pops: Offset, FD, Flags, Prot, Len, Addr
+
     movq %rbx, %rdi
     call stack_pop # Offset (R9)
     movq %rax, %r9
@@ -918,7 +926,7 @@ glue_pre_syscall:
     syscall
 
     movq %rbx, %rdi
-    movq %rax, %rsi
+    movq %rax, %rsi  # Push mmap result
     call stack_push
     testq %rax, %rax
     jz .err_stack_overflow
@@ -1111,7 +1119,9 @@ glue_pre_syscall:
 .do_call:
     # Operand at -8
     movq -8(%r13, %r15), %rdx
-    movq %r10, %rdi
+    # Load CallStack from memory
+    leaq __executor_callstack(%rip), %rdi
+    movq (%rdi), %rdi
     movq %r15, %rsi
     call stack_push
     testq %rax, %rax
@@ -1120,6 +1130,20 @@ glue_pre_syscall:
     jmp .fetch
 
 .do_ret:
+    # Load CallStack from memory
+    leaq __executor_callstack(%rip), %rax
+    movq (%rax), %r10
+
+    # SAFETY: Check if CallStack is valid
+    testq %r10, %r10
+    jz .done  # No call stack = exit program
+
+    # SAFETY: Check if CallStack is empty (SP >= Base means empty)
+    movq 0(%r10), %rax  # Current SP
+    movq 8(%r10), %rcx  # Base
+    cmpq %rcx, %rax
+    jge .done  # Stack empty = exit program (we're in main)
+
     movq %r10, %rdi
     call stack_pop
     movq %rax, %r15
@@ -1266,10 +1290,11 @@ executor_exec_label:
     call stack_new
     movq %rax, %rbx # RBX = Data Stack Ptr
 
-    # Initialize R10 (Call Stack Ptr)
+    # Initialize CallStack and store in memory
     movq $8192, %rdi
     call stack_new
-    movq %rax, %r10
+    leaq __executor_callstack(%rip), %rcx
+    movq %rax, (%rcx)
 
     # Jump into fetch loop
     jmp .fetch

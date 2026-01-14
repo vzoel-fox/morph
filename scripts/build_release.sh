@@ -1,59 +1,64 @@
 #!/bin/bash
-# MorphFox Release Builder
-# Creates release binaries for multiple platforms
+# Build release package for distribution
+# Creates: morph-v1.4-linux-x64.tar.gz
 
 set -e
 
-VERSION="v1.4.0"
-BUILD_DIR="release"
-PLATFORMS=("linux-x64" "linux-arm64" "darwin-x64" "darwin-arm64" "windows-x64")
+VERSION="v1.4"
+OS="linux"
+ARCH="x64"
+RELEASE_NAME="morph-$VERSION-$OS-$ARCH"
+RELEASE_DIR="release/$RELEASE_NAME"
 
-echo "🏗️  Building MorphFox Release $VERSION"
+echo "📦 Building MorphFox Release Package"
 echo "====================================="
+echo "Version: $VERSION"
+echo ""
 
-# Clean and create build directory
-rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"
+# Clean previous
+rm -rf "$RELEASE_DIR"
+mkdir -p "$RELEASE_DIR"
 
-# Build self-hosting compiler first
-echo "📦 Building self-hosting compiler..."
-./scripts/build_selfhost.sh
+# Copy binary
+echo "📋 Copying binary..."
+cp bin/morph "$RELEASE_DIR/"
 
-# Create release binaries for each platform
-for platform in "${PLATFORMS[@]}"; do
-    echo "🔨 Building for $platform..."
-    
-    # Extract OS and arch
-    IFS='-' read -r os arch <<< "$platform"
-    
-    # Copy binary with platform-specific name
-    if [ "$os" = "windows" ]; then
-        cp bin/morph "$BUILD_DIR/morph-$platform.exe"
-    else
-        cp bin/morph "$BUILD_DIR/morph-$platform"
-    fi
-    
-    # Make executable
-    chmod +x "$BUILD_DIR/morph-$platform"*
-done
+# Copy corelib (essential)
+echo "📋 Copying corelib..."
+cp -r corelib "$RELEASE_DIR/"
 
-# Create checksums
-echo "🔐 Generating checksums..."
-cd "$BUILD_DIR"
-sha256sum morph-* > checksums.txt
+# Copy brainlib (optional but useful)
+echo "📋 Copying brainlib..."
+cp -r brainlib "$RELEASE_DIR/"
+
+# Copy examples
+echo "📋 Copying examples..."
+cp -r examples "$RELEASE_DIR/"
+
+# Copy docs
+echo "📋 Copying documentation..."
+mkdir -p "$RELEASE_DIR/docs"
+cp README.md "$RELEASE_DIR/"
+cp LICENSE "$RELEASE_DIR/"
+cp INSTALL.md "$RELEASE_DIR/"
+cp docs/ROADMAP.md "$RELEASE_DIR/docs/" 2>/dev/null || true
+
+# Create tarball
+echo "🗜️  Creating tarball..."
+cd release
+tar -czf "$RELEASE_NAME.tar.gz" "$RELEASE_NAME"
 cd ..
 
-# Create release archive
-echo "📦 Creating release archive..."
-tar -czf "$BUILD_DIR/morphfox-$VERSION.tar.gz" -C "$BUILD_DIR" .
+# Calculate checksum
+echo "🔐 Calculating checksum..."
+sha256sum "release/$RELEASE_NAME.tar.gz" > "release/$RELEASE_NAME.sha256"
 
-echo "✅ Release build complete!"
-echo "📁 Files in $BUILD_DIR/:"
-ls -la "$BUILD_DIR/"
-
+# Show result
 echo ""
-echo "🚀 Ready for GitHub release:"
-echo "1. Create new release: https://github.com/vzoel-fox/morph/releases/new"
-echo "2. Tag: $VERSION"
-echo "3. Upload files from $BUILD_DIR/"
-echo "4. Update install.sh with new version"
+echo "✅ Release package created:"
+echo "   release/$RELEASE_NAME.tar.gz"
+echo "   release/$RELEASE_NAME.sha256"
+echo ""
+ls -lh "release/$RELEASE_NAME.tar.gz"
+echo ""
+cat "release/$RELEASE_NAME.sha256"

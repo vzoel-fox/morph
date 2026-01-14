@@ -1,6 +1,6 @@
 # Tutorial 5: Real-World Applications
 
-Build production-ready applications with MorphFox!
+Build production-ready applications with Morph!
 
 ## 🎯 What You'll Learn
 
@@ -29,7 +29,7 @@ my_app/
 
 ### Main Application Template
 
-```morphfox
+```morph
 ; main.fox - Application entry point
 ambil "core/app_core.fox"
 ambil "network/server.fox"
@@ -46,7 +46,7 @@ var g_app_running = 1
 var g_connection_count = 0
 
 utama {
-    sistem 1, 1, "🚀 MorphFox Application v", 26
+    sistem 1, 1, "🚀 Morph Application v", 26
     sistem 1, 1, APP_VERSION, 5
     sistem 1, 1, "\n", 1
     sistem 1, 1, "========================\n", 24
@@ -140,7 +140,7 @@ tutup_fungsi
 
 ## 🌐 Networking Module
 
-```morphfox
+```morph
 ; network/server.fox - HTTP server implementation
 ambil "../../corelib/lib/morphroutine.fox"
 
@@ -256,7 +256,7 @@ tutup_fungsi
 
 ## 💾 Storage Module
 
-```morphfox
+```morph
 ; storage/database.fox - Data persistence
 ambil "../../corelib/lib/morphroutine.fox"
 
@@ -375,7 +375,7 @@ tutup_fungsi
 
 ## 🔧 Utility Functions
 
-```morphfox
+```morph
 ; utils/helpers.fox - Common utilities
 ambil "../../corelib/lib/morphroutine.fox"
 
@@ -457,7 +457,7 @@ tutup_fungsi
 
 ## 🧪 Testing Framework
 
-```morphfox
+```morph
 ; tests/test_framework.fox - Simple testing framework
 ambil "../src/core/app_core.fox"
 ambil "../src/storage/database.fox"
@@ -592,7 +592,7 @@ echo "🚀 Ready for deployment!"
 
 ### Performance Optimization
 
-```morphfox
+```morph
 ; performance/optimizer.fox - Performance optimization utilities
 
 ; Memory pool for frequent allocations
@@ -633,7 +633,7 @@ tutup_fungsi
 
 ## 📊 Monitoring and Metrics
 
-```morphfox
+```morph
 ; monitoring/metrics.fox - Application monitoring
 
 var g_request_count = 0

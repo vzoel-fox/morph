@@ -1,0 +1,4 @@
+; Simple test - just return 0
+utama {
+    kembali 0
+}

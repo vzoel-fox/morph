@@ -2,7 +2,7 @@
 ; PENGUJIAN KONTRAK: LOGIKA DASAR
 ; ==============================================================================
 ; Dokumen ini berisi spesifikasi pengujian yang harus diluluskan oleh implementasi
-; MorphFox v0 untuk memastikan kepatuhan terhadap kontrak SSOT.
+; Morph v0 untuk memastikan kepatuhan terhadap kontrak SSOT.
 ;
 ; Format: Deskripsi Skenario Pengujian (Tanpa Kode Eksekusi).
 ;

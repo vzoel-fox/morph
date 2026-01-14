@@ -1,0 +1,95 @@
+ambil "corelib/core/builtins.fox"
+ambil "corelib/core/runtime.fox"
+
+; ==============================================================================
+; STANDARD LIBRARY - MEMORY MODULE
+; ==============================================================================
+
+; Safe memory allocation with error handling
+fungsi mem_alloc_safe(size: i64) -> ptr
+  jika (size <= 0)
+    kembali 0
+  tutup_jika
+  
+  var ptr = __mf_mem_alloc(size)
+  jika (ptr == 0)
+    ; TODO: Log allocation failure
+    kembali 0
+  tutup_jika
+  
+  kembali ptr
+tutup_fungsi
+
+; Safe memory deallocation
+fungsi mem_free_safe(ptr: ptr, size: i64) -> void
+  jika (ptr == 0)
+    kembali
+  tutup_jika
+  
+  __mf_mem_free(ptr, size)
+tutup_fungsi
+
+; Zero-initialize memory block
+fungsi mem_zero(ptr: ptr, size: i64) -> void
+  var i = 0
+  selama (i < size)
+    __mf_poke_byte(ptr + i, 0)
+    i = i + 1
+  tutup_selama
+tutup_fungsi
+
+; Copy memory with bounds checking
+fungsi mem_copy_safe(dest: ptr, src: ptr, size: i64) -> i64
+  jika (dest == 0 atau src == 0 atau size <= 0)
+    kembali -1
+  tutup_jika
+  
+  __mf_memcpy(dest, src, size)
+  kembali 0
+tutup_fungsi
+
+; Compare memory blocks
+fungsi mem_compare(ptr1: ptr, ptr2: ptr, size: i64) -> i64
+  var i = 0
+  selama (i < size)
+    var b1 = __mf_load_byte(ptr1 + i)
+    var b2 = __mf_load_byte(ptr2 + i)
+    jika (b1 != b2)
+      kembali b1 - b2
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali 0
+tutup_fungsi
+
+; Safe byte load (wrapper untuk __mf_load_byte)
+fungsi mem_load_byte_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_byte(addr)
+tutup_fungsi
+
+; Safe byte store (wrapper untuk __mf_poke_byte)
+fungsi mem_store_byte_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_byte(addr, value)
+tutup_fungsi
+
+; Safe i64 load (wrapper untuk __mf_load_i64)
+fungsi mem_load_safe(addr: ptr) -> i64
+  jika (addr == 0)
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(addr)
+tutup_fungsi
+
+; Safe i64 store (wrapper untuk __mf_poke_i64)
+fungsi mem_store_safe(addr: ptr, value: i64) -> void
+  jika (addr == 0)
+    kembali
+  tutup_jika
+  __mf_poke_i64(addr, value)
+tutup_fungsi

@@ -1,0 +1,5 @@
+utama {
+    var x = 42
+    sistem 1, 1, "No xxxx test\n", 14
+    0
+}

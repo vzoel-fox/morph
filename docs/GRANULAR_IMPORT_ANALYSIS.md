@@ -1,6 +1,6 @@
 # Granular Import System Analysis & Implementation
 
-## 🔍 **Analisis dari Bootstrap & MorphFox:**
+## 🔍 **Analisis dari Bootstrap & Morph:**
 
 ### **1. Syntax yang Ditemukan:**
 ```fox

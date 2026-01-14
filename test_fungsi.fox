@@ -1,0 +1,13 @@
+; Test fungsi keyword parsing
+
+utama {
+    sistem 1, 1, "Testing fungsi keyword\n", 23
+    var result = test_func()
+    sistem 1, 1, "Done\n", 5
+    0
+}
+
+fungsi test_func() -> i64
+    sistem 1, 1, "In function\n", 12
+    1
+tutup_fungsi

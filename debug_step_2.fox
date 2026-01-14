@@ -1,0 +1,6 @@
+utama {
+    sistem 1, 1, "Step 2: With variable\n", 22
+    var x = 42
+    sistem 1, 1, "Variable created\n", 17
+    0
+}

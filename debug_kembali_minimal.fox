@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "Testing minimal kembali\n", 24
+    kembali
+}

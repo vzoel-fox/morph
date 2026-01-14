@@ -1,0 +1,164 @@
+; ==============================================================================
+; STRING LIBRARY - MorphFox Standard Library
+; ==============================================================================
+; Fat pointer string implementation (length + data pointer)
+
+const STRING_LEN = 0
+const STRING_DATA = 8
+const STRING_SIZE = 16
+const FNV_PRIME = 1099511628211
+const FNV_OFFSET = 14695981039346656037
+
+fungsi string_new(data_ptr: ptr, length: i64) -> ptr
+  var str = __mf_mem_alloc(STRING_SIZE)
+  __mf_poke_i64(str + STRING_LEN, length)
+  __mf_poke_i64(str + STRING_DATA, data_ptr)
+  kembali str
+tutup_fungsi
+
+fungsi string_length(str: ptr) -> i64
+  jika str == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(str + STRING_LEN)
+tutup_fungsi
+
+fungsi string_data(str: ptr) -> ptr
+  jika str == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(str + STRING_DATA)
+tutup_fungsi
+
+fungsi string_equals(str1: ptr, str2: ptr) -> i64
+  var len1 = string_length(str1)
+  var len2 = string_length(str2)
+  jika len1 != len2
+    kembali 0
+  tutup_jika
+  var data1 = string_data(str1)
+  var data2 = string_data(str2)
+  var i = 0
+  selama i < len1
+    jika __mf_load_byte(data1 + i) != __mf_load_byte(data2 + i)
+      kembali 0
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali 1
+tutup_fungsi
+
+fungsi string_hash(str: ptr) -> i64
+  var hash = FNV_OFFSET
+  var len = string_length(str)
+  var data = string_data(str)
+  var i = 0
+  selama i < len
+    hash = (hash ^ __mf_load_byte(data + i)) * FNV_PRIME
+    i = i + 1
+  tutup_selama
+  kembali hash
+tutup_fungsi
+
+fungsi string_copy(str: ptr) -> ptr
+  var len = string_length(str)
+  var dst = __mf_mem_alloc(len)
+  __mf_memcpy(dst, string_data(str), len)
+  kembali string_new(dst, len)
+tutup_fungsi
+
+fungsi string_concat(str1: ptr, str2: ptr) -> ptr
+  var len1 = string_length(str1)
+  var len2 = string_length(str2)
+  var buf = __mf_mem_alloc(len1 + len2)
+  __mf_memcpy(buf, string_data(str1), len1)
+  __mf_memcpy(buf + len1, string_data(str2), len2)
+  kembali string_new(buf, len1 + len2)
+tutup_fungsi
+
+fungsi string_substring(str: ptr, start: i64, length: i64) -> ptr
+  var str_len = string_length(str)
+  jika start >= str_len
+    kembali string_new(0, 0)
+  tutup_jika
+  var max_len = str_len - start
+  jika length > max_len
+    length = max_len
+  tutup_jika
+  kembali string_new(string_data(str) + start, length)
+tutup_fungsi
+
+fungsi string_find_char(str: ptr, ch: i64) -> i64
+  var len = string_length(str)
+  var data = string_data(str)
+  var i = 0
+  selama i < len
+    jika __mf_load_byte(data + i) == ch
+      kembali i
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali -1
+tutup_fungsi
+
+fungsi string_char_at(str: ptr, index: i64) -> i64
+  jika index < 0
+    kembali -1
+  tutup_jika
+  jika index >= string_length(str)
+    kembali -1
+  tutup_jika
+  kembali __mf_load_byte(string_data(str) + index)
+tutup_fungsi
+
+fungsi i64_to_string(value: i64) -> ptr
+  var buf = __mf_mem_alloc(21)
+  var pos = 20
+  var neg = 0
+  jika value < 0
+    neg = 1
+    value = 0 - value
+  tutup_jika
+  jika value == 0
+    __mf_poke_byte(buf + pos, 48)
+    pos = pos - 1
+  lain
+    selama value > 0
+      __mf_poke_byte(buf + pos, 48 + (value % 10))
+      pos = pos - 1
+      value = value / 10
+    tutup_selama
+  tutup_jika
+  jika neg == 1
+    __mf_poke_byte(buf + pos, 45)
+    pos = pos - 1
+  tutup_jika
+  kembali string_new(buf + pos + 1, 20 - pos)
+tutup_fungsi
+
+fungsi string_to_i64(str: ptr) -> i64
+  var len = string_length(str)
+  var data = string_data(str)
+  var result = 0
+  var neg = 0
+  var i = 0
+  jika len > 0
+    jika __mf_load_byte(data) == 45
+      neg = 1
+      i = 1
+    tutup_jika
+  tutup_jika
+  selama i < len
+    var ch = __mf_load_byte(data + i)
+    jika ch >= 48
+      jika ch <= 57
+        result = result * 10 + (ch - 48)
+      tutup_jika
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  jika neg == 1
+    kembali 0 - result
+  tutup_jika
+  kembali result
+tutup_fungsi

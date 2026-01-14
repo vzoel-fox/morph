@@ -2,7 +2,7 @@
 
 ## Overview
 
-Standard Library v2.0 menyediakan komponen-komponen essential untuk implementasi self-hosting compiler MorphFox. Library ini mencakup string operations, dynamic arrays (Vector), dan hash tables (HashMap).
+Standard Library v2.0 menyediakan komponen-komponen essential untuk implementasi self-hosting compiler Morph. Library ini mencakup string operations, dynamic arrays (Vector), dan hash tables (HashMap).
 
 ## Components
 

@@ -1,0 +1,35 @@
+utama {
+    sistem 1, 1, "=== Testing Parser Fixes ===\n", 29
+    
+    // Test 1: kembali without expression
+    var result1 = test_kembali_void()
+    sistem 1, 1, "Test 1 passed\n", 14
+    
+    // Test 2: kembali with expression  
+    var result2 = test_kembali_expr()
+    sistem 1, 1, "Test 2 passed\n", 14
+    
+    // Test 3: jika conditional
+    test_jika_conditional()
+    sistem 1, 1, "Test 3 passed\n", 14
+    
+    sistem 1, 1, "=== All Tests Passed ===\n", 26
+    0
+}
+
+test_kembali_void {
+    sistem 1, 1, "In void function\n", 17
+    kembali
+}
+
+test_kembali_expr {
+    sistem 1, 1, "In expr function\n", 17
+    kembali 42
+}
+
+test_jika_conditional {
+    var x = 10
+    jika x == 10
+        sistem 1, 1, "Conditional works\n", 18
+    tutup_jika
+}

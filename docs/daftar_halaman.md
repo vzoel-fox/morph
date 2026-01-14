@@ -1,6 +1,6 @@
 # Daftar Halaman Dokumentasi
 
-Berikut adalah indeks dokumentasi pengembangan MorphFox:
+Berikut adalah indeks dokumentasi pengembangan Morph:
 
 ## Fase Bootstrap (v0.1 - v1.2)
 

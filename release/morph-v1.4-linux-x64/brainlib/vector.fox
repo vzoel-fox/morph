@@ -1,0 +1,120 @@
+; ==============================================================================
+; VECTOR LIBRARY - MorphFox Standard Library
+; ==============================================================================
+; Dynamic array with automatic resizing (2x growth)
+
+const VECTOR_LEN = 0
+const VECTOR_CAP = 8
+const VECTOR_DATA = 16
+const VECTOR_SIZE = 24
+
+fungsi vector_new(capacity: i64) -> ptr
+  jika capacity < 4
+    capacity = 4
+  tutup_jika
+  var vec = __mf_mem_alloc(VECTOR_SIZE)
+  var data = __mf_mem_alloc(capacity * 8)
+  __mf_poke_i64(vec + VECTOR_LEN, 0)
+  __mf_poke_i64(vec + VECTOR_CAP, capacity)
+  __mf_poke_i64(vec + VECTOR_DATA, data)
+  kembali vec
+tutup_fungsi
+
+fungsi vector_length(vec: ptr) -> i64
+  jika vec == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(vec + VECTOR_LEN)
+tutup_fungsi
+
+fungsi vector_capacity(vec: ptr) -> i64
+  jika vec == 0
+    kembali 0
+  tutup_jika
+  kembali __mf_load_i64(vec + VECTOR_CAP)
+tutup_fungsi
+
+fungsi vector_grow(vec: ptr) -> i64
+  var old_cap = __mf_load_i64(vec + VECTOR_CAP)
+  var new_cap = old_cap * 2
+  var old_data = __mf_load_i64(vec + VECTOR_DATA)
+  var new_data = __mf_mem_alloc(new_cap * 8)
+  __mf_memcpy(new_data, old_data, __mf_load_i64(vec + VECTOR_LEN) * 8)
+  __mf_mem_free(old_data)
+  __mf_poke_i64(vec + VECTOR_CAP, new_cap)
+  __mf_poke_i64(vec + VECTOR_DATA, new_data)
+  kembali new_cap
+tutup_fungsi
+
+fungsi vector_push(vec: ptr, value: i64) -> i64
+  var len = __mf_load_i64(vec + VECTOR_LEN)
+  jika len >= __mf_load_i64(vec + VECTOR_CAP)
+    vector_grow(vec)
+  tutup_jika
+  var data = __mf_load_i64(vec + VECTOR_DATA)
+  __mf_poke_i64(data + len * 8, value)
+  __mf_poke_i64(vec + VECTOR_LEN, len + 1)
+  kembali len
+tutup_fungsi
+
+fungsi vector_pop(vec: ptr) -> i64
+  var len = __mf_load_i64(vec + VECTOR_LEN)
+  jika len == 0
+    kembali 0
+  tutup_jika
+  len = len - 1
+  var data = __mf_load_i64(vec + VECTOR_DATA)
+  var value = __mf_load_i64(data + len * 8)
+  __mf_poke_i64(vec + VECTOR_LEN, len)
+  kembali value
+tutup_fungsi
+
+fungsi vector_get(vec: ptr, index: i64) -> i64
+  jika index < 0
+    kembali 0
+  tutup_jika
+  jika index >= __mf_load_i64(vec + VECTOR_LEN)
+    kembali 0
+  tutup_jika
+  var data = __mf_load_i64(vec + VECTOR_DATA)
+  kembali __mf_load_i64(data + index * 8)
+tutup_fungsi
+
+fungsi vector_set(vec: ptr, index: i64, value: i64) -> i64
+  jika index < 0
+    kembali 0
+  tutup_jika
+  jika index >= __mf_load_i64(vec + VECTOR_LEN)
+    kembali 0
+  tutup_jika
+  var data = __mf_load_i64(vec + VECTOR_DATA)
+  __mf_poke_i64(data + index * 8, value)
+  kembali 1
+tutup_fungsi
+
+fungsi vector_clear(vec: ptr) -> i64
+  __mf_poke_i64(vec + VECTOR_LEN, 0)
+  kembali 1
+tutup_fungsi
+
+fungsi vector_free(vec: ptr) -> i64
+  jika vec == 0
+    kembali 0
+  tutup_jika
+  __mf_mem_free(__mf_load_i64(vec + VECTOR_DATA))
+  __mf_mem_free(vec)
+  kembali 1
+tutup_fungsi
+
+fungsi vector_find(vec: ptr, value: i64) -> i64
+  var len = __mf_load_i64(vec + VECTOR_LEN)
+  var data = __mf_load_i64(vec + VECTOR_DATA)
+  var i = 0
+  selama i < len
+    jika __mf_load_i64(data + i * 8) == value
+      kembali i
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali -1
+tutup_fungsi

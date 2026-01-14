@@ -1,0 +1,249 @@
+; ==============================================================================
+; PURE MORPHFOX BUILTINS - No Assembly Required
+; ==============================================================================
+; Implementasi builtins menggunakan syscall langsung via `sistem`
+; Ini memungkinkan self-hosting compiler jalan TANPA bootstrap binary
+;
+; Linux x86_64 Syscall Numbers:
+;   0  = read       41 = socket      56 = clone
+;   1  = write      42 = connect     60 = exit
+;   2  = open       43 = accept      228 = clock_gettime
+;   3  = close      44 = sendto
+;   9  = mmap       45 = recvfrom
+;   11 = munmap     49 = bind
+;   35 = nanosleep  50 = listen
+
+; ==============================================================================
+; MEMORY MANAGEMENT (Pure Syscall)
+; ==============================================================================
+
+; Page size constant
+const PAGE_SIZE = 4096
+
+; Allocate memory using mmap
+; sistem 9 = mmap(addr, length, prot, flags, fd, offset)
+; prot: 3 = PROT_READ | PROT_WRITE
+; flags: 34 = MAP_PRIVATE | MAP_ANONYMOUS
+fungsi mem_alloc_pure(size: i64) -> ptr
+  ; Round up to page size
+  var pages = (size + PAGE_SIZE - 1) / PAGE_SIZE
+  var alloc_size = pages * PAGE_SIZE
+  
+  var ptr = sistem 9, 0, alloc_size, 3, 34, -1, 0
+  
+  jika ptr < 0
+    kembali 0
+  tutup_jika
+  
+  kembali ptr
+tutup_fungsi
+
+; Free memory using munmap
+; sistem 11 = munmap(addr, length)
+fungsi mem_free_pure(ptr: ptr, size: i64) -> i64
+  var pages = (size + PAGE_SIZE - 1) / PAGE_SIZE
+  var alloc_size = pages * PAGE_SIZE
+  kembali sistem 11, ptr, alloc_size
+tutup_fungsi
+
+; Simple bump allocator (no free, fast alloc)
+var __heap_base = 0
+var __heap_current = 0
+var __heap_end = 0
+
+fungsi heap_init(size: i64) -> i64
+  __heap_base = mem_alloc_pure(size)
+  jika __heap_base == 0
+    kembali 0
+  tutup_jika
+  __heap_current = __heap_base
+  __heap_end = __heap_base + size
+  kembali 1
+tutup_fungsi
+
+fungsi heap_alloc(size: i64) -> ptr
+  ; Align to 8 bytes
+  var aligned = (size + 7) / 8 * 8
+  
+  jika __heap_current + aligned > __heap_end
+    kembali 0  ; Out of memory
+  tutup_jika
+  
+  var ptr = __heap_current
+  __heap_current = __heap_current + aligned
+  kembali ptr
+tutup_fungsi
+
+fungsi heap_reset() -> void
+  __heap_current = __heap_base
+tutup_fungsi
+
+; ==============================================================================
+; FILE I/O (Pure Syscall)
+; ==============================================================================
+
+; Open file
+; sistem 2 = open(filename, flags, mode)
+fungsi file_open(filename: ptr, flags: i64) -> i64
+  kembali sistem 2, filename, flags, 0
+tutup_fungsi
+
+fungsi file_open_read(filename: ptr) -> i64
+  kembali sistem 2, filename, 0, 0  ; O_RDONLY
+tutup_fungsi
+
+fungsi file_open_write(filename: ptr) -> i64
+  kembali sistem 2, filename, 577, 420  ; O_WRONLY|O_CREAT|O_TRUNC, 0644
+tutup_fungsi
+
+; Read from file
+; sistem 0 = read(fd, buf, count)
+fungsi file_read(fd: i64, buf: ptr, count: i64) -> i64
+  kembali sistem 0, fd, buf, count
+tutup_fungsi
+
+; Write to file
+; sistem 1 = write(fd, buf, count)
+fungsi file_write(fd: i64, buf: ptr, count: i64) -> i64
+  kembali sistem 1, fd, buf, count
+tutup_fungsi
+
+; Close file
+; sistem 3 = close(fd)
+fungsi file_close(fd: i64) -> i64
+  kembali sistem 3, fd
+tutup_fungsi
+
+; ==============================================================================
+; NETWORKING (Pure Syscall)
+; ==============================================================================
+
+; Create socket
+; sistem 41 = socket(domain, type, protocol)
+fungsi socket_create(domain: i64, type: i64) -> i64
+  kembali sistem 41, domain, type, 0
+tutup_fungsi
+
+fungsi socket_tcp() -> i64
+  kembali sistem 41, 2, 1, 0  ; AF_INET, SOCK_STREAM
+tutup_fungsi
+
+fungsi socket_udp() -> i64
+  kembali sistem 41, 2, 2, 0  ; AF_INET, SOCK_DGRAM
+tutup_fungsi
+
+; Connect
+; sistem 42 = connect(sockfd, addr, addrlen)
+fungsi socket_connect(fd: i64, addr: ptr, len: i64) -> i64
+  kembali sistem 42, fd, addr, len
+tutup_fungsi
+
+; Bind
+; sistem 49 = bind(sockfd, addr, addrlen)
+fungsi socket_bind(fd: i64, addr: ptr, len: i64) -> i64
+  kembali sistem 49, fd, addr, len
+tutup_fungsi
+
+; Listen
+; sistem 50 = listen(sockfd, backlog)
+fungsi socket_listen(fd: i64, backlog: i64) -> i64
+  kembali sistem 50, fd, backlog
+tutup_fungsi
+
+; Accept
+; sistem 43 = accept(sockfd, addr, addrlen)
+fungsi socket_accept(fd: i64, addr: ptr, len_ptr: ptr) -> i64
+  kembali sistem 43, fd, addr, len_ptr
+tutup_fungsi
+
+; Send
+; sistem 44 = sendto(sockfd, buf, len, flags, dest_addr, addrlen)
+fungsi socket_send(fd: i64, buf: ptr, len: i64) -> i64
+  kembali sistem 44, fd, buf, len, 0, 0, 0
+tutup_fungsi
+
+; Recv
+; sistem 45 = recvfrom(sockfd, buf, len, flags, src_addr, addrlen)
+fungsi socket_recv(fd: i64, buf: ptr, len: i64) -> i64
+  kembali sistem 45, fd, buf, len, 0, 0, 0
+tutup_fungsi
+
+; Close socket (same as file)
+fungsi socket_close(fd: i64) -> i64
+  kembali sistem 3, fd
+tutup_fungsi
+
+; ==============================================================================
+; PROCESS CONTROL (Pure Syscall)
+; ==============================================================================
+
+; Exit process
+; sistem 60 = exit(status)
+fungsi process_exit(code: i64) -> void
+  sistem 60, code
+tutup_fungsi
+
+; Get current time (nanoseconds)
+; sistem 228 = clock_gettime(clockid, timespec)
+fungsi time_now() -> i64
+  var ts = heap_alloc(16)  ; timespec: tv_sec (8) + tv_nsec (8)
+  sistem 228, 0, ts  ; CLOCK_REALTIME
+  var sec = __mf_load_i64(ts)
+  var nsec = __mf_load_i64(ts + 8)
+  kembali sec * 1000000000 + nsec
+tutup_fungsi
+
+; Sleep for milliseconds
+; sistem 35 = nanosleep(req, rem)
+fungsi sleep_ms(ms: i64) -> void
+  var ts = heap_alloc(16)
+  __mf_poke_i64(ts, ms / 1000)           ; seconds
+  __mf_poke_i64(ts + 8, (ms % 1000) * 1000000)  ; nanoseconds
+  sistem 35, ts, 0
+tutup_fungsi
+
+; ==============================================================================
+; PRINT HELPERS (Pure Syscall)
+; ==============================================================================
+
+fungsi print(s: ptr, len: i64) -> void
+  sistem 1, 1, s, len
+tutup_fungsi
+
+fungsi println_str(s: ptr) -> void
+  var len = 0
+  selama load_byte(s + len) != 0
+    len = len + 1
+  tutup_selama
+  sistem 1, 1, s, len
+  sistem 1, 1, "\n", 1
+tutup_fungsi
+
+fungsi print_num(n: i64) -> void
+  var buf = heap_alloc(24)
+  var i = 23
+  var neg = 0
+  
+  jika n < 0
+    neg = 1
+    n = 0 - n
+  tutup_jika
+  
+  jika n == 0
+    poke_byte(buf + i, 48)
+    i = i - 1
+  selain
+    selama n > 0
+      poke_byte(buf + i, 48 + (n % 10))
+      n = n / 10
+      i = i - 1
+    tutup_selama
+  tutup_jika
+  
+  jika neg == 1
+    poke_byte(buf + i, 45)
+    i = i - 1
+  tutup_jika
+  
+  sistem 1, 1, buf + i + 1, 23 - i
+tutup_fungsi

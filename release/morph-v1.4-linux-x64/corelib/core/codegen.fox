@@ -1,0 +1,238 @@
+; ==============================================================================
+; CODEGEN - MorphFox Self-Hosting Compiler
+; ==============================================================================
+; Code generator: AST -> RPN instructions
+
+ambil "corelib/core/parser.fox"
+
+const OP_LIT = 1
+const OP_LOAD = 2
+const OP_STORE = 3
+const OP_DUP = 4
+const OP_POP = 5
+const OP_PICK = 6
+const OP_POKE = 7
+const OP_ADD = 10
+const OP_SUB = 11
+const OP_MUL = 12
+const OP_DIV = 13
+const OP_MOD = 14
+const OP_EQ = 20
+const OP_NEQ = 21
+const OP_LT = 22
+const OP_GT = 23
+const OP_LTE = 24
+const OP_GTE = 25
+const OP_JMP = 30
+const OP_JMP_IF = 31
+const OP_JMP_FALSE = 32
+const OP_CALL = 33
+const OP_RET = 34
+const OP_EXIT = 35
+const OP_LABEL = 36
+const OP_SYSCALL = 40
+const OP_PRINT = 90
+
+const INSTR_OP = 0
+const INSTR_ARG = 8
+const INSTR_SIZE = 16
+
+const GEN_CODE = 0
+const GEN_LEN = 8
+const GEN_CAP = 16
+const GEN_LABEL = 24
+const GEN_SYMS = 32
+
+fungsi codegen_new() -> ptr
+  var gen = __mf_mem_alloc(40)
+  var code = __mf_mem_alloc(1024 * INSTR_SIZE)
+  __mf_poke_i64(gen + GEN_CODE, code)
+  __mf_poke_i64(gen + GEN_LEN, 0)
+  __mf_poke_i64(gen + GEN_CAP, 1024)
+  __mf_poke_i64(gen + GEN_LABEL, 0)
+  __mf_poke_i64(gen + GEN_SYMS, 0)
+  kembali gen
+tutup_fungsi
+
+fungsi codegen_emit(gen: ptr, op: i64, arg: i64) -> i64
+  var len = __mf_load_i64(gen + GEN_LEN)
+  var cap = __mf_load_i64(gen + GEN_CAP)
+  jika len >= cap
+    var old_code = __mf_load_i64(gen + GEN_CODE)
+    var new_cap = cap * 2
+    var new_code = __mf_mem_alloc(new_cap * INSTR_SIZE)
+    __mf_memcpy(new_code, old_code, len * INSTR_SIZE)
+    __mf_mem_free(old_code)
+    __mf_poke_i64(gen + GEN_CODE, new_code)
+    __mf_poke_i64(gen + GEN_CAP, new_cap)
+  tutup_jika
+  var code = __mf_load_i64(gen + GEN_CODE)
+  var offset = len * INSTR_SIZE
+  __mf_poke_i64(code + offset + INSTR_OP, op)
+  __mf_poke_i64(code + offset + INSTR_ARG, arg)
+  __mf_poke_i64(gen + GEN_LEN, len + 1)
+  kembali len
+tutup_fungsi
+
+fungsi codegen_new_label(gen: ptr) -> i64
+  var label = __mf_load_i64(gen + GEN_LABEL)
+  __mf_poke_i64(gen + GEN_LABEL, label + 1)
+  kembali label
+tutup_fungsi
+
+fungsi codegen_emit_label(gen: ptr, label: i64) -> i64
+  kembali codegen_emit(gen, OP_LABEL, label)
+tutup_fungsi
+
+fungsi codegen_expr(gen: ptr, node: ptr) -> i64
+  var type = ast_type(node)
+  jika type == AST_LITERAL
+    var value = __mf_load_i64(node + AST_DATA1)
+    codegen_emit(gen, OP_LIT, value)
+    kembali 1
+  tutup_jika
+  jika type == AST_IDENT
+    var name = __mf_load_i64(node + AST_DATA1)
+    codegen_emit(gen, OP_LOAD, name)
+    kembali 1
+  tutup_jika
+  jika type == AST_BINARY
+    var op = __mf_load_i64(node + AST_DATA1)
+    var left = __mf_load_i64(node + AST_DATA2)
+    var right = __mf_load_i64(node + AST_DATA3)
+    codegen_expr(gen, left)
+    codegen_expr(gen, right)
+    jika op == 43
+      codegen_emit(gen, OP_ADD, 0)
+    tutup_jika
+    jika op == 45
+      codegen_emit(gen, OP_SUB, 0)
+    tutup_jika
+    jika op == 42
+      codegen_emit(gen, OP_MUL, 0)
+    tutup_jika
+    jika op == 47
+      codegen_emit(gen, OP_DIV, 0)
+    tutup_jika
+    jika op == 37
+      codegen_emit(gen, OP_MOD, 0)
+    tutup_jika
+    jika op == 60
+      codegen_emit(gen, OP_LT, 0)
+    tutup_jika
+    jika op == 62
+      codegen_emit(gen, OP_GT, 0)
+    tutup_jika
+    jika op == 258
+      codegen_emit(gen, OP_LTE, 0)
+    tutup_jika
+    jika op == 259
+      codegen_emit(gen, OP_GTE, 0)
+    tutup_jika
+    jika op == 256
+      codegen_emit(gen, OP_EQ, 0)
+    tutup_jika
+    jika op == 257
+      codegen_emit(gen, OP_NEQ, 0)
+    tutup_jika
+    kembali 1
+  tutup_jika
+  jika type == AST_UNARY
+    var op = __mf_load_i64(node + AST_DATA1)
+    var operand = __mf_load_i64(node + AST_DATA2)
+    jika op == 45
+      codegen_emit(gen, OP_LIT, 0)
+      codegen_expr(gen, operand)
+      codegen_emit(gen, OP_SUB, 0)
+    tutup_jika
+    jika op == 33
+      codegen_expr(gen, operand)
+      codegen_emit(gen, OP_LIT, 0)
+      codegen_emit(gen, OP_EQ, 0)
+    tutup_jika
+    kembali 1
+  tutup_jika
+  jika type == AST_CALL
+    var name = __mf_load_i64(node + AST_DATA1)
+    codegen_emit(gen, OP_CALL, name)
+    kembali 1
+  tutup_jika
+  kembali 0
+tutup_fungsi
+
+fungsi codegen_stmt(gen: ptr, node: ptr) -> i64
+  var type = ast_type(node)
+  jika type == AST_VAR_DECL
+    var name = __mf_load_i64(node + AST_DATA1)
+    var value = __mf_load_i64(node + AST_DATA2)
+    codegen_expr(gen, value)
+    codegen_emit(gen, OP_STORE, name)
+    kembali 1
+  tutup_jika
+  jika type == AST_ASSIGN
+    var name = __mf_load_i64(node + AST_DATA1)
+    var value = __mf_load_i64(node + AST_DATA2)
+    codegen_expr(gen, value)
+    codegen_emit(gen, OP_STORE, name)
+    kembali 1
+  tutup_jika
+  jika type == AST_IF
+    var cond = __mf_load_i64(node + AST_DATA1)
+    var then_block = __mf_load_i64(node + AST_DATA2)
+    var else_block = __mf_load_i64(node + AST_DATA3)
+    var else_label = codegen_new_label(gen)
+    var end_label = codegen_new_label(gen)
+    codegen_expr(gen, cond)
+    codegen_emit(gen, OP_JMP_FALSE, else_label)
+    codegen_emit(gen, OP_JMP, end_label)
+    codegen_emit_label(gen, else_label)
+    codegen_emit_label(gen, end_label)
+    kembali 1
+  tutup_jika
+  jika type == AST_WHILE
+    var cond = __mf_load_i64(node + AST_DATA1)
+    var body = __mf_load_i64(node + AST_DATA2)
+    var start_label = codegen_new_label(gen)
+    var end_label = codegen_new_label(gen)
+    codegen_emit_label(gen, start_label)
+    codegen_expr(gen, cond)
+    codegen_emit(gen, OP_JMP_FALSE, end_label)
+    codegen_emit(gen, OP_JMP, start_label)
+    codegen_emit_label(gen, end_label)
+    kembali 1
+  tutup_jika
+  jika type == AST_RETURN
+    var value = __mf_load_i64(node + AST_DATA1)
+    codegen_expr(gen, value)
+    codegen_emit(gen, OP_RET, 0)
+    kembali 1
+  tutup_jika
+  kembali codegen_expr(gen, node)
+tutup_fungsi
+
+fungsi codegen_function(gen: ptr, node: ptr) -> i64
+  var name = __mf_load_i64(node + AST_DATA1)
+  codegen_emit_label(gen, name)
+  codegen_emit(gen, OP_RET, 0)
+  kembali 1
+tutup_fungsi
+
+fungsi codegen_program(gen: ptr, node: ptr) -> i64
+  kembali 1
+tutup_fungsi
+
+fungsi codegen_get_code(gen: ptr) -> ptr
+  kembali __mf_load_i64(gen + GEN_CODE)
+tutup_fungsi
+
+fungsi codegen_get_length(gen: ptr) -> i64
+  kembali __mf_load_i64(gen + GEN_LEN)
+tutup_fungsi
+
+fungsi instr_op(code: ptr, index: i64) -> i64
+  kembali __mf_load_i64(code + index * INSTR_SIZE + INSTR_OP)
+tutup_fungsi
+
+fungsi instr_arg(code: ptr, index: i64) -> i64
+  kembali __mf_load_i64(code + index * INSTR_SIZE + INSTR_ARG)
+tutup_fungsi

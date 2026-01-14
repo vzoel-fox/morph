@@ -2,7 +2,7 @@
 
 ## Goal
 
-Replace Assembly-based Intent Tree generation with MorphFox-based implementation. This is the **first step towards full self-hosting** compiler.
+Replace Assembly-based Intent Tree generation with Morph-based implementation. This is the **first step towards full self-hosting** compiler.
 
 ## Why Intent Tree First?
 
@@ -10,7 +10,7 @@ Instead of rewriting the entire compiler (lexer → parser → codegen → execu
 
 1. **Modular approach** - Intent Tree is well-defined IR between parsing and codegen
 2. **Testable** - Can validate tree structure independently
-3. **Incremental** - Can mix Assembly lexer/parser with MorphFox Intent builder
+3. **Incremental** - Can mix Assembly lexer/parser with Morph Intent builder
 4. **Foundation** - Once Intent works, rest of compiler becomes easier
 
 ## Architecture
@@ -30,7 +30,7 @@ Instead of rewriting the entire compiler (lexer → parser → codegen → execu
 │ ┌──────────┐   ┌────────┐   ┌──────────┐   ┌─────────┐│
 │ │  Lexer   │──▶│ Parser │──▶│ Intent   │──▶│ Codegen ││
 │ │(Assembly)│   │(Asm)   │   │ Builder  │   │  (Asm)  ││
-│ └──────────┘   └────────┘   │(MorphFox)│   └─────────┘│
+│ └──────────┘   └────────┘   │(Morph)│   └─────────┘│
 │                               └──────────┘              │
 └─────────────────────────────────────────────────────────┘
 
@@ -38,8 +38,8 @@ Instead of rewriting the entire compiler (lexer → parser → codegen → execu
 │ Phase 3: Full Self-Hosting  🎯 FUTURE                   │
 │ ┌──────────┐   ┌────────┐   ┌──────────┐   ┌─────────┐│
 │ │  Lexer   │──▶│ Parser │──▶│ Intent   │──▶│ Codegen ││
-│ │(MorphFox)│   │(MorphFox)  │ Builder  │   │(MorphFox││
-│ └──────────┘   └────────┘   │(MorphFox)│   └─────────┘│
+│ │(Morph)│   │(Morph)  │ Builder  │   │(Morph││
+│ └──────────┘   └────────┘   │(Morph)│   └─────────┘│
 │                               └──────────┘              │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -83,7 +83,7 @@ Offset  Size  Field      Description
 
 ### Builtins Required
 
-To build Intent Trees in MorphFox, we need memory primitives as builtins:
+To build Intent Trees in Morph, we need memory primitives as builtins:
 
 ```fox
 ; Memory allocation
@@ -168,7 +168,7 @@ var module = intent_new_module(func)
    - Build small trees
 
 3. **Integration**
-   - Parse MorphFox source → Intent Tree (MorphFox)
+   - Parse Morph source → Intent Tree (Morph)
    - Intent Tree → RPN bytecode (Assembly codegen)
    - Verify output matches
 

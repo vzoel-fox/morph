@@ -1,0 +1,394 @@
+; ==============================================================================
+; BRAINLIB: CSS PARSER (Enhanced with Flexbox)
+; ==============================================================================
+
+ambil "corelib/lib/hashmap.fox"
+
+; Display types
+const DISPLAY_NONE = 0
+const DISPLAY_BLOCK = 1
+const DISPLAY_INLINE = 2
+const DISPLAY_FLEX = 3
+const DISPLAY_INLINE_FLEX = 4
+const DISPLAY_GRID = 5
+
+; Flex direction
+const FLEX_ROW = 0
+const FLEX_ROW_REVERSE = 1
+const FLEX_COLUMN = 2
+const FLEX_COLUMN_REVERSE = 3
+
+; Justify content
+const JUSTIFY_START = 0
+const JUSTIFY_END = 1
+const JUSTIFY_CENTER = 2
+const JUSTIFY_BETWEEN = 3
+const JUSTIFY_AROUND = 4
+const JUSTIFY_EVENLY = 5
+
+; Align items
+const ALIGN_START = 0
+const ALIGN_END = 1
+const ALIGN_CENTER = 2
+const ALIGN_STRETCH = 3
+const ALIGN_BASELINE = 4
+
+; Flex wrap
+const FLEX_NOWRAP = 0
+const FLEX_WRAP = 1
+const FLEX_WRAP_REVERSE = 2
+
+; Style structure offsets (extended)
+const STYLE_DISPLAY = 0
+const STYLE_WIDTH = 8
+const STYLE_HEIGHT = 16
+const STYLE_PADDING = 24
+const STYLE_MARGIN = 32
+const STYLE_COLOR = 40
+const STYLE_BG_COLOR = 48
+const STYLE_FONT_SIZE = 56
+const STYLE_FLEX_DIR = 64
+const STYLE_JUSTIFY = 72
+const STYLE_ALIGN = 80
+const STYLE_FLEX_WRAP = 88
+const STYLE_FLEX_GROW = 96
+const STYLE_FLEX_SHRINK = 104
+const STYLE_GAP = 112
+const STYLE_SIZE = 120
+
+; ==============================================================================
+; CSS PARSER
+; ==============================================================================
+
+fungsi css_parse(str: ptr, len: i64) -> ptr
+  var style = __mf_mem_alloc(STYLE_SIZE)
+  
+  ; Defaults
+  __mf_poke_i64(style + STYLE_DISPLAY, DISPLAY_BLOCK)
+  __mf_poke_i64(style + STYLE_WIDTH, -1)
+  __mf_poke_i64(style + STYLE_HEIGHT, -1)
+  __mf_poke_i64(style + STYLE_FLEX_DIR, FLEX_ROW)
+  __mf_poke_i64(style + STYLE_JUSTIFY, JUSTIFY_START)
+  __mf_poke_i64(style + STYLE_ALIGN, ALIGN_STRETCH)
+  __mf_poke_i64(style + STYLE_FLEX_WRAP, FLEX_NOWRAP)
+  __mf_poke_i64(style + STYLE_FLEX_GROW, 0)
+  __mf_poke_i64(style + STYLE_FLEX_SHRINK, 1)
+  
+  var pos = 0
+  selama pos < len
+    ; Skip whitespace
+    selama pos < len && load_byte(str + pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    ; Parse key
+    var key_start = pos
+    selama pos < len && load_byte(str + pos) != 58  ; ':'
+      pos = pos + 1
+    tutup_selama
+    var key_len = pos - key_start
+    pos = pos + 1  ; Skip ':'
+    
+    ; Skip whitespace
+    selama pos < len && load_byte(str + pos) == 32
+      pos = pos + 1
+    tutup_selama
+    
+    ; Parse value
+    var val_start = pos
+    selama pos < len && load_byte(str + pos) != 59  ; ';'
+      pos = pos + 1
+    tutup_selama
+    var val_len = pos - val_start
+    pos = pos + 1  ; Skip ';'
+    
+    ; Trim trailing whitespace from value
+    selama val_len > 0 && load_byte(str + val_start + val_len - 1) == 32
+      val_len = val_len - 1
+    tutup_selama
+    
+    ; Apply property
+    css_apply_property(style, str + key_start, key_len, str + val_start, val_len)
+  tutup_selama
+  
+  kembali style
+tutup_fungsi
+
+fungsi css_apply_property(style: ptr, key: ptr, key_len: i64, val: ptr, val_len: i64) -> void
+  var k1 = load_byte(key)
+  
+  ; display
+  jika k1 == 100 && key_len == 7
+    __mf_poke_i64(style + STYLE_DISPLAY, parse_display(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; width
+  jika k1 == 119 && key_len == 5
+    __mf_poke_i64(style + STYLE_WIDTH, parse_size(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; height
+  jika k1 == 104 && key_len == 6
+    __mf_poke_i64(style + STYLE_HEIGHT, parse_size(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; padding
+  jika k1 == 112 && key_len == 7
+    __mf_poke_i64(style + STYLE_PADDING, parse_size(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; margin
+  jika k1 == 109 && key_len == 6
+    __mf_poke_i64(style + STYLE_MARGIN, parse_size(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; color
+  jika k1 == 99 && key_len == 5
+    __mf_poke_i64(style + STYLE_COLOR, parse_color(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; background-color (b + 16)
+  jika k1 == 98 && key_len == 16
+    __mf_poke_i64(style + STYLE_BG_COLOR, parse_color(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; flex-direction (f + 14)
+  jika k1 == 102 && key_len == 14
+    __mf_poke_i64(style + STYLE_FLEX_DIR, parse_flex_direction(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; justify-content (j + 15)
+  jika k1 == 106 && key_len == 15
+    __mf_poke_i64(style + STYLE_JUSTIFY, parse_justify(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; align-items (a + 11)
+  jika k1 == 97 && key_len == 11
+    __mf_poke_i64(style + STYLE_ALIGN, parse_align(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; flex-wrap (f + 9)
+  jika k1 == 102 && key_len == 9
+    __mf_poke_i64(style + STYLE_FLEX_WRAP, parse_flex_wrap(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; flex-grow (f + 9) - check second char
+  jika k1 == 102 && key_len == 9 && load_byte(key + 5) == 103  ; 'g'
+    __mf_poke_i64(style + STYLE_FLEX_GROW, parse_int(val, val_len))
+    kembali
+  tutup_jika
+  
+  ; gap (g + 3)
+  jika k1 == 103 && key_len == 3
+    __mf_poke_i64(style + STYLE_GAP, parse_size(val, val_len))
+    kembali
+  tutup_jika
+tutup_fungsi
+
+; ==============================================================================
+; VALUE PARSERS
+; ==============================================================================
+
+fungsi parse_display(val: ptr, len: i64) -> i64
+  var v1 = load_byte(val)
+  
+  jika v1 == 110 && len == 4   ; none
+    kembali DISPLAY_NONE
+  tutup_jika
+  jika v1 == 98 && len == 5    ; block
+    kembali DISPLAY_BLOCK
+  tutup_jika
+  jika v1 == 105 && len == 6   ; inline
+    kembali DISPLAY_INLINE
+  tutup_jika
+  jika v1 == 102 && len == 4   ; flex
+    kembali DISPLAY_FLEX
+  tutup_jika
+  jika v1 == 103 && len == 4   ; grid
+    kembali DISPLAY_GRID
+  tutup_jika
+  
+  kembali DISPLAY_BLOCK
+tutup_fungsi
+
+fungsi parse_flex_direction(val: ptr, len: i64) -> i64
+  var v1 = load_byte(val)
+  
+  jika v1 == 114  ; row or row-reverse
+    jika len == 3
+      kembali FLEX_ROW
+    tutup_jika
+    kembali FLEX_ROW_REVERSE
+  tutup_jika
+  
+  jika v1 == 99  ; column or column-reverse
+    jika len == 6
+      kembali FLEX_COLUMN
+    tutup_jika
+    kembali FLEX_COLUMN_REVERSE
+  tutup_jika
+  
+  kembali FLEX_ROW
+tutup_fungsi
+
+fungsi parse_justify(val: ptr, len: i64) -> i64
+  var v1 = load_byte(val)
+  
+  jika v1 == 102 && len == 10  ; flex-start
+    kembali JUSTIFY_START
+  tutup_jika
+  jika v1 == 102 && len == 8   ; flex-end
+    kembali JUSTIFY_END
+  tutup_jika
+  jika v1 == 99 && len == 6    ; center
+    kembali JUSTIFY_CENTER
+  tutup_jika
+  jika v1 == 115 && len == 13  ; space-between
+    kembali JUSTIFY_BETWEEN
+  tutup_jika
+  jika v1 == 115 && len == 12  ; space-around
+    kembali JUSTIFY_AROUND
+  tutup_jika
+  jika v1 == 115 && len == 12  ; space-evenly
+    kembali JUSTIFY_EVENLY
+  tutup_jika
+  
+  kembali JUSTIFY_START
+tutup_fungsi
+
+fungsi parse_align(val: ptr, len: i64) -> i64
+  var v1 = load_byte(val)
+  
+  jika v1 == 102 && len == 10  ; flex-start
+    kembali ALIGN_START
+  tutup_jika
+  jika v1 == 102 && len == 8   ; flex-end
+    kembali ALIGN_END
+  tutup_jika
+  jika v1 == 99 && len == 6    ; center
+    kembali ALIGN_CENTER
+  tutup_jika
+  jika v1 == 115 && len == 7   ; stretch
+    kembali ALIGN_STRETCH
+  tutup_jika
+  jika v1 == 98 && len == 8    ; baseline
+    kembali ALIGN_BASELINE
+  tutup_jika
+  
+  kembali ALIGN_STRETCH
+tutup_fungsi
+
+fungsi parse_flex_wrap(val: ptr, len: i64) -> i64
+  var v1 = load_byte(val)
+  
+  jika v1 == 110 && len == 6   ; nowrap
+    kembali FLEX_NOWRAP
+  tutup_jika
+  jika v1 == 119 && len == 4   ; wrap
+    kembali FLEX_WRAP
+  tutup_jika
+  jika v1 == 119 && len == 12  ; wrap-reverse
+    kembali FLEX_WRAP_REVERSE
+  tutup_jika
+  
+  kembali FLEX_NOWRAP
+tutup_fungsi
+
+fungsi parse_size(val: ptr, len: i64) -> i64
+  ; Strip unit suffix
+  var num_len = len
+  jika len >= 2
+    var last = load_byte(val + len - 1)
+    jika last == 120  ; 'x' (px)
+      num_len = len - 2
+    selain jika last == 37  ; '%'
+      num_len = len - 1
+    selain jika last == 109  ; 'm' (em/rem)
+      num_len = len - 2
+      jika len >= 3 && load_byte(val + len - 3) == 114  ; 'r' (rem)
+        num_len = len - 3
+      tutup_jika
+    tutup_jika
+  tutup_jika
+  
+  kembali parse_int(val, num_len)
+tutup_fungsi
+
+fungsi parse_color(val: ptr, len: i64) -> i64
+  var start = 0
+  jika load_byte(val) == 35  ; '#'
+    start = 1
+  tutup_jika
+  kembali parse_hex(val + start, len - start)
+tutup_fungsi
+
+fungsi parse_int(val: ptr, len: i64) -> i64
+  var result = 0
+  var i = 0
+  selama i < len
+    var c = load_byte(val + i)
+    jika c >= 48 && c <= 57
+      result = result * 10 + (c - 48)
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali result
+tutup_fungsi
+
+fungsi parse_hex(val: ptr, len: i64) -> i64
+  var result = 0
+  var i = 0
+  selama i < len
+    var c = load_byte(val + i)
+    result = result * 16
+    jika c >= 48 && c <= 57
+      result = result + (c - 48)
+    selain jika c >= 97 && c <= 102
+      result = result + (c - 87)
+    selain jika c >= 65 && c <= 70
+      result = result + (c - 55)
+    tutup_jika
+    i = i + 1
+  tutup_selama
+  kembali result
+tutup_fungsi
+
+; ==============================================================================
+; STYLE GETTERS
+; ==============================================================================
+
+fungsi style_get_display(s: ptr) -> i64
+  kembali __mf_load_i64(s + STYLE_DISPLAY)
+tutup_fungsi
+
+fungsi style_is_flex(s: ptr) -> i64
+  var d = __mf_load_i64(s + STYLE_DISPLAY)
+  kembali d == DISPLAY_FLEX || d == DISPLAY_INLINE_FLEX
+tutup_fungsi
+
+fungsi style_get_flex_direction(s: ptr) -> i64
+  kembali __mf_load_i64(s + STYLE_FLEX_DIR)
+tutup_fungsi
+
+fungsi style_get_justify(s: ptr) -> i64
+  kembali __mf_load_i64(s + STYLE_JUSTIFY)
+tutup_fungsi
+
+fungsi style_get_align(s: ptr) -> i64
+  kembali __mf_load_i64(s + STYLE_ALIGN)
+tutup_fungsi
+
+fungsi style_get_gap(s: ptr) -> i64
+  kembali __mf_load_i64(s + STYLE_GAP)
+tutup_fungsi

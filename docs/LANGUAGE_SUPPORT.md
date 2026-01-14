@@ -1,11 +1,11 @@
-# MorphFox Language Support
+# Morph Language Support
 
 ## GitHub Linguist Integration
 
 Repository ini sudah dikonfigurasi untuk GitHub Linguist recognition:
 
 - **File Extension**: `.fox` 
-- **Language Name**: MorphFox
+- **Language Name**: Morph
 - **Color**: `#ff6b35` (orange)
 - **Type**: Programming Language
 
@@ -27,7 +27,7 @@ Repository ini sudah dikonfigurasi untuk GitHub Linguist recognition:
 - Block comments: `### comment ###`
 
 ### Example:
-```morphfox
+```morph
 fungsi utama()
     # Tes ekspresi matematika
     var a = 10
@@ -50,6 +50,6 @@ Otomatis detect setelah push dengan `.gitattributes` configuration.
 ## Language Statistics
 
 Setelah push ke GitHub, repository akan menampilkan:
-- MorphFox sebagai primary language
+- Morph sebagai primary language
 - Proper syntax highlighting di web interface
 - Language statistics di repository insights

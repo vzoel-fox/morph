@@ -1,6 +1,6 @@
 # Tutorial 3: Type System
 
-Explore MorphFox's advanced type system with structs, generics, and unions!
+Explore Morph's advanced type system with structs, generics, and unions!
 
 ## 🎯 What You'll Learn
 
@@ -11,9 +11,9 @@ Explore MorphFox's advanced type system with structs, generics, and unions!
 
 ## 🏗️ Type System Overview
 
-MorphFox has a powerful static type system:
+Morph has a powerful static type system:
 
-```morphfox
+```morph
 ; Basic types
 var number: i64 = 42        ; 64-bit integer
 var pointer: ptr = 0        ; Generic pointer
@@ -24,7 +24,7 @@ var text: String = "hello"  ; String type
 
 ### Defining Structs
 
-```morphfox
+```morph
 ; Conceptual struct definition
 ; struktur Person {
 ;     name: String,
@@ -57,7 +57,7 @@ tutup_fungsi
 
 ### Using Structs
 
-```morphfox
+```morph
 utama {
     sistem 1, 1, "👤 Person Management System\n", 29
     
@@ -86,7 +86,7 @@ utama {
 
 ### Fixed Arrays
 
-```morphfox
+```morph
 ; Array of integers: [i64; 5]
 fungsi create_int_array(size: i64) -> ptr
     kembali __mf_mem_alloc(size * 8)  ; 8 bytes per i64
@@ -133,7 +133,7 @@ utama {
 
 Type aliases make code more readable:
 
-```morphfox
+```morph
 ; Conceptual type aliases:
 ; type UserId = i64
 ; type ErrorCode = i64
@@ -177,7 +177,7 @@ utama {
 
 Union types represent values that can be one of several types:
 
-```morphfox
+```morph
 ; Union: Result<T> = Ok(T) | Error(String)
 const RESULT_OK = 1
 const RESULT_ERROR = 2
@@ -237,7 +237,7 @@ utama {
 
 Generics allow code reuse with different types:
 
-```morphfox
+```morph
 ; Conceptual generic function:
 ; fungsi map<T, U>(arr: []T, func: T -> U) -> []U
 
@@ -297,7 +297,7 @@ utama {
 
 ## ✅ Type Validation
 
-```morphfox
+```morph
 ; Type checking functions
 fungsi validate_person(person: ptr) -> i64
     jika person == 0
@@ -358,7 +358,7 @@ utama {
 
 ## ✅ Complete Example: Type-Safe Calculator
 
-```morphfox
+```morph
 ; Calculator result type
 const CALC_SUCCESS = 1
 const CALC_DIVIDE_BY_ZERO = 2

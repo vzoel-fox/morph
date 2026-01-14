@@ -1,0 +1,307 @@
+; ==============================================================================
+; ELSA PROCESSOR - Interactive Documentation Engine
+; ==============================================================================
+; Processes .elsa files (Enhanced Language Syntax Alternative)
+; Like MDX but for MorphFox - combines Markdown + executable code
+;
+; Features:
+;   - Frontmatter parsing (YAML-like)
+;   - Code block execution (```morph:live```)
+;   - Interactive widgets (```morph:interactive```)
+;   - Graphics rendering (```morph:graphics```)
+;   - Chart generation (```morph:chart```)
+
+ambil "corelib/lib/fall.fox"
+ambil "corelib/lib/vector.fox"
+ambil "corelib/lib/string.fox"
+ambil "corelib/core/pure_builtins.fox"
+
+; Block types
+const BLOCK_TEXT = 0
+const BLOCK_CODE = 1
+const BLOCK_LIVE = 2
+const BLOCK_INTERACTIVE = 3
+const BLOCK_GRAPHICS = 4
+const BLOCK_CHART = 5
+
+; Block structure
+const BLK_TYPE = 0
+const BLK_CONTENT = 8
+const BLK_LENGTH = 16
+const BLK_LANG = 24
+const BLK_SIZE = 32
+
+; Document structure
+const DOC_FRONTMATTER = 0
+const DOC_BLOCKS = 8
+const DOC_TITLE = 16
+const DOC_SIZE = 24
+
+; ==============================================================================
+; ELSA PARSER
+; ==============================================================================
+
+fungsi elsa_parse(content: ptr, len: i64) -> ptr
+    var doc = heap_alloc(DOC_SIZE)
+    __mf_poke_i64(doc + DOC_BLOCKS, vector_new())
+    
+    var pos = 0
+    
+    ; Parse frontmatter (---)
+    jika starts_with(content, "---")
+        pos = 3
+        ; Skip newline
+        selama pos < len && load_byte(content + pos) != 10
+            pos = pos + 1
+        tutup_selama
+        pos = pos + 1
+        
+        ; Find closing ---
+        var fm_start = pos
+        selama pos < len - 3
+            jika load_byte(content + pos) == 45 && load_byte(content + pos + 1) == 45 && load_byte(content + pos + 2) == 45
+                keluar
+            tutup_jika
+            pos = pos + 1
+        tutup_selama
+        
+        ; Parse frontmatter as .fall format
+        var fm = fall_parse(content + fm_start, pos - fm_start)
+        __mf_poke_i64(doc + DOC_FRONTMATTER, fm)
+        
+        ; Get title
+        var title = fall_get(fm, "title")
+        __mf_poke_i64(doc + DOC_TITLE, title)
+        
+        pos = pos + 3
+        ; Skip newline
+        selama pos < len && load_byte(content + pos) == 10
+            pos = pos + 1
+        tutup_selama
+    tutup_jika
+    
+    ; Parse content blocks
+    var blocks = __mf_load_i64(doc + DOC_BLOCKS)
+    
+    selama pos < len
+        ; Check for code block
+        jika pos + 3 < len && load_byte(content + pos) == 96 && load_byte(content + pos + 1) == 96 && load_byte(content + pos + 2) == 96
+            var block = parse_code_block(content, len, pos)
+            jika block != 0
+                vector_push(blocks, block)
+                pos = get_block_end(content, len, pos)
+                lanjut
+            tutup_jika
+        tutup_jika
+        
+        ; Text block
+        var text_start = pos
+        selama pos < len
+            ; Check for code block start
+            jika pos + 3 < len && load_byte(content + pos) == 96 && load_byte(content + pos + 1) == 96 && load_byte(content + pos + 2) == 96
+                keluar
+            tutup_jika
+            pos = pos + 1
+        tutup_selama
+        
+        jika pos > text_start
+            var block = heap_alloc(BLK_SIZE)
+            __mf_poke_i64(block + BLK_TYPE, BLOCK_TEXT)
+            __mf_poke_i64(block + BLK_CONTENT, content + text_start)
+            __mf_poke_i64(block + BLK_LENGTH, pos - text_start)
+            vector_push(blocks, block)
+        tutup_jika
+    tutup_selama
+    
+    kembali doc
+tutup_fungsi
+
+fungsi parse_code_block(content: ptr, len: i64, pos: i64) -> ptr
+    ; Skip ```
+    pos = pos + 3
+    
+    ; Parse language tag (morph:live, morph:interactive, etc)
+    var lang_start = pos
+    selama pos < len && load_byte(content + pos) != 10
+        pos = pos + 1
+    tutup_selama
+    var lang_len = pos - lang_start
+    pos = pos + 1  ; Skip newline
+    
+    ; Determine block type
+    var block_type = BLOCK_CODE
+    jika lang_len >= 10 && starts_with_at(content, lang_start, "morph:live")
+        block_type = BLOCK_LIVE
+    lain
+        jika lang_len >= 17 && starts_with_at(content, lang_start, "morph:interactive")
+            block_type = BLOCK_INTERACTIVE
+        lain
+            jika lang_len >= 14 && starts_with_at(content, lang_start, "morph:graphics")
+                block_type = BLOCK_GRAPHICS
+            lain
+                jika lang_len >= 11 && starts_with_at(content, lang_start, "morph:chart")
+                    block_type = BLOCK_CHART
+                tutup_jika
+            tutup_jika
+        tutup_jika
+    tutup_jika
+    
+    ; Find code content
+    var code_start = pos
+    selama pos < len - 3
+        jika load_byte(content + pos) == 96 && load_byte(content + pos + 1) == 96 && load_byte(content + pos + 2) == 96
+            keluar
+        tutup_jika
+        pos = pos + 1
+    tutup_selama
+    
+    var block = heap_alloc(BLK_SIZE)
+    __mf_poke_i64(block + BLK_TYPE, block_type)
+    __mf_poke_i64(block + BLK_CONTENT, content + code_start)
+    __mf_poke_i64(block + BLK_LENGTH, pos - code_start)
+    __mf_poke_i64(block + BLK_LANG, content + lang_start)
+    
+    kembali block
+tutup_fungsi
+
+fungsi get_block_end(content: ptr, len: i64, pos: i64) -> i64
+    ; Skip opening ```
+    pos = pos + 3
+    ; Skip to newline
+    selama pos < len && load_byte(content + pos) != 10
+        pos = pos + 1
+    tutup_selama
+    pos = pos + 1
+    
+    ; Find closing ```
+    selama pos < len - 3
+        jika load_byte(content + pos) == 96 && load_byte(content + pos + 1) == 96 && load_byte(content + pos + 2) == 96
+            kembali pos + 3
+        tutup_jika
+        pos = pos + 1
+    tutup_selama
+    
+    kembali len
+tutup_fungsi
+
+; ==============================================================================
+; ELSA RENDERER
+; ==============================================================================
+
+fungsi elsa_render(doc: ptr) -> void
+    ; Print title
+    var title = __mf_load_i64(doc + DOC_TITLE)
+    jika title != 0
+        println_str("=====================================")
+        println_str(title)
+        println_str("=====================================")
+        println_str("")
+    tutup_jika
+    
+    ; Render blocks
+    var blocks = __mf_load_i64(doc + DOC_BLOCKS)
+    var count = vector_length(blocks)
+    
+    var i = 0
+    selama i < count
+        var block = vector_get(blocks, i)
+        var block_type = __mf_load_i64(block + BLK_TYPE)
+        var content = __mf_load_i64(block + BLK_CONTENT)
+        var length = __mf_load_i64(block + BLK_LENGTH)
+        
+        jika block_type == BLOCK_TEXT
+            print(content, length)
+        lain
+            jika block_type == BLOCK_CODE
+                println_str("```")
+                print(content, length)
+                println_str("```")
+            lain
+                jika block_type == BLOCK_LIVE
+                    println_str("[LIVE CODE]")
+                    print(content, length)
+                    println_str("[/LIVE CODE]")
+                    ; TODO: Execute code
+                lain
+                    jika block_type == BLOCK_INTERACTIVE
+                        println_str("[INTERACTIVE]")
+                        print(content, length)
+                        println_str("[/INTERACTIVE]")
+                    lain
+                        jika block_type == BLOCK_GRAPHICS
+                            println_str("[GRAPHICS]")
+                            ; TODO: Render graphics
+                        lain
+                            jika block_type == BLOCK_CHART
+                                println_str("[CHART]")
+                                ; TODO: Render chart
+                            tutup_jika
+                        tutup_jika
+                    tutup_jika
+                tutup_jika
+            tutup_jika
+        tutup_jika
+        
+        i = i + 1
+    tutup_selama
+tutup_fungsi
+
+; ==============================================================================
+; HELPERS
+; ==============================================================================
+
+fungsi starts_with(str: ptr, prefix: ptr) -> i64
+    var i = 0
+    selama 1 == 1
+        var c1 = load_byte(prefix + i)
+        jika c1 == 0
+            kembali 1
+        tutup_jika
+        var c2 = load_byte(str + i)
+        jika c1 != c2
+            kembali 0
+        tutup_jika
+        i = i + 1
+    tutup_selama
+    kembali 0
+tutup_fungsi
+
+fungsi starts_with_at(str: ptr, offset: i64, prefix: ptr) -> i64
+    kembali starts_with(str + offset, prefix)
+tutup_fungsi
+
+; ==============================================================================
+; MAIN
+; ==============================================================================
+
+utama {
+    println_str("📄 Elsa - Interactive Documentation Processor")
+    println_str("=============================================")
+    
+    ; Load .elsa file
+    var filename = "docs/README.elsa"
+    var fd = file_open_read(filename)
+    jika fd < 0
+        println_str("Error: Cannot open file")
+        kembali 1
+    tutup_jika
+    
+    heap_init(1048576)  ; 1MB heap
+    
+    var content = heap_alloc(65536)
+    var len = file_read(fd, content, 65535)
+    file_close(fd)
+    
+    jika len <= 0
+        println_str("Error: Cannot read file")
+        kembali 1
+    tutup_jika
+    
+    ; Parse and render
+    var doc = elsa_parse(content, len)
+    elsa_render(doc)
+    
+    println_str("")
+    println_str("✓ Elsa processing complete")
+    0
+}

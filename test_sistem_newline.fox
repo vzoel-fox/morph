@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "test\n", 5
+    0
+}

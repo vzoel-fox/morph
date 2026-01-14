@@ -1,0 +1,4 @@
+utama {
+    sistem 1, 1, "Before kembali\n", 15
+    kembali 0
+}

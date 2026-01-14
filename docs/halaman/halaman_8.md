@@ -1,7 +1,7 @@
 # Halaman 8: Infinite Registers, Bytecode as Glue & SSOT Purity
 
 **Status:** Stabil / Terimplementasi
-**Versi:** MorphFox VM v0.5
+**Versi:** Morph VM v0.5
 
 Dokumen ini merangkum pencapaian arsitektur dalam mewujudkan mesin RPN yang Turing-Complete, sadar konteks (Context Aware), dan memiliki paritas penuh antar platform (Windows & Linux).
 

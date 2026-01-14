@@ -1,0 +1,5 @@
+; Test self-hosting compiler without imports
+utama {
+    sistem 1, 1, "Self-hosting test\n", 18
+    0
+}

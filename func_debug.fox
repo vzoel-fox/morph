@@ -1,0 +1,8 @@
+fungsi test_func() -> i64
+    1
+tutup_fungsi
+
+utama {
+    var x = test_func()
+    0
+}

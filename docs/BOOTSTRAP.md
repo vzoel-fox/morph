@@ -2,7 +2,7 @@
 
 ## Overview
 
-MorphFox compiler menggunakan **classical bootstrap strategy** yang umum digunakan dalam pengembangan compiler modern (seperti Rust, Go, Zig).
+Morph compiler menggunakan **classical bootstrap strategy** yang umum digunakan dalam pengembangan compiler modern (seperti Rust, Go, Zig).
 
 ## Timeline & Phases
 
@@ -19,7 +19,7 @@ MorphFox compiler menggunakan **classical bootstrap strategy** yang umum digunak
 - ✅ Runtime/Executor (Assembly) - Stack VM
 - ✅ Memory Allocator (Assembly) - Custom allocator with page management
 - ✅ Platform Abstraction (Assembly) - Linux/Windows/WASM support
-- ✅ Core Library (MorphFox) - Types, builtins, standard library
+- ✅ Core Library (Morph) - Types, builtins, standard library
 
 #### Binary Artifacts:
 ```
@@ -43,14 +43,14 @@ bin/morph_merged.wat    # 18KB - WebAssembly
 
 **Repository**: [morph](https://github.com/vzoel-fox/morph)
 **Status**: Planning / Not Started
-**Goal**: Rewrite compiler in MorphFox itself
+**Goal**: Rewrite compiler in Morph itself
 
 #### What will be built:
 ```
 src/
-├── lexer.fox           # Tokenizer written in MorphFox
-├── parser.fox          # Parser written in MorphFox
-├── codegen.fox         # Code generator written in MorphFox
+├── lexer.fox           # Tokenizer written in Morph
+├── parser.fox          # Parser written in Morph
+├── codegen.fox         # Code generator written in Morph
 ├── runtime.fox         # Runtime utilities
 ├── main.fox            # Entry point
 └── utils/
@@ -150,7 +150,7 @@ Many successful languages used this approach:
 | **PyPy** | Python + RPython | 2007 |
 | **Zig** | C++ | Not yet (planned) |
 
-**MorphFox Strategy**: Assembly → MorphFox (Current plan)
+**Morph Strategy**: Assembly → Morph (Current plan)
 
 ## Next Steps
 
@@ -163,9 +163,9 @@ Many successful languages used this approach:
 
 ### Short-term (Phase 2 Start):
 1. [ ] Design self-hosting compiler architecture
-2. [ ] Write lexer in MorphFox
-3. [ ] Write parser in MorphFox
-4. [ ] Write code generator in MorphFox
+2. [ ] Write lexer in Morph
+3. [ ] Write parser in Morph
+4. [ ] Write code generator in Morph
 
 ### Long-term (Phase 3):
 1. [ ] Achieve dog-fooding (compile itself)

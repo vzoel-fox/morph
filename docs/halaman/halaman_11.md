@@ -37,7 +37,7 @@ scheduler_exit_current:
 
 ## 2. Snapshot Recovery (Pemulihan Presisi)
 
-Sistem snapshot sebelumnya hanya menyimpan *isi* memori, tapi tidak *lokasi* (alamat) memori. Karena MorphFox menggunakan Raw Pointers (bukan handle), memuat data ke alamat yang berbeda akan merusak semua pointer (Linked List, String, Struct).
+Sistem snapshot sebelumnya hanya menyimpan *isi* memori, tapi tidak *lokasi* (alamat) memori. Karena Morph menggunakan Raw Pointers (bukan handle), memuat data ke alamat yang berbeda akan merusak semua pointer (Linked List, String, Struct).
 
 ### Format Snapshot Baru
 Setiap Page dalam file dump sekarang memiliki format:

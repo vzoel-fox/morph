@@ -1,0 +1,145 @@
+; ==============================================================================
+; STAR - Config Runner & Process Spawner
+; ==============================================================================
+; Usage:
+;   star spawn data.fall    - Spawn process dengan config
+;   star run script.fox     - Run script dengan config
+;   star env data.fall      - Load environment dari config
+;
+; .fall format:
+;   key: value
+;   # comment
+
+ambil "corelib/lib/fall.fox"
+ambil "corelib/core/pure_builtins.fox"
+
+; Commands
+const CMD_SPAWN = 1
+const CMD_RUN = 2
+const CMD_ENV = 3
+const CMD_HELP = 4
+
+utama {
+    ; Parse command line args
+    ; For now, hardcoded demo
+    println_str("⭐ Star - MorphFox Config Runner")
+    println_str("================================")
+    
+    ; Load config
+    var config = fall_load("data.fall")
+    jika config == 0
+        println_str("Error: Cannot load data.fall")
+        kembali 1
+    tutup_jika
+    
+    println_str("Config loaded:")
+    
+    ; Print config values
+    var app_name = fall_get(config, "app_name")
+    jika app_name != 0
+        print("  app_name: ", 12)
+        println_str(app_name)
+    tutup_jika
+    
+    var version = fall_get(config, "version")
+    jika version != 0
+        print("  version: ", 11)
+        println_str(version)
+    tutup_jika
+    
+    var database = fall_get(config, "database")
+    jika database != 0
+        print("  database: ", 12)
+        println_str(database)
+    tutup_jika
+    
+    println_str("")
+    println_str("✓ Star ready")
+    0
+}
+
+; ==============================================================================
+; SPAWN PROCESS
+; ==============================================================================
+
+fungsi star_spawn(config_file: ptr, script: ptr) -> i64
+    ; Load config
+    var config = fall_load(config_file)
+    jika config == 0
+        println_str("Error: Cannot load config")
+        kembali -1
+    tutup_jika
+    
+    ; Set environment from config
+    ; TODO: Implement setenv via syscall
+    
+    ; Fork and exec
+    ; syscall 57 = fork
+    var pid = sistem 57
+    
+    jika pid == 0
+        ; Child process - exec script
+        ; syscall 59 = execve
+        ; For now, just run morph
+        println_str("[Star] Child process started")
+        kembali 0
+    tutup_jika
+    
+    jika pid > 0
+        ; Parent process
+        print("[Star] Spawned PID: ", 20)
+        print_num(pid)
+        println_str("")
+        kembali pid
+    tutup_jika
+    
+    ; Fork failed
+    println_str("[Star] Fork failed")
+    kembali -1
+tutup_fungsi
+
+; ==============================================================================
+; RUN WITH CONFIG
+; ==============================================================================
+
+fungsi star_run(config_file: ptr, script: ptr) -> i64
+    ; Load config
+    var config = fall_load(config_file)
+    jika config == 0
+        println_str("Error: Cannot load config")
+        kembali -1
+    tutup_jika
+    
+    ; Get script path from config or use provided
+    var target = script
+    jika target == 0
+        target = fall_get(config, "main")
+    tutup_jika
+    
+    jika target == 0
+        println_str("Error: No script specified")
+        kembali -1
+    tutup_jika
+    
+    print("[Star] Running: ", 16)
+    println_str(target)
+    
+    ; Execute via morph
+    ; TODO: Call morph compiler/runner
+    
+    kembali 0
+tutup_fungsi
+
+; ==============================================================================
+; LOAD ENVIRONMENT
+; ==============================================================================
+
+fungsi star_env(config_file: ptr) -> i64
+    var config = fall_load(config_file)
+    jika config == 0
+        kembali -1
+    tutup_jika
+    
+    println_str("Environment loaded from config")
+    kembali 0
+tutup_fungsi

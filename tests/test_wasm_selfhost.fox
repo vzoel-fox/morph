@@ -70,15 +70,15 @@ fungsi test_html_compilation() -> i64
 tutup_fungsi
 
 fungsi test_morph_syntax_compilation() -> i64
-  var msg1 = "Test 3: MorphFox Syntax Compilation\n"
+  var msg1 = "Test 3: Morph Syntax Compilation\n"
   print(msg1, 37)
   
-  ; Test MorphFox syntax with DOM operations
-  var morph_source = "__mf_dom_create(\"div\")\n__mf_dom_set_text(\"MorphFox Compiled\")\n__mf_dom_append(1)"
+  ; Test Morph syntax with DOM operations
+  var morph_source = "__mf_dom_create(\"div\")\n__mf_dom_set_text(\"Morph Compiled\")\n__mf_dom_append(1)"
   var bytecode = wasm_compile_morph_syntax(morph_source, 70)
   
   jika (bytecode != 0)
-    var ok1 = "✓ MorphFox syntax compiled to bytecode\n"
+    var ok1 = "✓ Morph syntax compiled to bytecode\n"
     print(ok1, 39)
     
     var bytecode_size = rpn_get_program_size()
@@ -88,7 +88,7 @@ fungsi test_morph_syntax_compilation() -> i64
     var ok3 = " RPN instructions\n"
     print(ok3, 18)
   lain
-    var err1 = "✗ MorphFox syntax compilation failed\n"
+    var err1 = "✗ Morph syntax compilation failed\n"
     print(err1, 38)
     kembali 1
   tutup_jika
@@ -106,7 +106,7 @@ fungsi utama() -> i64
   rpn_init(2048)
   
   var version = stdlib_version()
-  var init_msg = "MorphFox Stdlib v"
+  var init_msg = "Morph Stdlib v"
   print(init_msg, 17)
   __mf_print_int(version)
   var newline = "\n"
@@ -139,7 +139,7 @@ fungsi utama() -> i64
   print(f1, 34)
   var f2 = "  • HTML parser with CSS styling\n"
   print(f2, 33)
-  var f3 = "  • MorphFox syntax compilation\n"
+  var f3 = "  • Morph syntax compilation\n"
   print(f3, 32)
   var f4 = "  • RPN bytecode generation\n"
   print(f4, 28)
