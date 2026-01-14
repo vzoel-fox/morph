@@ -1,0 +1,41 @@
+; ==============================================================================
+; AUDIT BRAINLIB - Logic Check No Print
+; ==============================================================================
+fungsi __mf_mem_alloc(size: i64) -> ptr
+fungsi __mf_mem_free(ptr: ptr, size: i64) -> void
+fungsi __mf_poke_i64(addr: ptr, value: i64) -> void
+fungsi __mf_load_i64(addr: ptr) -> i64
+fungsi __mf_poke_byte(addr: ptr, value: i64) -> void
+fungsi __mf_load_byte(addr: ptr) -> i64
+fungsi __mf_memcpy(dest: ptr, src: ptr, size: i64) -> ptr
+
+ambil "brainlib/string.fox"
+ambil "brainlib/vector.fox"
+ambil "brainlib/hashmap.fox"
+
+fungsi utama()
+    var errors = 0
+
+    var s1 = string_new("Hello", 5)
+    jika string_length(s1) != 5
+       errors = errors + 1
+    tutup_jika
+
+    var vec = vector_new(4)
+    vector_push(vec, 100)
+    jika vector_get(vec, 0) != 100
+       errors = errors + 1
+    tutup_jika
+
+    var map = hashmap_new()
+    hashmap_insert(map, 123, 456)
+    jika hashmap_get(map, 123) != 456
+       errors = errors + 1
+    tutup_jika
+
+    jika errors == 0
+       kembali 100
+    lain
+       kembali errors
+    tutup_jika
+tutup_fungsi
