@@ -79,7 +79,13 @@ tutup_fungsi
 
 fungsi is_source_file(filename: ptr) -> i64
   var ext = get_file_extension(filename)
-  kembali (ext == EXT_FOX) || (ext == EXT_ELSA)
+  jika ext == EXT_FOX
+    kembali 1
+  tutup_jika
+  jika ext == EXT_ELSA
+    kembali 1
+  tutup_jika
+  kembali 0
 tutup_fungsi
 
 fungsi is_binary_file(filename: ptr) -> i64

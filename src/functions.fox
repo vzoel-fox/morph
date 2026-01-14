@@ -3,7 +3,7 @@
 ; ==============================================================================
 ; Function definition, calls, arguments, return values
 
-ambil "codegen.fox"
+; ambil "codegen.fox"
 
 ; Function table
 var __func_table = 0
@@ -144,7 +144,7 @@ tutup_fungsi
 fungsi gen_return(gen: ptr, value: ptr) -> i64
   jika value != 0
     codegen_expr(gen, value)
-  selain
+  lain
     codegen_emit(gen, OP_LIT, 0)
   tutup_jika
   

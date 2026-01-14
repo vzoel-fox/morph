@@ -3,7 +3,7 @@
 ; ==============================================================================
 ; Full control flow support: if/else, while, for, switch, break, continue
 
-ambil "codegen.fox"
+; ambil "codegen.fox"
 
 ; Control flow context for nested loops
 const CF_TYPE = 0

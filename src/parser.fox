@@ -4,7 +4,7 @@
 ; Recursive descent parser: token stream -> AST
 ; Supports .fox and .elsa source formats
 
-ambil "corelib/core/lexer.fox"
+; ambil "lexer.fox"
 ambil "file_extensions.fox"
 ambil "stripe_protection.fox"
 
@@ -56,7 +56,10 @@ fungsi parser_new_with_file(source: ptr, length: i64, filename: ptr) -> ptr
 tutup_fungsi
 
 fungsi parser_set_file(p: ptr, filename: ptr) -> i64
-  jika p == 0 || filename == 0
+  jika p == 0
+    kembali 0
+  tutup_jika
+  jika filename == 0
     kembali 0
   tutup_jika
   
@@ -275,6 +278,50 @@ fungsi parse_add(p: ptr) -> ptr
   kembali left
 tutup_fungsi
 
+fungsi parse_and(p: ptr) -> ptr
+  var left = parse_cmp(p)
+  selama 1 == 1
+    var tok = parser_current(p)
+    jika token_type(tok) != TOKEN_OPERATOR
+      kembali left
+    tutup_jika
+    var op = token_value(tok)
+    jika op == 261 ; &&
+      parser_advance(p)
+      var node = ast_new(AST_BINARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, left)
+      __mf_poke_i64(node + AST_DATA3, parse_cmp(p))
+      left = node
+    lain
+      kembali left
+    tutup_jika
+  tutup_selama
+  kembali left
+tutup_fungsi
+
+fungsi parse_or(p: ptr) -> ptr
+  var left = parse_and(p)
+  selama 1 == 1
+    var tok = parser_current(p)
+    jika token_type(tok) != TOKEN_OPERATOR
+      kembali left
+    tutup_jika
+    var op = token_value(tok)
+    jika op == 262 ; ||
+      parser_advance(p)
+      var node = ast_new(AST_BINARY)
+      __mf_poke_i64(node + AST_DATA1, op)
+      __mf_poke_i64(node + AST_DATA2, left)
+      __mf_poke_i64(node + AST_DATA3, parse_and(p))
+      left = node
+    lain
+      kembali left
+    tutup_jika
+  tutup_selama
+  kembali left
+tutup_fungsi
+
 fungsi parse_cmp(p: ptr) -> ptr
   var left = parse_add(p)
   var tok = parser_current(p)
@@ -334,7 +381,7 @@ fungsi parse_cmp(p: ptr) -> ptr
 tutup_fungsi
 
 fungsi parse_expr(p: ptr) -> ptr
-  kembali parse_cmp(p)
+  kembali parse_or(p)
 tutup_fungsi
 
 fungsi parse_var_decl(p: ptr) -> ptr
