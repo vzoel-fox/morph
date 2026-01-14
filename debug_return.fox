@@ -1,4 +1,0 @@
-utama {
-    var x = 42
-    kembali x
-}

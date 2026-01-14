@@ -3,6 +3,9 @@
 ; ==============================================================================
 ; Hash table with separate chaining, DJB2 hash
 
+ambil "brainlib/memory.fox"
+ambil "brainlib/string.fox"
+
 const HASHMAP_SIZE = 0
 const HASHMAP_CAP = 8
 const HASHMAP_BUCKETS = 16
@@ -13,8 +16,15 @@ const NODE_SIZE = 24
 
 fungsi hashmap_new() -> ptr
   var cap = 16
-  var map = __mf_mem_alloc(24)
-  var buckets = __mf_mem_alloc(cap * 8)
+  var map = mem_alloc(24)
+  jika map == 0
+    kembali 0
+  tutup_jika
+  var buckets = mem_alloc(cap * 8)
+  jika buckets == 0
+    mem_free(map, 24)
+    kembali 0
+  tutup_jika
   var i = 0
   selama i < cap
     __mf_poke_i64(buckets + i * 8, 0)
@@ -26,15 +36,8 @@ fungsi hashmap_new() -> ptr
   kembali map
 tutup_fungsi
 
-fungsi hashmap_hash(key: i64) -> i64
-  var hash = 5381
-  var i = 0
-  selama i < 8
-    hash = ((hash * 33) ^ (key & 255)) & 0x7FFFFFFFFFFFFFFF
-    key = key / 256
-    i = i + 1
-  tutup_selama
-  kembali hash
+fungsi hashmap_hash(key: ptr) -> i64
+  kembali string_hash(key)
 tutup_fungsi
 
 fungsi hashmap_size(map: ptr) -> i64
@@ -44,34 +47,48 @@ fungsi hashmap_size(map: ptr) -> i64
   kembali __mf_load_i64(map + HASHMAP_SIZE)
 tutup_fungsi
 
-fungsi hashmap_insert(map: ptr, key: i64, value: i64) -> i64
+fungsi hashmap_insert(map: ptr, key: ptr, value: i64) -> i64
   var cap = __mf_load_i64(map + HASHMAP_CAP)
   var index = hashmap_hash(key) % cap
   var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
   var node = __mf_load_i64(buckets + index * 8)
   selama node != 0
-    jika __mf_load_i64(node + NODE_KEY) == key
+    var node_key = __mf_load_i64(node + NODE_KEY)
+    jika string_equals(node_key, key) == 1
       __mf_poke_i64(node + NODE_VALUE, value)
       kembali 0
     tutup_jika
     node = __mf_load_i64(node + NODE_NEXT)
   tutup_selama
-  var new_node = __mf_mem_alloc(NODE_SIZE)
+
+  var new_node = mem_alloc(NODE_SIZE)
+  jika new_node == 0
+    kembali -1
+  tutup_jika
+
+  ; Deep copy key
+  var key_copy = string_copy(key)
+  jika key_copy == 0
+    mem_free(new_node, NODE_SIZE)
+    kembali -1
+  tutup_jika
+
   __mf_poke_i64(new_node + NODE_NEXT, __mf_load_i64(buckets + index * 8))
-  __mf_poke_i64(new_node + NODE_KEY, key)
+  __mf_poke_i64(new_node + NODE_KEY, key_copy)
   __mf_poke_i64(new_node + NODE_VALUE, value)
   __mf_poke_i64(buckets + index * 8, new_node)
   __mf_poke_i64(map + HASHMAP_SIZE, __mf_load_i64(map + HASHMAP_SIZE) + 1)
   kembali 1
 tutup_fungsi
 
-fungsi hashmap_get(map: ptr, key: i64) -> i64
+fungsi hashmap_get(map: ptr, key: ptr) -> i64
   var cap = __mf_load_i64(map + HASHMAP_CAP)
   var index = hashmap_hash(key) % cap
   var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
   var node = __mf_load_i64(buckets + index * 8)
   selama node != 0
-    jika __mf_load_i64(node + NODE_KEY) == key
+    var node_key = __mf_load_i64(node + NODE_KEY)
+    jika string_equals(node_key, key) == 1
       kembali __mf_load_i64(node + NODE_VALUE)
     tutup_jika
     node = __mf_load_i64(node + NODE_NEXT)
@@ -79,13 +96,14 @@ fungsi hashmap_get(map: ptr, key: i64) -> i64
   kembali 0
 tutup_fungsi
 
-fungsi hashmap_has(map: ptr, key: i64) -> i64
+fungsi hashmap_has(map: ptr, key: ptr) -> i64
   var cap = __mf_load_i64(map + HASHMAP_CAP)
   var index = hashmap_hash(key) % cap
   var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
   var node = __mf_load_i64(buckets + index * 8)
   selama node != 0
-    jika __mf_load_i64(node + NODE_KEY) == key
+    var node_key = __mf_load_i64(node + NODE_KEY)
+    jika string_equals(node_key, key) == 1
       kembali 1
     tutup_jika
     node = __mf_load_i64(node + NODE_NEXT)
@@ -93,21 +111,23 @@ fungsi hashmap_has(map: ptr, key: i64) -> i64
   kembali 0
 tutup_fungsi
 
-fungsi hashmap_remove(map: ptr, key: i64) -> i64
+fungsi hashmap_remove(map: ptr, key: ptr) -> i64
   var cap = __mf_load_i64(map + HASHMAP_CAP)
   var index = hashmap_hash(key) % cap
   var buckets = __mf_load_i64(map + HASHMAP_BUCKETS)
   var prev = 0
   var node = __mf_load_i64(buckets + index * 8)
   selama node != 0
-    jika __mf_load_i64(node + NODE_KEY) == key
+    var node_key = __mf_load_i64(node + NODE_KEY)
+    jika string_equals(node_key, key) == 1
       var next = __mf_load_i64(node + NODE_NEXT)
       jika prev == 0
         __mf_poke_i64(buckets + index * 8, next)
       lain
         __mf_poke_i64(prev + NODE_NEXT, next)
       tutup_jika
-      __mf_mem_free(node)
+      string_free(node_key)
+      mem_free(node, NODE_SIZE)
       __mf_poke_i64(map + HASHMAP_SIZE, __mf_load_i64(map + HASHMAP_SIZE) - 1)
       kembali 1
     tutup_jika
@@ -125,7 +145,9 @@ fungsi hashmap_clear(map: ptr) -> i64
     var node = __mf_load_i64(buckets + i * 8)
     selama node != 0
       var next = __mf_load_i64(node + NODE_NEXT)
-      __mf_mem_free(node)
+      var key = __mf_load_i64(node + NODE_KEY)
+      string_free(key)
+      mem_free(node, NODE_SIZE)
       node = next
     tutup_selama
     __mf_poke_i64(buckets + i * 8, 0)
@@ -140,7 +162,7 @@ fungsi hashmap_free(map: ptr) -> i64
     kembali 0
   tutup_jika
   hashmap_clear(map)
-  __mf_mem_free(__mf_load_i64(map + HASHMAP_BUCKETS))
-  __mf_mem_free(map)
+  mem_free(__mf_load_i64(map + HASHMAP_BUCKETS), __mf_load_i64(map + HASHMAP_CAP) * 8)
+  mem_free(map, 24)
   kembali 1
 tutup_fungsi

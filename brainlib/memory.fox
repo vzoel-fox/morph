@@ -1,0 +1,58 @@
+; ==============================================================================
+; BRAINLIB MEMORY - Central Memory Management
+; ==============================================================================
+; Implements fallback allocator using MMAP syscall for bootstrap environments
+; where builtins might be unresolved.
+
+; PROT_READ|PROT_WRITE = 3
+const MEM_PROT_RW = 3
+; MAP_PRIVATE|MAP_ANONYMOUS = 34 (0x22)
+const MEM_FLAGS_PRIVATE_ANON = 34
+
+; Syscall Numbers (Linux x86_64)
+const SYS_MMAP = 9
+const SYS_MUNMAP = 11
+
+fungsi mem_alloc(size: i64) -> ptr
+  ; Round up to page size (4096) for mmap efficiency/correctness
+  var page_size = 4096
+  var alloc_size = size
+  jika alloc_size < page_size
+    alloc_size = page_size
+  tutup_jika
+
+  ; Try syscall mmap
+  var ptr = sistem SYS_MMAP, 0, alloc_size, MEM_PROT_RW, MEM_FLAGS_PRIVATE_ANON, -1, 0
+
+  ; Check error (negative value)
+  jika ptr <= 0
+    kembali 0
+  tutup_jika
+
+  kembali ptr
+tutup_fungsi
+
+fungsi mem_free(ptr: ptr, size: i64) -> void
+  jika ptr == 0
+    kembali
+  tutup_jika
+
+  ; Round up to page size
+  var page_size = 4096
+  var alloc_size = size
+  jika alloc_size < page_size
+    alloc_size = page_size
+  tutup_jika
+
+  sistem SYS_MUNMAP, ptr, alloc_size
+tutup_fungsi
+
+; Fallback memcpy implementation in case builtin is missing
+fungsi mem_copy(dest: ptr, src: ptr, size: i64) -> ptr
+  var i = 0
+  selama i < size
+    __mf_poke_byte(dest + i, __mf_load_byte(src + i))
+    i = i + 1
+  tutup_selama
+  kembali dest
+tutup_fungsi

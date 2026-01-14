@@ -1,0 +1,30 @@
+ambil "src/lexer_brain.fox"
+
+fungsi utama()
+    var code = "var x = 10"
+    var lex = lexer_new(code, 10)
+    jika lex == 0
+       sistem 1, 1, "Lexer alloc failed\n", 19
+       kembali 1
+    tutup_jika
+
+    var tok = lexer_next(lex)
+    jika tok == 0
+        sistem 1, 1, "Token alloc failed\n", 19
+        kembali 1
+    tutup_jika
+
+    ; Should be KW_VAR (3)
+    jika token_type(tok) != 4 ; TOKEN_KEYWORD
+        sistem 1, 1, "Not keyword\n", 12
+        kembali 1
+    tutup_jika
+
+    jika token_value(tok) != 3 ; KW_VAR
+        sistem 1, 1, "Not var\n", 8
+        kembali 1
+    tutup_jika
+
+    sistem 1, 1, "Lexer OK\n", 9
+    kembali 0
+tutup_fungsi

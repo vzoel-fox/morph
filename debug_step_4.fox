@@ -1,7 +1,0 @@
-utama {
-    sistem 1, 1, "Step 4: Before jika\n", 20
-    jika 1 == 1
-        sistem 1, 1, "Inside jika\n", 13
-    tutup_jika
-    0
-}
