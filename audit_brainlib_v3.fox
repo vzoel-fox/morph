@@ -1,0 +1,62 @@
+fungsi __mf_mem_alloc(size: i64) -> ptr
+    ; Try brk (syscall 12)
+    ; 1. Get current brk
+    var current_brk = sistem 12, 0
+
+    ; 2. Calc new brk
+    var new_brk = current_brk + size
+
+    ; 3. Set new brk
+    var res = sistem 12, new_brk
+
+    ; If res == new_brk, success
+    jika res == new_brk
+        kembali current_brk
+    tutup_jika
+
+    kembali 0
+tutup_fungsi
+
+fungsi __mf_mem_free(ptr: ptr, size: i64) -> void
+
+fungsi __mf_poke_i64(addr: ptr, value: i64) -> void
+fungsi __mf_load_i64(addr: ptr) -> i64
+fungsi __mf_poke_byte(addr: ptr, value: i64) -> void
+fungsi __mf_load_byte(addr: ptr) -> i64
+fungsi __mf_memcpy(dest: ptr, src: ptr, size: i64) -> ptr
+
+ambil "brainlib/string.fox"
+ambil "brainlib/vector.fox"
+ambil "brainlib/hashmap.fox"
+
+fungsi utama()
+    var s = string_new("Key", 3)
+    jika s == 0
+       kembali 101
+    tutup_jika
+
+    jika string_length(s) != 3
+       kembali 1
+    tutup_jika
+
+    var vec = vector_new(4)
+    jika vec == 0
+       kembali 102
+    tutup_jika
+
+    var map = hashmap_new()
+    jika map == 0
+       kembali 103
+    tutup_jika
+
+    var res = hashmap_insert(map, s, 123)
+    jika res < 0
+       kembali 104
+    tutup_jika
+
+    jika hashmap_get(map, s) != 123
+       kembali 3
+    tutup_jika
+
+    kembali 100
+tutup_fungsi
