@@ -243,6 +243,13 @@ fungsi lexer_check_keyword(buf: ptr) -> i64
               tutup_jika
             tutup_jika
           tutup_jika
+          jika __mf_load_byte(buf+4) == 105
+            jika __mf_load_byte(buf+5) == 110
+              jika __mf_load_byte(buf+6) == 0
+                kembali KW_LAIN ; selain -> lain
+              tutup_jika
+            tutup_jika
+          tutup_jika
         tutup_jika
       tutup_jika
     tutup_jika
@@ -409,6 +416,22 @@ fungsi lexer_next(lex: ptr) -> ptr
   jika ch == 37
     lexer_advance(lex)
     kembali lexer_make_token(TOKEN_OPERATOR, 37, line, col)
+  tutup_jika
+  jika ch == 38
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 38
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 261, line, col) ; &&
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 38, line, col)
+  tutup_jika
+  jika ch == 124
+    lexer_advance(lex)
+    jika lexer_peek(lex) == 124
+      lexer_advance(lex)
+      kembali lexer_make_token(TOKEN_OPERATOR, 262, line, col) ; ||
+    tutup_jika
+    kembali lexer_make_token(TOKEN_OPERATOR, 124, line, col)
   tutup_jika
   lexer_advance(lex)
   kembali lexer_make_token(TOKEN_OPERATOR, ch, line, col)
